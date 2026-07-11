@@ -1,0 +1,6 @@
+packages:
+  - 'packages/*'
+# pnpm 11 requires explicit opt-in for transitive postinstall scripts.
+#   esbuild — fetches per-platform native bundler binary (vite/vitest)
+allowBuilds:
+  esbuild: true
