@@ -43,8 +43,10 @@ shaking, are not needed).
    declaration maps and source maps into `dist/`, keeping `jsx: react-jsx`.
    The source already imports relative files with a `.js` suffix, so the
    output is valid for Node ESM and for webpack's fully-specified resolution.
-2. **Scripts:** `build` becomes `tsc && tsc -p tsconfig.build.json`. The first
-   half is today's check, which includes tests; the second emits.
+2. **Scripts:** in optio, whose `tsconfig.json` includes tests, `build`
+   becomes `tsc && tsc -p tsconfig.build.json`: the first half is today's
+   check, including tests; the second emits. In unitas, `tsconfig.json`
+   already excludes tests, so `build` is `tsc -p tsconfig.build.json` alone.
    `prepack: pnpm run build` guarantees that every `pnpm pack` or
    `pnpm publish`, including a manual one, ships a fresh `dist/`.
 3. **`publishConfig`** maps `main` to `dist/index.js`, `types` to
