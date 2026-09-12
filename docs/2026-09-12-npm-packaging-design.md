@@ -43,23 +43,46 @@ shaking, are not needed).
    declaration maps and source maps into `dist/`, keeping `jsx: react-jsx`.
    The source already imports relative files with a `.js` suffix, so the
    output is valid for Node ESM and for webpack's fully-specified resolution.
-2. **Scripts:** in optio, whose `tsconfig.json` includes tests, `build`
-   becomes `tsc && tsc -p tsconfig.build.json`: the first half is today's
-   check, including tests; the second emits. In unitas, `tsconfig.json`
-   already excludes tests, so `build` is `tsc -p tsconfig.build.json` alone.
-   `prepack: pnpm run build` guarantees that every `pnpm pack` or
-   `pnpm publish`, including a manual one, ships a fresh `dist/`.
+2. **Scripts:** every package's `build` clears `dist/` first
+   (`rm -rf dist && ...`), because `tsc` does not remove output for a source
+   file that was renamed or deleted -- without the clear, a stale compiled
+   module could ship in the tarball alongside the current ones. In optio,
+   whose `tsconfig.json` includes tests, `build` becomes
+   `rm -rf dist && tsc && tsc -p tsconfig.build.json`: the first `tsc` is
+   today's check, including tests; the second emits. In unitas,
+   `tsconfig.json` already excludes tests, so `build` is
+   `rm -rf dist && tsc -p tsconfig.build.json`. `prepack: pnpm run build`
+   guarantees that every `pnpm pack` or `pnpm publish`, including a manual
+   one, ships a fresh `dist/`.
 3. **`publishConfig`** maps `main` to `dist/index.js`, `types` to
    `dist/index.d.ts`, and every `exports` subpath to
-   `{ "types": "./dist/<name>.d.ts", "import": "./dist/<name>.js" }`.
+   `{ "types": "./dist/<name>.d.ts", "import": "./dist/<name>.js", "default": "./dist/<name>.js" }`.
    For example, vultus-antd's `./markdown` maps to `dist/Markdown.*` and
-   vultus-core's `./link` to `dist/LinkContext.*`.
+   vultus-core's `./link` to `dist/LinkContext.*`. The `default` condition
+   (after `types` and `import`) is what lets `require("pkg")` resolve --
+   Node 22+'s `require(esm)` and Jest's CJS mode both hit it -- instead of
+   failing with `ERR_PACKAGE_PATH_NOT_EXPORTED`, since without it there is no
+   condition for a `require` call to match. Both the repository `exports` and
+   `publishConfig.exports` also add a `"./package.json": "./package.json"`
+   entry, so tooling that reads a package's own `package.json` through its
+   own export map (a common Node/bundler pattern) keeps working.
 4. **`files`** lists `dist` and `src` (tests excluded, as today) plus the
    README. `src` stays so declaration maps and source maps resolve to real
    source ("go to definition" lands in TypeScript, not in `.d.ts`).
 5. **unitas only:** the `repository` field points at `deai-network/unitas`
    (today it names the optio repository), and `publishConfig.access` is
    `public`.
+6. **Sibling dependencies** (a package in the same repo depending on another
+   one that is also published from here, such as vultus-antd on vultus-core)
+   use `workspace:^`, not `workspace:*`. pnpm rewrites `workspace:^` to
+   `^<version>` in the published manifest -- a compatible range -- instead of
+   the exact version `workspace:*` produces. A registry install can then
+   satisfy both siblings' dependency on the shared package with one copy; an
+   exact-version dependency would pin a consumer that also depends on the
+   shared package directly to whatever version was current at publish time,
+   and a later patch release of the shared package alone would force two
+   installed copies (and, for a package exporting React context, two context
+   instances).
 
 Unchanged: the side-effect import `katex/dist/katex.min.css` in
 optio-conversation-ui stays in the compiled output. Consumers still need a

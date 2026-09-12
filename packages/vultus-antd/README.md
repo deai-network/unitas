@@ -1,14 +1,36 @@
-# vultus
+# vultus-antd
 
-Library-shaped subtree. v0 incubation site for a future `@yourorg/vultus-*` set of packages.
+Ant Design action-button and markdown components for vultus. Depends on and
+re-exports `vultus-core`, adding the Ant Design bindings for its injection
+seams (`antd.message` for `MessageSinkContext`, Ant Design's `Form` for the
+`FormLike` interface, and so on).
 
-## Two strict rules (ESLint-enforced)
+## Install
 
-1. **No imports from excavator-specific code** inside `vultus/`. No `@excavator/contracts`, no `shared/api/error-routes`, no i18n keys. The subtree is parameterized via generics; consumers (`shared/hooks/*`) wire excavator types in.
-2. **No business logic** in `vultus/`. Only descriptor types, builder hooks, and rendering primitives.
+```sh
+npm install vultus-antd
+```
 
-ESLint guards both rules via `no-restricted-imports` patterns applied to files under `vultus/`.
+## Peer dependencies
 
-## When extracted
+- `antd` >=5
+- `react` >=18
+- `react-dom` >=18
+- `react-i18next` >=15
 
-The migration to `@yourorg/vultus-core` + `@yourorg/vultus-antd` packages is a module move + import-path rewrite at consumer sites — no design changes inside vultus, no call-site rewrites in pages. See `docs/vultus-library-seed.md`.
+## Entry points
+
+- `.` — re-exports all of `vultus-core`, plus `VultusProvider`,
+  `ActionButton`, `CombinedActionButton`, `FormSubmitButton`, `FormPanel`,
+  and `ConfirmTypingModal`.
+- `./markdown` — `Markdown` and the `MarkdownProps` type, standalone.
+
+## Distribution
+
+This package ships compiled ESM (`dist/`) with TypeScript declarations to
+npm; the repository's own `exports` field resolves `src/` directly for
+workspace consumers.
+
+## License
+
+Apache-2.0

@@ -47,7 +47,7 @@ const pkg = JSON.parse(execSync(`tar -xOzf ${tgz} package/package.json`).toStrin
 const targets = [pkg.main, pkg.types, ...Object.values(pkg.exports ?? {}).flatMap((e) => (typeof e === 'string' ? [e] : Object.values(e)))]
   .filter(Boolean).map((t) => t.replace(/^\.\//, ''));
 const missing = targets.filter((t) => !files.includes(t));
-const notDist = targets.filter((t) => !t.startsWith('dist/'));
+const notDist = targets.filter((t) => !t.startsWith('dist/') && t !== 'package.json');
 const tests = files.filter((f) => /__tests__|\.test\./.test(f));
 console.log(JSON.stringify({ tgz, version: pkg.version, dependencies: pkg.dependencies ?? {}, targets, missing, notDist, tests }));
 if (missing.length || notDist.length || tests.length) { console.log('PACK CHECK FAILED'); process.exit(1); }
@@ -345,10 +345,31 @@ Expected: `git status --short` prints nothing (`dist/` is gitignored; the tarbal
 
 ## Release (not part of this plan's execution)
 
-With the owner's go, in dependency order, from `excavator:~/deai/unitas` after the branch is merged:
+**Do not run `pnpm run <script>` or `pnpm test` directly in `~/deai/unitas`.** unitas pins
+pnpm 11.1.1, so either command re-installs the workspace and relinks the per-package
+`node_modules` that optio and excavator resolve through. Use `node_modules/.bin/tsc` /
+`node_modules/.bin/vitest` inside each package, and `pnpm publish` (its `prepack`
+lifecycle does not trigger the reinstall) for the actual publish step.
 
-```bash
-cd packages/vultus-core && pnpm publish && cd ../vultus-antd && pnpm publish
-```
+With the owner's go, in this order, from `excavator:~/deai/unitas`:
 
-`prepack` rebuilds `dist/` for each; `publishConfig.access` is `public`. Then push `main` and tag `vultus-core@0.1.1` / `vultus-antd@0.1.1` as the owner prefers.
+a. Merge the branch into `main` and push `main` first, so the published package records
+   a commit that is on GitHub.
+b. `npm whoami` -- log in with `npm login` if it fails; expect a 2FA one-time code.
+c. Dry run for both packages, e.g. `pnpm publish --dry-run` from each package directory,
+   or `packcheck vultus-core` / `packcheck vultus-antd`.
+d. Publish `vultus-core`:
+   ```bash
+   cd packages/vultus-core && pnpm publish
+   ```
+   Then confirm with `npm view vultus-core@0.1.1`.
+e. Publish `vultus-antd`:
+   ```bash
+   cd ../vultus-antd && pnpm publish
+   ```
+f. Tag `vultus-core@0.1.1` and `vultus-antd@0.1.1`, and push the tags.
+g. Confirm `packages/*/node_modules/react` still points into `~/deai/optio`'s store --
+   `pnpm publish` should not touch `node_modules`, but check before anyone runs
+   `pnpm install` in optio again.
+
+`prepack` rebuilds `dist/` for each; `publishConfig.access` is `public`.
