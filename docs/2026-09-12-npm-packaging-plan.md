@@ -149,7 +149,7 @@ grep -c "React.createElement" dist/*.js | grep -v ':0$' || echo "no classic JSX"
 node --input-type=module -e "const m = await import('./dist/index.js'); const l = await import('./dist/LinkContext.js'); console.log(typeof m.useAction, typeof l.useInternalLink)"
 ```
 
-Expected: the first command lists `dist/LinkContext.js` and `dist/MessageSink.js`; the second prints `no classic JSX`; the third prints `function function` (plain Node, no JSX transform).
+Expected: the first command lists `dist/LinkContext.js` (the only source file with JSX; `MessageSink.tsx` only calls `createContext`); the second prints `no classic JSX`; the third prints `function function` (plain Node, no JSX transform).
 
 - [ ] **Step 7: Run the package's tests**
 
