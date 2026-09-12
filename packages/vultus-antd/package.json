@@ -1,17 +1,26 @@
 {
   "name": "vultus-antd",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "Apache-2.0",
   "description": "Ant Design action-button + markdown components for vultus (depends on and re-exports vultus-core)",
-  "repository": { "type": "git", "url": "git+https://github.com/deai-network/optio.git", "directory": "packages/vultus-antd" },
+  "repository": { "type": "git", "url": "git+https://github.com/deai-network/unitas.git", "directory": "packages/vultus-antd" },
   "author": "Kristof Csillag <kristof.csillag@deai-labs.com>",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./markdown": "./src/Markdown.tsx"
   },
-  "files": ["src", "!src/**/__tests__", "!src/**/*.test.ts", "!src/**/*.test.tsx", "README.md"],
-  "scripts": { "build": "tsc", "test": "vitest run" },
+  "files": ["dist", "src", "!src/**/__tests__", "!src/**/*.test.ts", "!src/**/*.test.tsx", "README.md"],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+      "./markdown": { "types": "./dist/Markdown.d.ts", "import": "./dist/Markdown.js" }
+    }
+  },
+  "scripts": { "build": "tsc -p tsconfig.build.json", "prepack": "pnpm run build", "test": "vitest run" },
   "dependencies": {
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
