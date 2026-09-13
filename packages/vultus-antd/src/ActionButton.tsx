@@ -9,9 +9,11 @@ interface Props {
   action: ActionStatus | ActionStatus[];
   size?: 'small' | 'middle' | 'large';
   block?: boolean;
+  // Array form only: forwarded to CombinedActionButton (see there).
+  keepOriginalDefault?: boolean;
 }
 
-export function ActionButton({ action, size, block }: Props) {
+export function ActionButton({ action, size, block, keepOriginalDefault }: Props) {
   // `useState` must be called unconditionally on every render to keep the
   // hook call order stable. The `action` prop can plausibly flip shape
   // across renders, so we cannot guard this hook behind the Array.isArray
@@ -19,7 +21,7 @@ export function ActionButton({ action, size, block }: Props) {
   const [typingOpen, setTypingOpen] = useState(false);
 
   if (Array.isArray(action)) {
-    return <CombinedActionButton actions={action} size={size} />;
+    return <CombinedActionButton actions={action} size={size} keepOriginalDefault={keepOriginalDefault} />;
   }
 
   if (action.invisible) return null;

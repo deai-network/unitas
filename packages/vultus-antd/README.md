@@ -25,6 +25,13 @@ npm install vultus-antd
   and `ConfirmTypingModal`.
 - `./markdown` — `Markdown` and the `MarkdownProps` type, standalone.
 
+## CombinedActionButton selection
+
+By default a menu pick becomes the main action and stays there. Pass
+`keepOriginalDefault` (to `CombinedActionButton`, or to `ActionButton` with an
+array) to return the main half to the first enabled action once the picked
+action fires or its confirmation is dismissed.
+
 ## Distribution
 
 This package ships compiled ESM (`dist/`) with TypeScript declarations to

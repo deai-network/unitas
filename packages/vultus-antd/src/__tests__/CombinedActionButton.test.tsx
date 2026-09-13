@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { App as AntApp, Modal } from 'antd';
 import { ActionButton } from '../ActionButton.js';
+import { CombinedActionButton } from '../CombinedActionButton.js';
 import { makeStatus } from './helpers/makeStatus.js';
 
 function wrap(node: React.ReactNode) {
@@ -301,5 +302,87 @@ describe('ActionButton — combined mode', () => {
     // the active selection — so scope the assertion to the menu rows.)
     expect(goItem.querySelector('[data-testid="icon-a"]')).not.toBeNull();
     expect(delItem.querySelector('[data-testid="icon-b"]')).not.toBeNull();
+  });
+});
+
+describe('ActionButton — combined mode, keepOriginalDefault', () => {
+  afterEach(() => { Modal.destroyAll(); });
+
+  it('a menu pick fires the action and the main half returns to the first enabled action', async () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<ActionButton action={[a, b]} keepOriginalDefault />));
+    fireEvent.click(chevronBtn(container));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'B' }));
+    expect(b.fire).toHaveBeenCalledTimes(1);
+    expect(a.fire).not.toHaveBeenCalled();
+    await waitFor(() => expect(mainBtn(container).textContent).toContain('A'));
+    // The main half fires A again, not the earlier pick.
+    fireEvent.click(mainBtn(container));
+    expect(a.fire).toHaveBeenCalledTimes(1);
+    expect(b.fire).toHaveBeenCalledTimes(1);
+  });
+
+  it('the original default is the first ENABLED action', async () => {
+    const a = makeStatus({ id: 'a', label: 'A', disabled: true });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const c = makeStatus({ id: 'c', label: 'C' });
+    const { container } = render(wrap(<ActionButton action={[a, b, c]} keepOriginalDefault />));
+    expect(mainBtn(container).textContent).toContain('B');
+    fireEvent.click(chevronBtn(container));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'C' }));
+    expect(c.fire).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mainBtn(container).textContent).toContain('B'));
+  });
+
+  it('a popconfirm action picked from the menu fires on OK, then the main half returns', async () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({
+      id: 'b', label: 'Delete', variant: 'danger',
+      confirmation: { kind: 'popconfirm', question: 'Sure?' },
+    });
+    const { container } = render(wrap(<ActionButton action={[a, b]} keepOriginalDefault />));
+    fireEvent.click(chevronBtn(container));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+    expect(await screen.findByText('Sure?')).toBeInTheDocument();
+    expect(b.fire).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /^OK$/i }));
+    await waitFor(() => expect(b.fire).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mainBtn(container).textContent).toContain('A'));
+  });
+
+  it('a typing-confirm action picked from the menu returns to the default when cancelled', async () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({
+      id: 'b', label: 'Delete', variant: 'danger',
+      confirmation: { kind: 'typing', title: 'Delete entity', entityName: 'orders', description: 'Type the name to confirm.' },
+    });
+    const { container } = render(wrap(<ActionButton action={[a, b]} keepOriginalDefault />));
+    fireEvent.click(chevronBtn(container));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+    const dialogTitle = await screen.findByText('Delete entity');
+    expect(dialogTitle).toBeInTheDocument();
+    // Scoped to this typing-confirm dialog (found via its own title, not
+    // role+accessible-name — a stray, not-yet-removed Modal.confirm from an
+    // earlier, unrelated test, whose exit animation outlives
+    // Modal.destroyAll() in afterEach, shares the antd-generated title id
+    // with this dialog, so aria-labelledby-based name lookups collide too).
+    // Its own unlabelled "Cancel" button would otherwise match an unscoped
+    // screen.getByRole alongside this dialog's.
+    const dialog = dialogTitle.closest('.ant-modal') as HTMLElement;
+    expect(dialog).not.toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => expect(mainBtn(container).textContent).toContain('A'));
+    expect(b.fire).not.toHaveBeenCalled();
+  });
+
+  it('CombinedActionButton accepts the prop directly', async () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} keepOriginalDefault />));
+    fireEvent.click(chevronBtn(container));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'B' }));
+    expect(b.fire).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mainBtn(container).textContent).toContain('A'));
   });
 });

@@ -8,9 +8,13 @@ import { ReasonMarkdown } from './ReasonMarkdown.js';
 interface Props {
   actions: ActionStatus[];
   size?: 'small' | 'middle' | 'large';
+  // Off (default): a menu pick becomes the main action and stays there.
+  // On: the main half returns to the first enabled action (the original
+  // default) once the picked action fires or its confirmation is dismissed.
+  keepOriginalDefault?: boolean;
 }
 
-export function CombinedActionButton({ actions, size }: Props) {
+export function CombinedActionButton({ actions, size, keepOriginalDefault = false }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectionSource, setSelectionSource] = useState<'auto' | 'manual'>('auto');
   const [typingOpen, setTypingOpen] = useState(false);
@@ -36,18 +40,29 @@ export function CombinedActionButton({ actions, size }: Props) {
 
   const active = visible[selectedIndex];
 
+  // keepOriginalDefault: drop the pick, so the main half re-evaluates to the
+  // first enabled action (the auto rule above). A no-op otherwise.
+  const settle = () => {
+    if (!keepOriginalDefault) return;
+    setSelectedId(null);
+    setSelectionSource('auto');
+  };
+
   // Fire an explicit action (not the resolved `active`). Menu rows cannot
   // "select then read active" in one handler — `active` only recomputes on
   // the next render — so the action is passed in explicitly. Selecting the
   // action also locks it as a manual pick (intent = the click, regardless of
   // whether the operator follows through with confirmation), mirroring the
   // old lockActive behavior. Used by both the main button and the menu rows.
+  // With keepOriginalDefault the pick lasts only until the action fires or
+  // its confirmation closes.
   const fire = (action: ActionStatus) => {
     if (action.disabled || action.pending) return;
     setSelectedId(action.id);
     setSelectionSource('manual');
     if (!action.confirmation) {
       action.fire();
+      settle();
       return;
     }
     if (action.confirmation.kind === 'typing') {
@@ -61,7 +76,8 @@ export function CombinedActionButton({ actions, size }: Props) {
         content: conf.content,
         okText: action.label,
         okButtonProps: { danger: action.variant === 'danger' },
-        onOk: () => action.fire(),
+        onOk: () => { action.fire(); settle(); },
+        onCancel: settle,
       });
       return;
     }
@@ -134,8 +150,8 @@ export function CombinedActionButton({ actions, size }: Props) {
           // row). We only handle the close transition here — opening is always
           // explicit via fire(). onConfirm closes via the same false transition.
           open={popconfirmOpen}
-          onOpenChange={(next) => { if (!next) setPopconfirmOpen(false); }}
-          onConfirm={() => active.fire()}
+          onOpenChange={(next) => { if (!next) { setPopconfirmOpen(false); settle(); } }}
+          onConfirm={() => { active.fire(); settle(); }}
           okButtonProps={{ danger: active.variant === 'danger' }}
           disabled={active.disabled}
         >
@@ -182,8 +198,8 @@ export function CombinedActionButton({ actions, size }: Props) {
           title={conf.title}
           entityName={conf.entityName}
           description={conf.description}
-          onConfirm={() => { setTypingOpen(false); active.fire(); }}
-          onCancel={() => setTypingOpen(false)}
+          onConfirm={() => { setTypingOpen(false); active.fire(); settle(); }}
+          onCancel={() => { setTypingOpen(false); settle(); }}
         />
       </>
     );
