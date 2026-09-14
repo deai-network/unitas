@@ -305,6 +305,70 @@ describe('ActionButton — combined mode', () => {
   });
 });
 
+describe('ActionButton — combined mode, disabled selected action does not style the opener', () => {
+  afterEach(() => { Modal.destroyAll(); });
+
+  it('an enabled primary selection styles the opener as primary', () => {
+    // Auto-selected: `a` is first and enabled, so it is `active` without a
+    // manual pick.
+    const a = makeStatus({ id: 'a', label: 'A', variant: 'primary' });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+    expect(chevronBtn(container).className).toContain('ant-btn-primary');
+    expect(chevronBtn(container).className).not.toContain('ant-btn-dangerous');
+  });
+
+  it('a disabled primary selection leaves the opener without primary styling', async () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({ id: 'b', label: 'B', variant: 'primary' });
+    const { container, rerender } = render(wrap(<ActionButton action={[a, b]} />));
+    // Manual pick sticks even once disabled (see the sibling describe block
+    // above) — this is how a disabled action stays `active` despite the
+    // auto-shift-to-first-enabled rule.
+    fireEvent.click(chevronBtn(container));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'B' }));
+    await waitFor(() => {
+      expect(mainBtn(container).textContent).toContain('B');
+      expect(chevronBtn(container).className).toContain('ant-btn-primary');
+    });
+
+    const bDisabled = { ...b, disabled: true };
+    rerender(wrap(<ActionButton action={[a, bDisabled]} />));
+    expect(mainBtn(container).textContent).toContain('B');
+    expect(chevronBtn(container).className).not.toContain('ant-btn-primary');
+    expect(chevronBtn(container).className).not.toContain('ant-btn-dangerous');
+    // The opener's own enabled state and behaviour are unaffected.
+    expect(chevronBtn(container)).not.toBeDisabled();
+    fireEvent.click(chevronBtn(container));
+    expect(await screen.findByRole('menuitem', { name: 'A' })).toBeInTheDocument();
+  });
+
+  it('an enabled danger selection styles the opener as danger', () => {
+    const a = makeStatus({ id: 'a', label: 'A', variant: 'danger' });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+    expect(chevronBtn(container).className).toContain('ant-btn-dangerous');
+  });
+
+  it('a disabled danger selection leaves the opener without danger styling', async () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({ id: 'b', label: 'B', variant: 'danger' });
+    const { container, rerender } = render(wrap(<ActionButton action={[a, b]} />));
+    fireEvent.click(chevronBtn(container));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'B' }));
+    await waitFor(() => {
+      expect(mainBtn(container).textContent).toContain('B');
+      expect(chevronBtn(container).className).toContain('ant-btn-dangerous');
+    });
+
+    const bDisabled = { ...b, disabled: true };
+    rerender(wrap(<ActionButton action={[a, bDisabled]} />));
+    expect(mainBtn(container).textContent).toContain('B');
+    expect(chevronBtn(container).className).not.toContain('ant-btn-dangerous');
+    expect(chevronBtn(container).className).not.toContain('ant-btn-primary');
+  });
+});
+
 describe('ActionButton — combined mode, keepOriginalDefault', () => {
   afterEach(() => { Modal.destroyAll(); });
 

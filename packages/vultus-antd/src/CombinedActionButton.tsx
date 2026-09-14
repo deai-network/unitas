@@ -173,8 +173,12 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
       // is `small`. The main half re-applies size via renderMainButton.
       size={size}
       menu={{ items: menuItems, selectedKeys: [String(selectedIndex)] }}
-      type={active.variant === 'primary' ? 'primary' : 'default'}
-      danger={active.variant === 'danger'}
+      // The opener (chevron half) mirrors the selected action's primary/danger
+      // styling only while that action is enabled. Disabled, it renders in the
+      // default style — it still opens the list either way, only its look
+      // changes (owner feedback, Fix 11).
+      type={!active.disabled && active.variant === 'primary' ? 'primary' : 'default'}
+      danger={!active.disabled && active.variant === 'danger'}
       buttonsRender={([_left, right]) => [renderMainButton(), right]}
       // Override antd's hardcoded `block: true` on the inner Space.Compact
       // wrapper. Block-mode adds `display:flex; width:100%` which makes the
