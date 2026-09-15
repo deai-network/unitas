@@ -369,6 +369,37 @@ describe('ActionButton — combined mode, disabled selected action does not styl
   });
 });
 
+describe('ActionButton — combined mode, disabled entries in the open list do not take variant styling', () => {
+  afterEach(() => { Modal.destroyAll(); });
+
+  it('a disabled danger entry has no danger styling; an enabled danger entry keeps it', async () => {
+    const a = makeStatus({ id: 'a', label: 'Delete now', variant: 'danger' });
+    const b = makeStatus({ id: 'b', label: 'Delete later', variant: 'danger', disabled: true, reason: 'nope' });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+    fireEvent.click(chevronBtn(container));
+
+    const enabledItem = await screen.findByRole('menuitem', { name: 'Delete now' });
+    const disabledItem = await screen.findByRole('menuitem', { name: 'Delete later' });
+
+    expect(enabledItem.className).toContain('ant-dropdown-menu-item-danger');
+    expect(disabledItem.className).not.toContain('ant-dropdown-menu-item-danger');
+  });
+
+  it('a disabled primary entry has no primary styling; an enabled primary entry keeps it', async () => {
+    const a = makeStatus({ id: 'a', label: 'Go now', variant: 'primary' });
+    const b = makeStatus({ id: 'b', label: 'Go later', variant: 'primary', disabled: true, reason: 'nope' });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+    fireEvent.click(chevronBtn(container));
+
+    const enabledItem = await screen.findByRole('menuitem', { name: 'Go now' });
+    const disabledItem = await screen.findByRole('menuitem', { name: 'Go later' });
+
+    // primary → label carries an explicit color style; disabled must not.
+    expect(enabledItem.querySelector('span[style*="color"]')).not.toBeNull();
+    expect(disabledItem.querySelector('span[style*="color"]')).toBeNull();
+  });
+});
+
 describe('ActionButton — combined mode, keepOriginalDefault', () => {
   afterEach(() => { Modal.destroyAll(); });
 

@@ -90,14 +90,18 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
     // with (colorPrimary), bold; deliberately no solid fill so it does not
     // collide with the selectedKeys highlight on the active row. danger uses
     // antd's native menu-item danger styling (set below via `danger`).
+    // Both apply only while the entry is enabled — disabled, antd's menu
+    // does not neutralize them on its own (unlike a disabled Button), so a
+    // disabled entry would otherwise still look primary/danger (owner
+    // feedback, Fix 15; mirrors Fix 11's treatment of the opener).
     const labelText =
-      a.variant === 'primary'
+      !a.disabled && a.variant === 'primary'
         ? <span style={{ color: token.colorPrimary, fontWeight: 600 }}>{a.label}</span>
         : <span>{a.label}</span>;
     return {
       key: String(i),
       icon: a.icon,
-      danger: a.variant === 'danger',
+      danger: !a.disabled && a.variant === 'danger',
       label: a.reason
         ? <Tooltip title={<ReasonMarkdown>{a.reason}</ReasonMarkdown>}>{labelText}</Tooltip>
         : labelText,
