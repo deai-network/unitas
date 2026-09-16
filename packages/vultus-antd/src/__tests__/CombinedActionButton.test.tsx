@@ -617,4 +617,58 @@ describe('align (Fix 30)', () => {
     const wrapperSpan = titleContent.firstElementChild as HTMLElement;
     expect(wrapperSpan).toHaveStyle({ justifyContent: 'flex-end' });
   });
+
+  // Fix 30 review round 1: with an icon present, `align` used to wrap only
+  // the label — the icon stayed behind in antd's `icon` slot (a sibling of
+  // the aligned wrapper, placed before it), so `align="end"` split the row's
+  // content apart (icon pinned left, label pushed right) instead of moving
+  // it together as one unit.
+  it('align="end" with an icon: the icon moves out of antd\'s icon slot and into the aligned wrapper, before the label (iconPosition unset)', async () => {
+    const a = makeStatus({ id: 'a', label: 'Go', icon: <span data-testid="icon-a" /> });
+    const b = makeStatus({ id: 'b', label: 'Stop' });
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} align="end" />));
+    fireEvent.click(chevronBtn(container));
+    const menu = await screen.findByRole('menu');
+    const goItem = within(menu).getByRole('menuitem', { name: 'Go' });
+
+    // No antd icon slot left behind — the icon isn't a sibling of the
+    // aligned content anymore.
+    expect(goItem.querySelector('.ant-dropdown-menu-item-icon')).toBeNull();
+
+    const titleContent = goItem.querySelector('.ant-dropdown-menu-title-content') as HTMLElement;
+    expect(titleContent).not.toBeNull();
+    const wrapperSpan = titleContent.firstElementChild as HTMLElement;
+    expect(wrapperSpan).toHaveStyle({ justifyContent: 'flex-end' });
+
+    const goIcon = within(wrapperSpan).getByTestId('icon-a');
+    const goLabel = within(wrapperSpan).getByText('Go');
+    // icon and label both live inside the aligned wrapper, icon first
+    // (iconPosition unset/'start' order).
+    expect(wrapperSpan.contains(goIcon)).toBe(true);
+    expect(wrapperSpan.contains(goLabel)).toBe(true);
+    expect(goIcon.compareDocumentPosition(goLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('align="end" with iconPosition="end": icon and label both move into the aligned wrapper, icon after the label', async () => {
+    const a = makeStatus({ id: 'a', label: 'Go', icon: <span data-testid="icon-a" /> });
+    const b = makeStatus({ id: 'b', label: 'Stop', icon: <span data-testid="icon-b" /> });
+    const { container } = render(
+      wrap(<CombinedActionButton actions={[a, b]} align="end" iconPosition="end" />),
+    );
+    fireEvent.click(chevronBtn(container));
+    const menu = await screen.findByRole('menu');
+    const goItem = within(menu).getByRole('menuitem', { name: 'Go' });
+
+    expect(goItem.querySelector('.ant-dropdown-menu-item-icon')).toBeNull();
+
+    const titleContent = goItem.querySelector('.ant-dropdown-menu-title-content') as HTMLElement;
+    const wrapperSpan = titleContent.firstElementChild as HTMLElement;
+    expect(wrapperSpan).toHaveStyle({ justifyContent: 'flex-end' });
+
+    const goIcon = within(wrapperSpan).getByTestId('icon-a');
+    const goLabel = within(wrapperSpan).getByText('Go');
+    // label before icon (iconPosition="end" order), still inside the
+    // aligned wrapper.
+    expect(goLabel.compareDocumentPosition(goIcon) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

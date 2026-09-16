@@ -43,7 +43,7 @@ position. On `CombinedActionButton`, `'end'` also moves each open-list row's
 icon to after its label — antd's `Menu` always renders an item's `icon` slot
 before its label, so that case builds the icon into the row's own label node
 instead. `'start'` and unset keep antd's normal (left) menu-item icon
-placement.
+placement via that slot, unless `align` is also set (see below).
 
 ## Content alignment
 
@@ -53,7 +53,12 @@ placement.
 `justify-content` on antd's `Button` (a flex container) — on `ActionButton`'s
 button, `CombinedActionButton`'s main (action) half, and (matching) each
 open-list row's content. It only matters when the button is wider than its
-content. Unset keeps antd's default (centered) exactly.
+content. Unset keeps antd's default (centered) exactly. On
+`CombinedActionButton`, when `align` is set, each row's icon is also folded
+out of antd's `icon` slot — a sibling of the aligned content, so it could not
+move with it — and into the aligned wrapper alongside the label, so the row's
+icon and label align and move together as one unit: before the label for
+`iconPosition` `'start'`/unset, after it for `'end'`.
 
 ## Distribution
 

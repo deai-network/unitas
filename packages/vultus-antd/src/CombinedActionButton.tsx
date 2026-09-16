@@ -18,12 +18,18 @@ interface Props {
   // each open-list row's icon to after its label — antd's Menu always renders
   // an item's `icon` slot before its label, so that case builds the icon into
   // the row's label node instead. `'start'` and unset keep antd's normal
-  // (left) menu-item icon placement via that `icon` slot.
+  // (left) menu-item icon placement via that `icon` slot, unless `align` is
+  // also set (see below).
   iconPosition?: 'start' | 'end';
   // Where the button's content (label plus icon or spinner) sits within the
   // button's width, on the main half and (matching) each open-list row.
   // Unset keeps antd's default exactly. Only matters when the button is
-  // wider than its content.
+  // wider than its content. When set, each row's icon is also folded out of
+  // antd's `icon` slot — that slot is a sibling of the aligned wrapper, not
+  // part of it, so it would not move with the label — and into the aligned
+  // wrapper alongside the label instead, so the row's icon and label align
+  // and move together as one unit: before the label for `iconPosition`
+  // `'start'`/unset, after it for `'end'`.
   align?: 'start' | 'center' | 'end';
 }
 
@@ -119,16 +125,20 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
       ? <Tooltip title={<ReasonMarkdown>{a.reason}</ReasonMarkdown>}>{labelText}</Tooltip>
       : labelText;
 
-    // iconPosition="end": antd's Menu always renders the `icon` slot before
-    // the label, so that slot cannot move the icon — fold the icon into the
-    // label node instead, after the text, and drop the `icon` slot for this
-    // row. Otherwise keep using the `icon` slot (antd's normal placement).
-    const rowIcon = iconPosition === 'end' ? a.icon : undefined;
+    // The `icon` slot antd's Menu renders is always first and is a sibling
+    // of the aligned wrapper below, not part of it — so it cannot represent
+    // "icon after label" (iconPosition="end") nor move together with the
+    // label when `align` is set. Fold the icon out of that slot and into the
+    // row's own label node whenever either applies; otherwise keep using the
+    // slot (antd's normal, unmoved placement).
+    const iconInLabel = iconPosition === 'end' || align !== undefined;
+    const rowIcon = iconInLabel ? a.icon : undefined;
+    const iconAfterLabel = iconPosition === 'end';
     const rowLabel = rowIcon
       ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: 8, ...(justifyContent ? { justifyContent, width: '100%' } : {}) }}>
-            {labelWithReason}
-            {rowIcon}
+            {iconAfterLabel ? labelWithReason : rowIcon}
+            {iconAfterLabel ? rowIcon : labelWithReason}
           </span>
         )
       : justifyContent
@@ -137,7 +147,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
 
     return {
       key: String(i),
-      icon: iconPosition === 'end' ? undefined : a.icon,
+      icon: iconInLabel ? undefined : a.icon,
       danger: !a.disabled && a.variant === 'danger',
       label: rowLabel,
       disabled: a.disabled,
