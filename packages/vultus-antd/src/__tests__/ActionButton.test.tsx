@@ -59,4 +59,27 @@ describe('ActionButton', () => {
     if (okBtn) fireEvent.click(okBtn);
     expect(fire).toHaveBeenCalled();
   });
+
+  it('default iconPosition keeps the icon at the start', () => {
+    render(wrap(<ActionButton action={makeStatus({ icon: <span data-testid="icon" /> })} />));
+    expect(screen.getByRole('button').className).not.toContain('ant-btn-icon-end');
+  });
+
+  it('iconPosition="end" moves the icon (antd icon-end class) — including the loading slot while pending', () => {
+    const { rerender } = render(
+      wrap(<ActionButton action={makeStatus({ icon: <span data-testid="icon" /> })} iconPosition="end" />),
+    );
+    expect(screen.getByRole('button').className).toContain('ant-btn-icon-end');
+
+    rerender(
+      wrap(
+        <ActionButton
+          action={makeStatus({ icon: <span data-testid="icon" />, pending: true })}
+          iconPosition="end"
+        />,
+      ),
+    );
+    // Still icon-end while the loading spinner occupies the icon slot.
+    expect(screen.getByRole('button').className).toContain('ant-btn-icon-end');
+  });
 });

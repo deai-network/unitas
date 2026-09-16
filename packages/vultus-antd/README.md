@@ -32,6 +32,16 @@ By default a menu pick becomes the main action and stays there. Pass
 array) to return the main half to the first enabled action once the picked
 action fires or its confirmation is dismissed.
 
+## Icon position
+
+`ActionButton` and `CombinedActionButton` accept an optional
+`iconPosition?: 'start' | 'end'` (default `'start'`, today's behaviour),
+forwarded to antd's `Button` for the rendered button — `ActionButton`'s
+button, and `CombinedActionButton`'s main (action) half. antd puts the
+loading spinner in that same slot, so the pending state keeps the icon's
+position. Dropdown menu entries always keep antd's normal (left) menu-item
+icon placement.
+
 ## Distribution
 
 This package ships compiled ESM (`dist/`) with TypeScript declarations to

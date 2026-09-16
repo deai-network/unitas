@@ -481,3 +481,38 @@ describe('ActionButton — combined mode, keepOriginalDefault', () => {
     await waitFor(() => expect(mainBtn(container).textContent).toContain('A'));
   });
 });
+
+describe('CombinedActionButton — iconPosition', () => {
+  afterEach(() => { Modal.destroyAll(); });
+
+  it('default iconPosition keeps the main half icon at the start', () => {
+    const a = makeStatus({ id: 'a', label: 'A', icon: <span data-testid="icon-a" /> });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} />));
+    expect(mainBtn(container).className).not.toContain('ant-btn-icon-end');
+  });
+
+  it('iconPosition="end" moves the main half icon (antd icon-end class); loading keeps the same slot', () => {
+    const a = makeStatus({ id: 'a', label: 'A', icon: <span data-testid="icon-a" /> });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container, rerender } = render(
+      wrap(<CombinedActionButton actions={[a, b]} iconPosition="end" />),
+    );
+    expect(mainBtn(container).className).toContain('ant-btn-icon-end');
+
+    const aPending = { ...a, pending: true };
+    rerender(wrap(<CombinedActionButton actions={[aPending, b]} iconPosition="end" />));
+    expect(mainBtn(container).className).toContain('ant-btn-icon-end');
+  });
+
+  it('the chevron/menu half is unaffected by iconPosition', async () => {
+    const a = makeStatus({ id: 'a', label: 'A', icon: <span data-testid="icon-a" /> });
+    const b = makeStatus({ id: 'b', label: 'B', icon: <span data-testid="icon-b" /> });
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} iconPosition="end" />));
+    fireEvent.click(chevronBtn(container));
+    const bItem = await screen.findByRole('menuitem', { name: 'B' });
+    // Menu items keep antd's normal (left) icon placement — icon-end is a
+    // Button concept, not a menu-item one; just confirm the icon still renders.
+    expect(bItem.querySelector('[data-testid="icon-b"]')).not.toBeNull();
+  });
+});

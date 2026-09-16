@@ -11,9 +11,13 @@ interface Props {
   block?: boolean;
   // Array form only: forwarded to CombinedActionButton (see there).
   keepOriginalDefault?: boolean;
+  // Where the icon (and, while pending, the loading spinner, which takes the
+  // icon's slot) sits relative to the label. Array form: forwarded to
+  // CombinedActionButton's main half (see there).
+  iconPosition?: 'start' | 'end';
 }
 
-export function ActionButton({ action, size, block, keepOriginalDefault }: Props) {
+export function ActionButton({ action, size, block, keepOriginalDefault, iconPosition }: Props) {
   // `useState` must be called unconditionally on every render to keep the
   // hook call order stable. The `action` prop can plausibly flip shape
   // across renders, so we cannot guard this hook behind the Array.isArray
@@ -21,7 +25,14 @@ export function ActionButton({ action, size, block, keepOriginalDefault }: Props
   const [typingOpen, setTypingOpen] = useState(false);
 
   if (Array.isArray(action)) {
-    return <CombinedActionButton actions={action} size={size} keepOriginalDefault={keepOriginalDefault} />;
+    return (
+      <CombinedActionButton
+        actions={action}
+        size={size}
+        keepOriginalDefault={keepOriginalDefault}
+        iconPosition={iconPosition}
+      />
+    );
   }
 
   if (action.invisible) return null;
@@ -53,6 +64,7 @@ export function ActionButton({ action, size, block, keepOriginalDefault }: Props
   const rawButton = (
     <Button
       icon={action.icon}
+      iconPosition={iconPosition}
       type={action.variant === 'primary' ? 'primary' : 'default'}
       danger={action.variant === 'danger'}
       size={size}

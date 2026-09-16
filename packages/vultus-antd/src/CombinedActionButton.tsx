@@ -12,9 +12,14 @@ interface Props {
   // On: the main half returns to the first enabled action (the original
   // default) once the picked action fires or its confirmation is dismissed.
   keepOriginalDefault?: boolean;
+  // Where the icon sits on the main (action) half, relative to the label.
+  // While that half is pending, antd's loading spinner takes the icon's
+  // slot, so this also governs where the spinner renders. Dropdown menu
+  // entries always keep antd's normal (left) menu-item icon placement.
+  iconPosition?: 'start' | 'end';
 }
 
-export function CombinedActionButton({ actions, size, keepOriginalDefault = false }: Props) {
+export function CombinedActionButton({ actions, size, keepOriginalDefault = false, iconPosition }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectionSource, setSelectionSource] = useState<'auto' | 'manual'>('auto');
   const [typingOpen, setTypingOpen] = useState(false);
@@ -23,7 +28,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
 
   const visible = actions.filter((a) => !a.invisible);
   if (visible.length === 0) return null;
-  if (visible.length === 1) return <ActionButton action={visible[0]} size={size} />;
+  if (visible.length === 1) return <ActionButton action={visible[0]} size={size} iconPosition={iconPosition} />;
 
   // Manual picks stay put even when the picked action becomes disabled
   // (operator's choice is respected — button disables but selection holds).
@@ -119,6 +124,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
     const rawButton = (
       <Button
         icon={active.icon}
+        iconPosition={iconPosition}
         type={active.variant === 'primary' ? 'primary' : 'default'}
         danger={active.variant === 'danger'}
         size={size}
