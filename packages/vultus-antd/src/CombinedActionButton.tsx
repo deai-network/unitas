@@ -182,7 +182,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
       // dropdown trigger renders at the default size even when the main button
       // is `small`. The main half re-applies size via renderMainButton.
       size={size}
-      menu={{ items: menuItems, selectedKeys: [String(selectedIndex)] }}
+      menu={{ items: menuItems, selectedKeys: active.disabled ? [] : [String(selectedIndex)] }}
       // The opener (chevron half) mirrors the selected action's primary/danger
       // styling only while that action is enabled. Disabled, it renders in the
       // default style — it still opens the list either way, only its look

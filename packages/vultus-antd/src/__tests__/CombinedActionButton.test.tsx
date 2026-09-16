@@ -367,6 +367,31 @@ describe('ActionButton — combined mode, disabled selected action does not styl
     expect(chevronBtn(container).className).not.toContain('ant-btn-dangerous');
     expect(chevronBtn(container).className).not.toContain('ant-btn-primary');
   });
+
+  it('an enabled selection keeps antd\'s selected highlight on that menu row', async () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+    fireEvent.click(chevronBtn(container));
+
+    const aItem = await within(await screen.findByRole('menu')).findByRole('menuitem', { name: 'A' });
+    const bItem = within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'B' });
+    expect(aItem.className).toContain('ant-dropdown-menu-item-selected');
+    expect(bItem.className).not.toContain('ant-dropdown-menu-item-selected');
+  });
+
+  it('when every action is disabled, no menu row carries the selected highlight', async () => {
+    const a = makeStatus({ id: 'a', label: 'A', disabled: true, reason: 'nope' });
+    const b = makeStatus({ id: 'b', label: 'B', disabled: true, reason: 'nope' });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+    fireEvent.click(chevronBtn(container));
+
+    const menu = await screen.findByRole('menu');
+    const aItem = within(menu).getByRole('menuitem', { name: 'A' });
+    const bItem = within(menu).getByRole('menuitem', { name: 'B' });
+    expect(aItem.className).not.toContain('ant-dropdown-menu-item-selected');
+    expect(bItem.className).not.toContain('ant-dropdown-menu-item-selected');
+  });
 });
 
 describe('ActionButton — combined mode, disabled entries in the open list do not take variant styling', () => {
@@ -505,14 +530,11 @@ describe('CombinedActionButton — iconPosition', () => {
     expect(mainBtn(container).className).toContain('ant-btn-icon-end');
   });
 
-  it('the chevron/menu half is unaffected by iconPosition', async () => {
+  it('the chevron half does not pick up the main half\'s icon-end placement', () => {
     const a = makeStatus({ id: 'a', label: 'A', icon: <span data-testid="icon-a" /> });
-    const b = makeStatus({ id: 'b', label: 'B', icon: <span data-testid="icon-b" /> });
+    const b = makeStatus({ id: 'b', label: 'B' });
     const { container } = render(wrap(<CombinedActionButton actions={[a, b]} iconPosition="end" />));
-    fireEvent.click(chevronBtn(container));
-    const bItem = await screen.findByRole('menuitem', { name: 'B' });
-    // Menu items keep antd's normal (left) icon placement — icon-end is a
-    // Button concept, not a menu-item one; just confirm the icon still renders.
-    expect(bItem.querySelector('[data-testid="icon-b"]')).not.toBeNull();
+    expect(mainBtn(container).className).toContain('ant-btn-icon-end');
+    expect(chevronBtn(container).className).not.toContain('ant-btn-icon-end');
   });
 });
