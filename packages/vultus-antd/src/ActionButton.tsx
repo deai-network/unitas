@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Button, Modal, Popconfirm, Tooltip } from 'antd';
 import type { ActionStatus } from 'vultus-core';
 import { ConfirmTypingModal } from './ConfirmTypingModal.js';
@@ -15,9 +15,25 @@ interface Props {
   // icon's slot) sits relative to the label. Array form: forwarded to
   // CombinedActionButton's main half (see there).
   iconPosition?: 'start' | 'end';
+  // Where the button's content (label plus icon or spinner) sits within the
+  // button's width. Only visible when the button is wider than its content.
+  // Unset keeps antd's default (centered) exactly. Array form: forwarded to
+  // CombinedActionButton's main half (see there).
+  align?: 'start' | 'center' | 'end';
 }
 
-export function ActionButton({ action, size, block, keepOriginalDefault, iconPosition }: Props) {
+// Shared by ActionButton and CombinedActionButton: maps the `align` prop to
+// the CSS `justify-content` value that antd's Button (a flex container) reads
+// via inline `style`, so it wins over antd's own centered default without
+// resorting to global CSS. `undefined` leaves the style untouched.
+export function alignToJustifyContent(align: 'start' | 'center' | 'end' | undefined): CSSProperties['justifyContent'] | undefined {
+  if (align === 'start') return 'flex-start';
+  if (align === 'end') return 'flex-end';
+  if (align === 'center') return 'center';
+  return undefined;
+}
+
+export function ActionButton({ action, size, block, keepOriginalDefault, iconPosition, align }: Props) {
   // `useState` must be called unconditionally on every render to keep the
   // hook call order stable. The `action` prop can plausibly flip shape
   // across renders, so we cannot guard this hook behind the Array.isArray
@@ -31,11 +47,14 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPos
         size={size}
         keepOriginalDefault={keepOriginalDefault}
         iconPosition={iconPosition}
+        align={align}
       />
     );
   }
 
   if (action.invisible) return null;
+
+  const justifyContent = alignToJustifyContent(align);
 
   const handleClick = () => {
     if (action.disabled || action.pending) return;
@@ -65,6 +84,7 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPos
     <Button
       icon={action.icon}
       iconPosition={iconPosition}
+      style={justifyContent ? { justifyContent } : undefined}
       type={action.variant === 'primary' ? 'primary' : 'default'}
       danger={action.variant === 'danger'}
       size={size}

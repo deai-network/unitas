@@ -82,4 +82,19 @@ describe('ActionButton', () => {
     // Still icon-end while the loading spinner occupies the icon slot.
     expect(screen.getByRole('button').className).toContain('ant-btn-icon-end');
   });
+
+  it('default align adds no justify-content style', () => {
+    render(wrap(<ActionButton action={makeStatus()} />));
+    expect(screen.getByRole('button').style.justifyContent).toBe('');
+  });
+
+  it('align="end" sets justify-content: flex-end', () => {
+    render(wrap(<ActionButton action={makeStatus()} align="end" />));
+    expect(screen.getByRole('button')).toHaveStyle({ justifyContent: 'flex-end' });
+  });
+
+  it('align="start" sets justify-content: flex-start', () => {
+    render(wrap(<ActionButton action={makeStatus()} align="start" />));
+    expect(screen.getByRole('button')).toHaveStyle({ justifyContent: 'flex-start' });
+  });
 });

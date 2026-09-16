@@ -538,3 +538,83 @@ describe('CombinedActionButton — iconPosition', () => {
     expect(chevronBtn(container).className).not.toContain('ant-btn-icon-end');
   });
 });
+
+describe('CombinedActionButton — iconPosition reaches menu rows (Fix 30)', () => {
+  afterEach(() => { Modal.destroyAll(); });
+
+  it('iconPosition="end": each row renders its icon after its label; main button keeps ant-btn-icon-end', async () => {
+    const a = makeStatus({ id: 'a', label: 'Go', icon: <span data-testid="icon-a" /> });
+    const b = makeStatus({ id: 'b', label: 'Stop', icon: <span data-testid="icon-b" /> });
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} iconPosition="end" />));
+
+    expect(mainBtn(container).className).toContain('ant-btn-icon-end');
+
+    fireEvent.click(chevronBtn(container));
+    const menu = await screen.findByRole('menu');
+    const goItem = within(menu).getByRole('menuitem', { name: 'Go' });
+    const goLabel = within(goItem).getByText('Go');
+    const goIcon = goItem.querySelector('[data-testid="icon-a"]');
+    expect(goIcon).not.toBeNull();
+    // DOM order: the label comes before the icon within the row.
+    expect(goLabel.compareDocumentPosition(goIcon!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('iconPosition unset: rows keep antd\'s normal (left) icon placement, unchanged', async () => {
+    const a = makeStatus({ id: 'a', label: 'Go', icon: <span data-testid="icon-a" /> });
+    const b = makeStatus({ id: 'b', label: 'Stop' });
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} />));
+
+    fireEvent.click(chevronBtn(container));
+    const menu = await screen.findByRole('menu');
+    const goItem = within(menu).getByRole('menuitem', { name: 'Go' });
+    const goLabel = within(goItem).getByText('Go');
+    const goIcon = goItem.querySelector('[data-testid="icon-a"]');
+    expect(goIcon).not.toBeNull();
+    // antd's normal placement: icon before label, in its own icon slot.
+    expect(goIcon!.compareDocumentPosition(goLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(goItem.querySelector('.ant-dropdown-menu-item-icon')).not.toBeNull();
+  });
+});
+
+describe('align (Fix 30)', () => {
+  afterEach(() => { Modal.destroyAll(); });
+
+  it('unset adds no alignment style to the main button or menu rows', async () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} />));
+    expect(mainBtn(container).style.justifyContent).toBe('');
+
+    fireEvent.click(chevronBtn(container));
+    const menu = await screen.findByRole('menu');
+    const aItem = within(menu).getByRole('menuitem', { name: 'A' });
+    expect(aItem.querySelector('[style*="justify-content"]')).toBeNull();
+  });
+
+  it('align="end" puts justify-content: flex-end on the main button (multi-action path)', () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} align="end" />));
+    expect(mainBtn(container)).toHaveStyle({ justifyContent: 'flex-end' });
+  });
+
+  it('align="end" reaches the main button via the single-action path too', () => {
+    const a = makeStatus({ id: 'a', label: 'Only' });
+    const { container } = render(wrap(<CombinedActionButton actions={[a]} align="end" />));
+    expect(container.querySelector('.ant-dropdown-trigger')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Only' })).toHaveStyle({ justifyContent: 'flex-end' });
+  });
+
+  it('align="end" right-aligns the menu rows\' content', async () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} align="end" />));
+    fireEvent.click(chevronBtn(container));
+    const menu = await screen.findByRole('menu');
+    const aItem = within(menu).getByRole('menuitem', { name: 'A' });
+    const titleContent = aItem.querySelector('.ant-dropdown-menu-title-content') as HTMLElement;
+    expect(titleContent).not.toBeNull();
+    const wrapperSpan = titleContent.firstElementChild as HTMLElement;
+    expect(wrapperSpan).toHaveStyle({ justifyContent: 'flex-end' });
+  });
+});

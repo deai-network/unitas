@@ -39,8 +39,21 @@ action fires or its confirmation is dismissed.
 forwarded to antd's `Button` for the rendered button — `ActionButton`'s
 button, and `CombinedActionButton`'s main (action) half. antd puts the
 loading spinner in that same slot, so the pending state keeps the icon's
-position. Dropdown menu entries always keep antd's normal (left) menu-item
-icon placement.
+position. On `CombinedActionButton`, `'end'` also moves each open-list row's
+icon to after its label — antd's `Menu` always renders an item's `icon` slot
+before its label, so that case builds the icon into the row's own label node
+instead. `'start'` and unset keep antd's normal (left) menu-item icon
+placement.
+
+## Content alignment
+
+`ActionButton` and `CombinedActionButton` accept an optional
+`align?: 'start' | 'center' | 'end'`. It sets where the button's content
+(label plus icon or spinner) sits within the button's width — via
+`justify-content` on antd's `Button` (a flex container) — on `ActionButton`'s
+button, `CombinedActionButton`'s main (action) half, and (matching) each
+open-list row's content. It only matters when the button is wider than its
+content. Unset keeps antd's default (centered) exactly.
 
 ## Distribution
 

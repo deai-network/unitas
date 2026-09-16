@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button, Dropdown, Modal, Popconfirm, Tooltip, theme } from 'antd';
 import type { ActionStatus } from 'vultus-core';
 import { ConfirmTypingModal } from './ConfirmTypingModal.js';
-import { ActionButton } from './ActionButton.js';
+import { ActionButton, alignToJustifyContent } from './ActionButton.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
 
 interface Props {
@@ -14,12 +14,20 @@ interface Props {
   keepOriginalDefault?: boolean;
   // Where the icon sits on the main (action) half, relative to the label.
   // While that half is pending, antd's loading spinner takes the icon's
-  // slot, so this also governs where the spinner renders. Dropdown menu
-  // entries always keep antd's normal (left) menu-item icon placement.
+  // slot, so this also governs where the spinner renders. `'end'` also moves
+  // each open-list row's icon to after its label — antd's Menu always renders
+  // an item's `icon` slot before its label, so that case builds the icon into
+  // the row's label node instead. `'start'` and unset keep antd's normal
+  // (left) menu-item icon placement via that `icon` slot.
   iconPosition?: 'start' | 'end';
+  // Where the button's content (label plus icon or spinner) sits within the
+  // button's width, on the main half and (matching) each open-list row.
+  // Unset keeps antd's default exactly. Only matters when the button is
+  // wider than its content.
+  align?: 'start' | 'center' | 'end';
 }
 
-export function CombinedActionButton({ actions, size, keepOriginalDefault = false, iconPosition }: Props) {
+export function CombinedActionButton({ actions, size, keepOriginalDefault = false, iconPosition, align }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectionSource, setSelectionSource] = useState<'auto' | 'manual'>('auto');
   const [typingOpen, setTypingOpen] = useState(false);
@@ -28,7 +36,11 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
 
   const visible = actions.filter((a) => !a.invisible);
   if (visible.length === 0) return null;
-  if (visible.length === 1) return <ActionButton action={visible[0]} size={size} iconPosition={iconPosition} />;
+  if (visible.length === 1) {
+    return <ActionButton action={visible[0]} size={size} iconPosition={iconPosition} align={align} />;
+  }
+
+  const justifyContent = alignToJustifyContent(align);
 
   // Manual picks stay put even when the picked action becomes disabled
   // (operator's choice is respected — button disables but selection holds).
@@ -103,13 +115,31 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
       !a.disabled && a.variant === 'primary'
         ? <span style={{ color: token.colorPrimary, fontWeight: 600 }}>{a.label}</span>
         : <span>{a.label}</span>;
+    const labelWithReason = a.reason
+      ? <Tooltip title={<ReasonMarkdown>{a.reason}</ReasonMarkdown>}>{labelText}</Tooltip>
+      : labelText;
+
+    // iconPosition="end": antd's Menu always renders the `icon` slot before
+    // the label, so that slot cannot move the icon — fold the icon into the
+    // label node instead, after the text, and drop the `icon` slot for this
+    // row. Otherwise keep using the `icon` slot (antd's normal placement).
+    const rowIcon = iconPosition === 'end' ? a.icon : undefined;
+    const rowLabel = rowIcon
+      ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, ...(justifyContent ? { justifyContent, width: '100%' } : {}) }}>
+            {labelWithReason}
+            {rowIcon}
+          </span>
+        )
+      : justifyContent
+        ? <span style={{ display: 'flex', width: '100%', justifyContent }}>{labelWithReason}</span>
+        : labelWithReason;
+
     return {
       key: String(i),
-      icon: a.icon,
+      icon: iconPosition === 'end' ? undefined : a.icon,
       danger: !a.disabled && a.variant === 'danger',
-      label: a.reason
-        ? <Tooltip title={<ReasonMarkdown>{a.reason}</ReasonMarkdown>}>{labelText}</Tooltip>
-        : labelText,
+      label: rowLabel,
       disabled: a.disabled,
       onClick: () => fire(a),
     };
@@ -125,6 +155,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
       <Button
         icon={active.icon}
         iconPosition={iconPosition}
+        style={justifyContent ? { justifyContent } : undefined}
         type={active.variant === 'primary' ? 'primary' : 'default'}
         danger={active.variant === 'danger'}
         size={size}
