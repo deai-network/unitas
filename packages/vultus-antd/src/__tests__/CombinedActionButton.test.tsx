@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { App as AntApp, Modal } from 'antd';
+import { App as AntApp, ConfigProvider, Modal } from 'antd';
 import { ActionButton } from '../ActionButton.js';
 import { CombinedActionButton } from '../CombinedActionButton.js';
 import { makeStatus } from './helpers/makeStatus.js';
@@ -670,5 +670,43 @@ describe('align (Fix 30)', () => {
     // label before icon (iconPosition="end" order), still inside the
     // aligned wrapper.
     expect(goLabel.compareDocumentPosition(goIcon) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+// antd 6 deprecates Dropdown.Button; the split button is composed from
+// Space.Compact + Button + Dropdown instead, with a stable class of our own
+// (consumers style it; antd's internal `ant-dropdown-button` goes away).
+describe('CombinedActionButton — composition', () => {
+  afterEach(() => { Modal.destroyAll(); });
+
+  it('renders a non-block compact group with a stable class and an ellipsis opener', () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+    const root = container.querySelector('.vultus-combined-action-button') as HTMLElement;
+    expect(root).not.toBeNull();
+    expect(root.classList.contains('ant-space-compact')).toBe(true);
+    // Not block: block mode makes the group greedy under a flex parent.
+    expect(root.classList.contains('ant-space-compact-block')).toBe(false);
+    expect(container.querySelector('.ant-dropdown-button')).toBeNull();
+    expect(chevronBtn(container).querySelector('svg[data-icon="ellipsis"]')).not.toBeNull();
+  });
+
+  it('cascade-modal confirmation renders under the app ConfigProvider (not a static modal)', async () => {
+    const a = makeStatus({
+      id: 'a',
+      label: 'Reset',
+      confirmation: { kind: 'cascade-modal', title: 'Reset entity?', content: 'Sure?' },
+    });
+    const b = makeStatus({ id: 'b', label: 'Other' });
+    const { container } = render(
+      <ConfigProvider prefixCls="vx">
+        <ActionButton action={[a, b]} />
+      </ConfigProvider>,
+    );
+    fireEvent.click(container.querySelector('[data-action-id="a"]') as HTMLElement);
+    await waitFor(() => {
+      expect(document.body.querySelector('.vx-modal-confirm-title')?.textContent).toBe('Reset entity?');
+    });
   });
 });

@@ -39,6 +39,9 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPos
   // across renders, so we cannot guard this hook behind the Array.isArray
   // branch — that would change the hook count and trip Rules of Hooks.
   const [typingOpen, setTypingOpen] = useState(false);
+  // Hook-based confirm (see CombinedActionButton): follows the app's
+  // ConfigProvider. Called unconditionally for the same hook-order reason.
+  const [modal, modalHolder] = Modal.useModal();
 
   if (Array.isArray(action)) {
     return (
@@ -68,7 +71,7 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPos
     }
     if (action.confirmation.kind === 'cascade-modal') {
       const conf = action.confirmation;
-      Modal.confirm({
+      modal.confirm({
         title: conf.title,
         content: conf.content,
         okText: action.label,
@@ -145,5 +148,5 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPos
     );
   }
 
-  return buttonNode;
+  return <>{buttonNode}{modalHolder}</>;
 }

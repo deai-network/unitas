@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Dropdown, Modal, Popconfirm, Tooltip, theme } from 'antd';
+import { Button, Dropdown, Modal, Popconfirm, Space, Tooltip, theme } from 'antd';
 import type { ActionStatus } from 'vultus-core';
 import { ConfirmTypingModal } from './ConfirmTypingModal.js';
 import { ActionButton, alignToJustifyContent } from './ActionButton.js';
@@ -39,6 +39,10 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
   const [typingOpen, setTypingOpen] = useState(false);
   const [popconfirmOpen, setPopconfirmOpen] = useState(false);
   const { token } = theme.useToken();
+  // Hook-based confirm (not static Modal.confirm): it renders through
+  // `modalHolder` inside the app's tree, so it follows the app's
+  // ConfigProvider (theme, prefix, locale) and needs no React 19 patch.
+  const [modal, modalHolder] = Modal.useModal();
 
   const visible = actions.filter((a) => !a.invisible);
   if (visible.length === 0) return null;
@@ -94,7 +98,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
     }
     if (action.confirmation.kind === 'cascade-modal') {
       const conf = action.confirmation;
-      Modal.confirm({
+      modal.confirm({
         title: conf.title,
         content: conf.content,
         okText: action.label,
@@ -155,7 +159,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
     };
   });
 
-  // Compose the main half explicitly via buttonsRender so the chevron stays
+  // The main half is its own Button, so the opener stays
   // interactive even when the active half is disabled (design §3.2 requires
   // the menu to open in the all-disabled case for per-item reason tooltips),
   // the icon renders via Button's `icon` prop, and Popconfirm wraps only the
@@ -214,33 +218,34 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
     return withTooltip;
   };
 
+  // The split button, composed the way antd recommends in place of the
+  // deprecated Dropdown.Button: Space.Compact holding the main half and an
+  // opener Button wrapped in Dropdown. Space.Compact is not block by default,
+  // so the group does not turn greedy under a flex parent (eg. the
+  // entity-detail heading's `space-between` layout). `size` on Space.Compact
+  // sizes both halves. `vultus-combined-action-button` is the stable hook for
+  // consumers' CSS.
   const dropdownButton = (
-    <Dropdown.Button
-      // Click trigger (default is hover) — touch devices can't hover, and
-      // chevron is meant to be clicked anyway.
-      trigger={['click']}
-      // Size the whole compound (esp. the chevron half) — without this the
-      // dropdown trigger renders at the default size even when the main button
-      // is `small`. The main half re-applies size via renderMainButton.
-      size={size}
-      menu={{ items: menuItems, selectedKeys: active.disabled ? [] : [String(selectedIndex)] }}
-      // The opener (chevron half) mirrors the selected action's primary/danger
-      // styling only while that action is enabled. Disabled, it renders in the
-      // default style — it still opens the list either way, only its look
-      // changes (owner feedback, Fix 11).
-      type={!active.disabled && active.variant === 'primary' ? 'primary' : 'default'}
-      danger={!active.disabled && active.variant === 'danger'}
-      buttonsRender={([_left, right]) => [renderMainButton(), right]}
-      // Override antd's hardcoded `block: true` on the inner Space.Compact
-      // wrapper. Block-mode adds `display:flex; width:100%` which makes the
-      // button greedy under a flex parent (eg. the entity-detail heading's
-      // `space-between` layout) and crushes the title to its left.
-      // restProps in dropdown-button.js are spread AFTER its hardcoded block
-      // pair so this `block={false}` actually wins.
-      // @ts-expect-error — antd's DropdownButtonProps does not declare block,
-      // but Space.Compact does and restProps is forwarded to it verbatim.
-      block={false}
-    />
+    <Space.Compact className="vultus-combined-action-button" size={size}>
+      {renderMainButton()}
+      <Dropdown
+        // Click trigger (default is hover) — touch devices can't hover, and
+        // the opener is meant to be clicked anyway.
+        trigger={['click']}
+        placement="bottomRight"
+        menu={{ items: menuItems, selectedKeys: active.disabled ? [] : [String(selectedIndex)] }}
+      >
+        <Button
+          // The opener mirrors the selected action's primary/danger styling
+          // only while that action is enabled. Disabled, it renders in the
+          // default style — it still opens the list either way, only its look
+          // changes (owner feedback, Fix 11).
+          type={!active.disabled && active.variant === 'primary' ? 'primary' : 'default'}
+          danger={!active.disabled && active.variant === 'danger'}
+          icon={<EllipsisIcon />}
+        />
+      </Dropdown>
+    </Space.Compact>
   );
 
   if (active.confirmation?.kind === 'typing') {
@@ -248,6 +253,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
     return (
       <>
         {dropdownButton}
+        {modalHolder}
         <ConfirmTypingModal
           open={typingOpen}
           title={conf.title}
@@ -260,5 +266,18 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
     );
   }
 
-  return dropdownButton;
+  return <>{dropdownButton}{modalHolder}</>;
+}
+
+// antd's EllipsisOutlined (the opener icon Dropdown.Button used), inlined so
+// vultus-antd needs no @ant-design/icons dependency. Same markup as the icon
+// component, so antd's icon-button styling applies unchanged.
+function EllipsisIcon() {
+  return (
+    <span role="img" aria-label="ellipsis" className="anticon anticon-ellipsis">
+      <svg viewBox="64 64 896 896" focusable="false" data-icon="ellipsis" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+        <path d="M176 511a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0z" />
+      </svg>
+    </span>
+  );
 }

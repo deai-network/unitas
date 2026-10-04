@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { App as AntApp } from 'antd';
+import { App as AntApp, ConfigProvider } from 'antd';
 import { ActionButton } from '../ActionButton.js';
 import { makeStatus } from './helpers/makeStatus.js';
 
@@ -96,5 +96,24 @@ describe('ActionButton', () => {
   it('align="start" sets justify-content: flex-start', () => {
     render(wrap(<ActionButton action={makeStatus()} align="start" />));
     expect(screen.getByRole('button')).toHaveStyle({ justifyContent: 'flex-start' });
+  });
+});
+
+describe('ActionButton — confirmation modal context', () => {
+  it('cascade-modal confirmation renders under the app ConfigProvider (not a static modal)', async () => {
+    const action = makeStatus({
+      id: 'x',
+      label: 'Delete',
+      confirmation: { kind: 'cascade-modal', title: 'Delete it?', content: 'Sure?' },
+    });
+    render(
+      <ConfigProvider prefixCls="vx">
+        <ActionButton action={action} />
+      </ConfigProvider>,
+    );
+    fireEvent.click(screen.getByRole('button'));
+    await waitFor(() => {
+      expect(document.body.querySelector('.vx-modal-confirm-title')?.textContent).toBe('Delete it?');
+    });
   });
 });
