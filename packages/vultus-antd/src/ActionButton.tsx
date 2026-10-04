@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import { Button, Modal, Popconfirm, Tooltip } from 'antd';
+import { Button, Modal, Popconfirm, Tooltip, type ButtonProps } from 'antd';
 import type { ActionStatus } from 'vultus-core';
 import { ConfirmTypingModal } from './ConfirmTypingModal.js';
 import { CombinedActionButton } from './CombinedActionButton.js';
@@ -7,7 +7,9 @@ import { ReasonMarkdown } from './ReasonMarkdown.js';
 
 interface Props {
   action: ActionStatus | ActionStatus[];
-  size?: 'small' | 'middle' | 'large';
+  // antd's own Button size type (antd 6 adds 'medium'), so a ConfigProvider
+  // componentSize can be passed straight through.
+  size?: ButtonProps['size'];
   block?: boolean;
   // Array form only: forwarded to CombinedActionButton (see there).
   keepOriginalDefault?: boolean;

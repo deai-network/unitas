@@ -1,9 +1,11 @@
-import { Button, type FormInstance } from 'antd';
+import { Button, type ButtonProps, type FormInstance } from 'antd';
 import { useActionErrorCtx, type ActionStatus } from 'vultus-core';
 
 interface Props<TArgs> {
   action: ActionStatus<TArgs>;
-  size?: 'small' | 'middle' | 'large';
+  // antd's own Button size type (antd 6 adds 'medium'), so a ConfigProvider
+  // componentSize can be passed straight through.
+  size?: ButtonProps['size'];
   block?: boolean;
 }
 

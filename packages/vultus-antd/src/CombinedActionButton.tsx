@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Dropdown, Modal, Popconfirm, Space, Tooltip, theme } from 'antd';
+import { Button, Dropdown, Modal, Popconfirm, Space, Tooltip, theme, type ButtonProps } from 'antd';
 import type { ActionStatus } from 'vultus-core';
 import { ConfirmTypingModal } from './ConfirmTypingModal.js';
 import { ActionButton, alignToJustifyContent } from './ActionButton.js';
@@ -7,7 +7,9 @@ import { ReasonMarkdown } from './ReasonMarkdown.js';
 
 interface Props {
   actions: ActionStatus[];
-  size?: 'small' | 'middle' | 'large';
+  // antd's own Button size type (antd 6 adds 'medium'), so a ConfigProvider
+  // componentSize can be passed straight through.
+  size?: ButtonProps['size'];
   // Off (default): a menu pick becomes the main action and stays there.
   // On: the main half returns to the first enabled action (the original
   // default) once the picked action fires or its confirmation is dismissed.

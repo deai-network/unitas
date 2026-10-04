@@ -117,3 +117,15 @@ describe('ActionButton — confirmation modal context', () => {
     });
   });
 });
+
+describe('ActionButton — size', () => {
+  // antd 6's size scale includes 'medium'; a ConfigProvider componentSize
+  // can be passed straight through.
+  it('accepts antd 6 sizes, including medium', () => {
+    const { rerender } = render(wrap(<ActionButton action={makeStatus()} size="medium" />));
+    const cls = () => screen.getByRole('button').className;
+    expect(cls()).not.toMatch(/ant-btn-(sm|lg)\b/);
+    rerender(wrap(<ActionButton action={makeStatus()} size="small" />));
+    expect(cls()).toMatch(/ant-btn-sm\b/);
+  });
+});
