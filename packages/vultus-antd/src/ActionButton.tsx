@@ -14,7 +14,7 @@ interface Props {
   // Where the icon (and, while pending, the loading spinner, which takes the
   // icon's slot) sits relative to the label. Array form: forwarded to
   // CombinedActionButton's main half (see there).
-  iconPosition?: 'start' | 'end';
+  iconPlacement?: 'start' | 'end';
   // Where the button's content (label plus icon or spinner) sits within the
   // button's width. Only visible when the button is wider than its content.
   // Unset keeps antd's default (centered) exactly. Array form: forwarded to
@@ -33,7 +33,7 @@ export function alignToJustifyContent(align: 'start' | 'center' | 'end' | undefi
   return undefined;
 }
 
-export function ActionButton({ action, size, block, keepOriginalDefault, iconPosition, align }: Props) {
+export function ActionButton({ action, size, block, keepOriginalDefault, iconPlacement, align }: Props) {
   // `useState` must be called unconditionally on every render to keep the
   // hook call order stable. The `action` prop can plausibly flip shape
   // across renders, so we cannot guard this hook behind the Array.isArray
@@ -49,7 +49,7 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPos
         actions={action}
         size={size}
         keepOriginalDefault={keepOriginalDefault}
-        iconPosition={iconPosition}
+        iconPlacement={iconPlacement}
         align={align}
       />
     );
@@ -86,7 +86,7 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPos
   const rawButton = (
     <Button
       icon={action.icon}
-      iconPosition={iconPosition}
+      iconPlacement={iconPlacement}
       style={justifyContent ? { justifyContent } : undefined}
       type={action.variant === 'primary' ? 'primary' : 'default'}
       danger={action.variant === 'danger'}

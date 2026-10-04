@@ -1,6 +1,6 @@
 {
   "name": "vultus-antd",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "license": "Apache-2.0",
   "description": "Ant Design action-button + markdown components for vultus (depends on and re-exports vultus-core)",
   "repository": { "type": "git", "url": "git+https://github.com/deai-network/unitas.git", "directory": "packages/vultus-antd" },
@@ -28,14 +28,13 @@
     "remark-gfm": "^4.0.1",
     "vultus-core": "workspace:^"
   },
-  "peerDependencies": { "antd": ">=5", "react": ">=18", "react-dom": ">=18", "react-i18next": ">=15" },
+  "peerDependencies": { "antd": ">=6", "react": ">=18", "react-dom": ">=18", "react-i18next": ">=15" },
   "devDependencies": {
-    "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "antd": "^5.29.3",
+    "antd": "^6.6.5",
     "i18next": "^25.0.0",
     "jsdom": "^29.0.1",
     "react": "^19.2.4",

@@ -1,7 +1,4 @@
 import '@testing-library/jest-dom';
-// Mirror production: antd 5 static methods (Modal.confirm, message.*) need the
-// React 19 compatibility patch, otherwise they no-op under React 19 + antd 5.
-import '@ant-design/v5-patch-for-react-19';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 

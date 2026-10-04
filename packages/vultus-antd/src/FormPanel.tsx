@@ -21,9 +21,8 @@ export function FormPanel({ children, ...formProps }: Props) {
             <Alert
               type="error"
               showIcon
-              closable
-              message={inlineError}
-              onClose={() => setInlineError(null)}
+              closable={{ onClose: () => setInlineError(null) }}
+              title={inlineError}
             />
           </Form.Item>
         )}

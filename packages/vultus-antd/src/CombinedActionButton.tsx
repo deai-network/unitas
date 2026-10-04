@@ -20,7 +20,7 @@ interface Props {
   // the row's label node instead. `'start'` and unset keep antd's normal
   // (left) menu-item icon placement via that `icon` slot, unless `align` is
   // also set (see below).
-  iconPosition?: 'start' | 'end';
+  iconPlacement?: 'start' | 'end';
   // Where the button's content (label plus icon or spinner) sits within the
   // button's width, on the main half and (matching) each open-list row.
   // Unset keeps antd's default exactly. Only matters when the button is
@@ -28,12 +28,12 @@ interface Props {
   // antd's `icon` slot — that slot is a sibling of the aligned wrapper, not
   // part of it, so it would not move with the label — and into the aligned
   // wrapper alongside the label instead, so the row's icon and label align
-  // and move together as one unit: before the label for `iconPosition`
+  // and move together as one unit: before the label for `iconPlacement`
   // `'start'`/unset, after it for `'end'`.
   align?: 'start' | 'center' | 'end';
 }
 
-export function CombinedActionButton({ actions, size, keepOriginalDefault = false, iconPosition, align }: Props) {
+export function CombinedActionButton({ actions, size, keepOriginalDefault = false, iconPlacement, align }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectionSource, setSelectionSource] = useState<'auto' | 'manual'>('auto');
   const [typingOpen, setTypingOpen] = useState(false);
@@ -41,13 +41,13 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
   const { token } = theme.useToken();
   // Hook-based confirm (not static Modal.confirm): it renders through
   // `modalHolder` inside the app's tree, so it follows the app's
-  // ConfigProvider (theme, prefix, locale) and needs no React 19 patch.
+  // ConfigProvider (theme, prefix, locale).
   const [modal, modalHolder] = Modal.useModal();
 
   const visible = actions.filter((a) => !a.invisible);
   if (visible.length === 0) return null;
   if (visible.length === 1) {
-    return <ActionButton action={visible[0]} size={size} iconPosition={iconPosition} align={align} />;
+    return <ActionButton action={visible[0]} size={size} iconPlacement={iconPlacement} align={align} />;
   }
 
   const justifyContent = alignToJustifyContent(align);
@@ -131,13 +131,13 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
 
     // The `icon` slot antd's Menu renders is always first and is a sibling
     // of the aligned wrapper below, not part of it — so it cannot represent
-    // "icon after label" (iconPosition="end") nor move together with the
+    // "icon after label" (iconPlacement="end") nor move together with the
     // label when `align` is set. Fold the icon out of that slot and into the
     // row's own label node whenever either applies; otherwise keep using the
     // slot (antd's normal, unmoved placement).
-    const iconInLabel = iconPosition === 'end' || align !== undefined;
+    const iconInLabel = iconPlacement === 'end' || align !== undefined;
     const rowIcon = iconInLabel ? a.icon : undefined;
-    const iconAfterLabel = iconPosition === 'end';
+    const iconAfterLabel = iconPlacement === 'end';
     const rowLabel = rowIcon
       ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: 8, ...(justifyContent ? { justifyContent, width: '100%' } : {}) }}>
@@ -168,7 +168,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
     const rawButton = (
       <Button
         icon={active.icon}
-        iconPosition={iconPosition}
+        iconPlacement={iconPlacement}
         style={justifyContent ? { justifyContent } : undefined}
         type={active.variant === 'primary' ? 'primary' : 'default'}
         danger={active.variant === 'danger'}

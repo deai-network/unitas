@@ -507,45 +507,45 @@ describe('ActionButton — combined mode, keepOriginalDefault', () => {
   });
 });
 
-describe('CombinedActionButton — iconPosition', () => {
+describe('CombinedActionButton — iconPlacement', () => {
   afterEach(() => { Modal.destroyAll(); });
 
-  it('default iconPosition keeps the main half icon at the start', () => {
+  it('default iconPlacement keeps the main half icon at the start', () => {
     const a = makeStatus({ id: 'a', label: 'A', icon: <span data-testid="icon-a" /> });
     const b = makeStatus({ id: 'b', label: 'B' });
     const { container } = render(wrap(<CombinedActionButton actions={[a, b]} />));
     expect(mainBtn(container).className).not.toContain('ant-btn-icon-end');
   });
 
-  it('iconPosition="end" moves the main half icon (antd icon-end class); loading keeps the same slot', () => {
+  it('iconPlacement="end" moves the main half icon (antd icon-end class); loading keeps the same slot', () => {
     const a = makeStatus({ id: 'a', label: 'A', icon: <span data-testid="icon-a" /> });
     const b = makeStatus({ id: 'b', label: 'B' });
     const { container, rerender } = render(
-      wrap(<CombinedActionButton actions={[a, b]} iconPosition="end" />),
+      wrap(<CombinedActionButton actions={[a, b]} iconPlacement="end" />),
     );
     expect(mainBtn(container).className).toContain('ant-btn-icon-end');
 
     const aPending = { ...a, pending: true };
-    rerender(wrap(<CombinedActionButton actions={[aPending, b]} iconPosition="end" />));
+    rerender(wrap(<CombinedActionButton actions={[aPending, b]} iconPlacement="end" />));
     expect(mainBtn(container).className).toContain('ant-btn-icon-end');
   });
 
   it('the chevron half does not pick up the main half\'s icon-end placement', () => {
     const a = makeStatus({ id: 'a', label: 'A', icon: <span data-testid="icon-a" /> });
     const b = makeStatus({ id: 'b', label: 'B' });
-    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} iconPosition="end" />));
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} iconPlacement="end" />));
     expect(mainBtn(container).className).toContain('ant-btn-icon-end');
     expect(chevronBtn(container).className).not.toContain('ant-btn-icon-end');
   });
 });
 
-describe('CombinedActionButton — iconPosition reaches menu rows (Fix 30)', () => {
+describe('CombinedActionButton — iconPlacement reaches menu rows (Fix 30)', () => {
   afterEach(() => { Modal.destroyAll(); });
 
-  it('iconPosition="end": each row renders its icon after its label; main button keeps ant-btn-icon-end', async () => {
+  it('iconPlacement="end": each row renders its icon after its label; main button keeps ant-btn-icon-end', async () => {
     const a = makeStatus({ id: 'a', label: 'Go', icon: <span data-testid="icon-a" /> });
     const b = makeStatus({ id: 'b', label: 'Stop', icon: <span data-testid="icon-b" /> });
-    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} iconPosition="end" />));
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} iconPlacement="end" />));
 
     expect(mainBtn(container).className).toContain('ant-btn-icon-end');
 
@@ -559,7 +559,7 @@ describe('CombinedActionButton — iconPosition reaches menu rows (Fix 30)', () 
     expect(goLabel.compareDocumentPosition(goIcon!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('iconPosition unset: rows keep antd\'s normal (left) icon placement, unchanged', async () => {
+  it('iconPlacement unset: rows keep antd\'s normal (left) icon placement, unchanged', async () => {
     const a = makeStatus({ id: 'a', label: 'Go', icon: <span data-testid="icon-a" /> });
     const b = makeStatus({ id: 'b', label: 'Stop' });
     const { container } = render(wrap(<CombinedActionButton actions={[a, b]} />));
@@ -623,7 +623,7 @@ describe('align (Fix 30)', () => {
   // the aligned wrapper, placed before it), so `align="end"` split the row's
   // content apart (icon pinned left, label pushed right) instead of moving
   // it together as one unit.
-  it('align="end" with an icon: the icon moves out of antd\'s icon slot and into the aligned wrapper, before the label (iconPosition unset)', async () => {
+  it('align="end" with an icon: the icon moves out of antd\'s icon slot and into the aligned wrapper, before the label (iconPlacement unset)', async () => {
     const a = makeStatus({ id: 'a', label: 'Go', icon: <span data-testid="icon-a" /> });
     const b = makeStatus({ id: 'b', label: 'Stop' });
     const { container } = render(wrap(<CombinedActionButton actions={[a, b]} align="end" />));
@@ -643,17 +643,17 @@ describe('align (Fix 30)', () => {
     const goIcon = within(wrapperSpan).getByTestId('icon-a');
     const goLabel = within(wrapperSpan).getByText('Go');
     // icon and label both live inside the aligned wrapper, icon first
-    // (iconPosition unset/'start' order).
+    // (iconPlacement unset/'start' order).
     expect(wrapperSpan.contains(goIcon)).toBe(true);
     expect(wrapperSpan.contains(goLabel)).toBe(true);
     expect(goIcon.compareDocumentPosition(goLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('align="end" with iconPosition="end": icon and label both move into the aligned wrapper, icon after the label', async () => {
+  it('align="end" with iconPlacement="end": icon and label both move into the aligned wrapper, icon after the label', async () => {
     const a = makeStatus({ id: 'a', label: 'Go', icon: <span data-testid="icon-a" /> });
     const b = makeStatus({ id: 'b', label: 'Stop', icon: <span data-testid="icon-b" /> });
     const { container } = render(
-      wrap(<CombinedActionButton actions={[a, b]} align="end" iconPosition="end" />),
+      wrap(<CombinedActionButton actions={[a, b]} align="end" iconPlacement="end" />),
     );
     fireEvent.click(chevronBtn(container));
     const menu = await screen.findByRole('menu');
@@ -667,7 +667,7 @@ describe('align (Fix 30)', () => {
 
     const goIcon = within(wrapperSpan).getByTestId('icon-a');
     const goLabel = within(wrapperSpan).getByText('Go');
-    // label before icon (iconPosition="end" order), still inside the
+    // label before icon (iconPlacement="end" order), still inside the
     // aligned wrapper.
     expect(goLabel.compareDocumentPosition(goIcon) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

@@ -13,7 +13,7 @@ npm install vultus-antd
 
 ## Peer dependencies
 
-- `antd` >=5
+- `antd` >=6
 - `react` >=18
 - `react-dom` >=18
 - `react-i18next` >=15
@@ -32,10 +32,10 @@ By default a menu pick becomes the main action and stays there. Pass
 array) to return the main half to the first enabled action once the picked
 action fires or its confirmation is dismissed.
 
-## Icon position
+## Icon placement
 
 `ActionButton` and `CombinedActionButton` accept an optional
-`iconPosition?: 'start' | 'end'` (default `'start'`, today's behaviour),
+`iconPlacement?: 'start' | 'end'` (default `'start'`, today's behaviour),
 forwarded to antd's `Button` for the rendered button — `ActionButton`'s
 button, and `CombinedActionButton`'s main (action) half. antd puts the
 loading spinner in that same slot, so the pending state keeps the icon's
@@ -58,7 +58,7 @@ content. Unset keeps antd's default (centered) exactly. On
 out of antd's `icon` slot — a sibling of the aligned content, so it could not
 move with it — and into the aligned wrapper alongside the label, so the row's
 icon and label align and move together as one unit: before the label for
-`iconPosition` `'start'`/unset, after it for `'end'`.
+`iconPlacement` `'start'`/unset, after it for `'end'`.
 
 ## Distribution
 
