@@ -12,6 +12,26 @@ export interface FormLike {
 export type Decision = boolean | { verdict: boolean; reason?: string };
 export type ValueOrFn<T> = T | (() => T);
 
+export type Severity = 'info' | 'warning' | 'error';
+
+/** Something an action (or, later, a field's validation) has to say, with its severity. */
+export interface Message {
+  text: string;
+  severity: Severity;
+}
+
+/**
+ * What an action's `fire` receives next to its arguments: a way to report
+ * messages while it runs (absorbed from the sidedao InputFields). Messages land
+ * on the action's status (`messages`) and go to the MessageSink. A thrown
+ * error still fails the action; `error()` reports an error without throwing.
+ */
+export interface ExecutionContext {
+  info(text: string): void;
+  warn(text: string): void;
+  error(text: string): void;
+}
+
 export type ConfirmationSpec =
   | { kind: 'popconfirm'; question: string }
   | { kind: 'cascade-modal'; title: string; content: React.ReactNode }
@@ -26,7 +46,7 @@ export interface ActionOptions<TArgs = void, TResult = void, RouteId extends str
   invisible?: ValueOrFn<boolean>;
   confirmation?: ValueOrFn<ConfirmationSpec | undefined>;
   errorRoute?: RouteId;
-  fire: (args: TArgs) => Promise<TResult> | TResult;
+  fire: (args: TArgs, ctx: ExecutionContext) => Promise<TResult> | TResult;
   onSuccess?: (result: TResult) => void;
 }
 
@@ -45,6 +65,9 @@ export interface ActionStatus<TArgs = void> {
   reason?: string;
   invisible: boolean;
   confirmation?: ConfirmationSpec;
+  /** Messages of the last run: reported through the ExecutionContext, or the thrown error. */
+  messages: Message[];
+  /** The error texts among `messages` (kept for callers that only show errors). */
   errors: string[];
   fire(...args: FireArgs<TArgs>): void;
   firePromise(...args: FireArgs<TArgs>): Promise<void>;

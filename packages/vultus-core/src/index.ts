@@ -6,5 +6,10 @@ export * from './routeApiError.js';
 export { ActionErrorContext, useActionErrorCtx } from './useActionErrorCtx.js';
 export { useAction } from './useAction.js';
 export { useActionList } from './useActionList.js';
+export {
+  useFieldCore, fieldStorageMode, calculateVisible, calculateEnabled,
+  type FieldCommit, type FieldControls, type FieldOptions, type FieldStorage, type FieldStorageMode,
+} from './field.js';
+export { useBoolField, type BoolFieldControls, type BoolFieldOptions } from './useBoolField.js';
 export { InternalLinkContext, useInternalLink, type InternalLinkComponent } from './LinkContext.js';
 export { MessageSinkContext, useMessageSink, type MessageSink } from './MessageSink.js';

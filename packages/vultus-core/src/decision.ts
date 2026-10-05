@@ -19,3 +19,7 @@ export const andDecisions = (a: Decision, b: Decision): Decision => {
   }
   return av ? b : a;
 };
+
+/** The opposite verdict, keeping the reason (a reason to disable is a reason not to enable). */
+export const invertDecision = (d: Decision): Decision =>
+  typeof d === 'boolean' ? !d : { verdict: !d.verdict, reason: d.reason };

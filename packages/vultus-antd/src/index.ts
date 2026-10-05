@@ -1,6 +1,9 @@
 export * from 'vultus-core';
 export { VultusProvider } from './VultusProvider.js';
 export { ActionButton } from './ActionButton.js';
+export { BoolCheckbox } from './BoolCheckbox.js';
+export { BoolSwitch } from './BoolSwitch.js';
+export { Confirmable } from './Confirmable.js';
 export { CombinedActionButton } from './CombinedActionButton.js';
 export { FormSubmitButton } from './FormSubmitButton.js';
 export { FormPanel } from './FormPanel.js';

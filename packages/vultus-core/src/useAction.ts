@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useActionErrorCtx } from './useActionErrorCtx.js';
 import { useMessageSink } from './MessageSink.js';
 import { resolveActionFields, makeFirePromise, assembleStatus } from './action-core.js';
-import type { ActionOptions, ActionStatus, ErrorRoutesRegistry } from './types.js';
+import type { ActionOptions, ActionStatus, ErrorRoutesRegistry, Message } from './types.js';
 
 export function useAction<TArgs = void, TResult = void, RouteId extends string = string>(
   opts: ActionOptions<TArgs, TResult, RouteId>,
@@ -16,7 +16,7 @@ export function useAction<TArgs = void, TResult = void, RouteId extends string =
   const messageSink = useMessageSink();
 
   const [pending, setPending] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
 
@@ -29,7 +29,7 @@ export function useAction<TArgs = void, TResult = void, RouteId extends string =
         reason: fields.reason,
         getPending: () => pendingRef.current,
         setPending,
-        setErrors,
+        setMessages,
         errCtxRef,
         t,
         registry,
@@ -42,7 +42,7 @@ export function useAction<TArgs = void, TResult = void, RouteId extends string =
   // primitives below, not on the whole `opts`/`fields` objects (which are
   // fresh each render and would defeat the memo).
   return useMemo<ActionStatus<TArgs>>(
-    () => assembleStatus(opts, fields, pending, errors, firePromise),
+    () => assembleStatus(opts, fields, pending, messages, firePromise),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       opts.id,
@@ -54,7 +54,7 @@ export function useAction<TArgs = void, TResult = void, RouteId extends string =
       fields.reason,
       fields.invisible,
       fields.confirmation,
-      errors,
+      messages,
       firePromise,
     ],
   );

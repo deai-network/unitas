@@ -22,8 +22,17 @@ npm install vultus-antd
 
 - `.` — re-exports all of `vultus-core`, plus `VultusProvider`,
   `ActionButton`, `CombinedActionButton`, `FormSubmitButton`, `FormPanel`,
-  and `ConfirmTypingModal`.
+  `BoolSwitch`, `BoolCheckbox`, `Confirmable` and `ConfirmTypingModal`.
 - `./markdown` — `Markdown` and the `MarkdownProps` type, standalone.
+
+## Boolean fields
+
+`<BoolSwitch field={f} />` and `<BoolCheckbox field={f} />` render a `useBoolField`
+field (vultus-core) as antd's Switch or Checkbox: the same field, two looks. Both show
+the value, disable with the field's reason as a tooltip, show progress while a commit
+is pending, and obtain the field's confirmation for the requested value before
+changing it. The switch uses the label as its accessible name; the checkbox shows it.
+`Confirmable` is the confirmation wrapper they share with `ActionButton`.
 
 ## CombinedActionButton selection
 

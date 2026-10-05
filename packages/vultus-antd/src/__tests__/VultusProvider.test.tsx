@@ -4,9 +4,9 @@ import { ConfigProvider } from 'antd';
 import { useMessageSink } from 'vultus-core';
 import { VultusProvider } from '../VultusProvider.js';
 
-function Fire({ text }: { text: string }) {
+function Fire({ text, severity }: { text: string; severity?: 'info' | 'warning' | 'error' }) {
   const sink = useMessageSink();
-  return <button onClick={() => sink(text)}>fire</button>;
+  return <button onClick={() => sink(text, severity)}>fire</button>;
 }
 
 describe('VultusProvider', () => {
@@ -21,6 +21,21 @@ describe('VultusProvider', () => {
     getByText('fire').click();
     await waitFor(() => {
       expect(document.body.querySelector('.vx-message')?.textContent).toContain('it broke');
+    });
+  });
+
+  it('default sink shows warnings and infos with their own severity', async () => {
+    const { getByText } = render(
+      <ConfigProvider prefixCls="vx">
+        <VultusProvider>
+          <Fire text="3 pairs skipped" severity="warning" />
+        </VultusProvider>
+      </ConfigProvider>,
+    );
+    getByText('fire').click();
+    await waitFor(() => {
+      const notice = document.body.querySelector('.vx-message-warning');
+      expect(notice?.textContent).toContain('3 pairs skipped');
     });
   });
 

@@ -12,6 +12,9 @@ import type {
   ConfirmationSpec,
   Decision,
   ErrorRoutesRegistry,
+  ExecutionContext,
+  Message,
+  Severity,
 } from './types.js';
 
 /**
@@ -49,7 +52,7 @@ export interface FirePromiseDeps<RouteId extends string> {
   reason: string | undefined;
   getPending: () => boolean;
   setPending: (value: boolean) => void;
-  setErrors: (errors: string[]) => void;
+  setMessages: (messages: Message[]) => void;
   errCtxRef: MutableRefObject<ActionErrorCtx | null>;
   t: (key: string, opts?: Record<string, unknown>) => string;
   registry?: ErrorRoutesRegistry<RouteId>;
@@ -70,10 +73,19 @@ export function makeFirePromise<TArgs, TResult, RouteId extends string>(
       console.warn(`Action '${opts.id}': already pending — ignoring fire`);
       return;
     }
-    deps.setErrors([]);
+    // Messages of this run: reported through the context while it runs, then
+    // the thrown error if it fails. Each report updates the status at once.
+    const messages: Message[] = [];
+    const report = (severity: Severity) => (text: string) => {
+      messages.push({ text, severity });
+      deps.setMessages([...messages]);
+      deps.messageSink?.(text, severity);
+    };
+    const ctx: ExecutionContext = { info: report('info'), warn: report('warning'), error: report('error') };
+    deps.setMessages([]);
     deps.setPending(true);
     try {
-      const result = await opts.fire(args);
+      const result = await opts.fire(args, ctx);
       opts.onSuccess?.(result as TResult);
     } catch (err) {
       if (opts.errorRoute && deps.registry) {
@@ -90,7 +102,10 @@ export function makeFirePromise<TArgs, TResult, RouteId extends string>(
         );
       }
       const parsed = parseApiError(err);
-      deps.setErrors([parsed.message ?? 'Action failed']);
+      // The thrown error is surfaced by routeApiError (form field, inline or
+      // sink), so it only lands on the status here.
+      messages.push({ text: parsed.message ?? 'Action failed', severity: 'error' });
+      deps.setMessages([...messages]);
     } finally {
       deps.setPending(false);
     }
@@ -102,7 +117,7 @@ export function assembleStatus<TArgs>(
   opts: ActionOptions<TArgs, any, any>,
   fields: ResolvedFields,
   pending: boolean,
-  errors: string[],
+  messages: Message[],
   firePromise: (args: TArgs) => Promise<void>,
 ): ActionStatus<TArgs> {
   const fire = (args: TArgs) => {
@@ -118,7 +133,8 @@ export function assembleStatus<TArgs>(
     reason: fields.reason,
     invisible: fields.invisible,
     confirmation: fields.confirmation,
-    errors,
+    messages,
+    errors: messages.filter((m) => m.severity === 'error').map((m) => m.text),
     fire: fire as ActionStatus<TArgs>['fire'],
     firePromise: firePromise as ActionStatus<TArgs>['firePromise'],
   };

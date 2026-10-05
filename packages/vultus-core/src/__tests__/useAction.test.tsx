@@ -117,6 +117,6 @@ describe('useAction', () => {
     await act(async () => {
       await result.current.firePromise({ name: 'kit' });
     });
-    expect(fire).toHaveBeenCalledWith({ name: 'kit' });
+    expect(fire).toHaveBeenCalledWith({ name: 'kit' }, expect.objectContaining({ info: expect.any(Function) }));
   });
 });
