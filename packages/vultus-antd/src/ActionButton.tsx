@@ -3,7 +3,8 @@ import { Button, type ButtonProps } from 'antd';
 import type { ActionStatus } from 'vultus-core';
 import { CombinedActionButton } from './CombinedActionButton.js';
 import { useConfirm } from './useConfirm.js';
-import { withReason } from './WithReason.js';
+import { ReasonMarkdown } from './ReasonMarkdown.js';
+import { withReason, withTooltip } from './WithReason.js';
 
 interface Props {
   action: ActionStatus | ActionStatus[];
@@ -26,6 +27,12 @@ interface Props {
   // solid one: 'text' in menus and pop-up panels, 'link' inline. The action's
   // own variant still picks the colour (primary, danger). Single action only.
   buttonVariant?: ButtonProps['variant'];
+  // Show the icon only: a square button whose label becomes its accessible
+  // name and its tooltip (with the reason below it when disabled), and stays
+  // the confirmation's OK text. Single action only.
+  iconOnly?: boolean;
+  // Extra class on the button, e.g. a styling layer's look or flags. Single action only.
+  className?: string;
 }
 
 // Shared by ActionButton and CombinedActionButton: maps the `align` prop to
@@ -39,7 +46,7 @@ export function alignToJustifyContent(align: 'start' | 'center' | 'end' | undefi
   return undefined;
 }
 
-export function ActionButton({ action, size, block, keepOriginalDefault, iconPlacement, align, buttonVariant }: Props) {
+export function ActionButton({ action, size, block, keepOriginalDefault, iconPlacement, align, buttonVariant, iconOnly, className }: Props) {
   // Called unconditionally, before the early returns (Rules of Hooks); with the
   // array form the label and danger are unused.
   const single = Array.isArray(action) ? undefined : action;
@@ -68,7 +75,7 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
       }
     : { type: action.variant === 'primary' ? 'primary' : 'default', danger: action.variant === 'danger' };
 
-  return wrap(withReason(action.reason, action.disabled, (
+  const button = (
     <Button
       icon={action.icon}
       iconPlacement={iconPlacement}
@@ -76,12 +83,22 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
       {...look}
       size={size}
       block={block}
+      className={className}
       loading={action.pending}
       disabled={action.disabled || action.pending}
       onClick={() => confirm(action.confirmation, () => action.fire())}
+      aria-label={iconOnly ? action.label : undefined}
       data-action-id={action.id}
     >
-      {action.label}
+      {iconOnly ? undefined : action.label}
     </Button>
-  )));
+  );
+  if (iconOnly) {
+    // The label is the tooltip; a disabled action's reason follows it.
+    const title = action.reason
+      ? <>{action.label}<div style={{ marginTop: 6 }}><ReasonMarkdown>{action.reason}</ReasonMarkdown></div></>
+      : action.label;
+    return wrap(withTooltip(title, action.disabled, button));
+  }
+  return wrap(withReason(action.reason, action.disabled, button));
 }

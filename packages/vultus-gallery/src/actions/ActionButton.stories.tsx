@@ -18,6 +18,7 @@ export const Kinds: StoryObj = {
       <Showcase title="Variants" note="Click to see pending (the button spins until fire resolves). A disabled action shows its reason (markdown) on hover.">
         <Example label='variant="primary"'><ActionButton action={run} /></Example>
         <Example label="default"><ActionButton action={plain} /></Example>
+        <Example label="iconOnly (label = name + tooltip)"><ActionButton action={remove} iconOnly /></Example>
         <Example label='variant="danger"'><ActionButton action={remove} /></Example>
         <Example label="disabled with reason"><ActionButton action={locked} /></Example>
       </Showcase>

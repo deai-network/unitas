@@ -30,6 +30,28 @@ describe('ActionButton', () => {
     expect(screen.getByRole('button', { name: 'Plain' })).toHaveClass('ant-btn-variant-outlined');
   });
 
+  it('iconOnly: no visible label; the label names the button and is its tooltip', async () => {
+    render(wrap(<ActionButton action={makeStatus({ label: 'Delete', icon: <span>x</span>, variant: 'danger' })} iconOnly />));
+    const btn = screen.getByRole('button', { name: 'Delete' });
+    expect(btn).not.toHaveTextContent('Delete');
+    expect(btn).toHaveClass('ant-btn-icon-only');
+    fireEvent.mouseEnter(btn.parentElement!);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Delete');
+  });
+
+  it('iconOnly and disabled: the tooltip gives the label, then the reason', async () => {
+    render(wrap(<ActionButton action={makeStatus({ label: 'Delete', icon: <span>x</span>, disabled: true, reason: 'Admins only' })} iconOnly />));
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Delete' }).parentElement!);
+    const tip = await screen.findByRole('tooltip');
+    expect(tip).toHaveTextContent('Delete');
+    expect(tip).toHaveTextContent('Admins only');
+  });
+
+  it('className reaches the button', () => {
+    render(wrap(<ActionButton action={makeStatus({ label: 'Run' })} className="look-x" />));
+    expect(screen.getByRole('button', { name: 'Run' })).toHaveClass('look-x');
+  });
+
   it('pending → disabled', () => {
     render(wrap(<ActionButton action={makeStatus({ pending: true })} />));
     expect(screen.getByRole('button')).toBeDisabled();
