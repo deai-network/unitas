@@ -88,7 +88,11 @@ export function makeFirePromise<TArgs, TResult, RouteId extends string>(
       const result = await opts.fire(args, ctx);
       opts.onSuccess?.(result as TResult);
     } catch (err) {
+      const parsed = parseApiError(err);
+      const text = parsed.message ?? 'Action failed';
       if (opts.errorRoute && deps.registry) {
+        // A routed action: routeApiError decides where the error shows (a form
+        // field, the inline error, or the sink).
         routeApiError(
           err,
           {
@@ -100,11 +104,11 @@ export function makeFirePromise<TArgs, TResult, RouteId extends string>(
           },
           deps.registry,
         );
+      } else {
+        // No route: the sink shows it, like the messages reported through ctx.
+        deps.messageSink?.(text, 'error');
       }
-      const parsed = parseApiError(err);
-      // The thrown error is surfaced by routeApiError (form field, inline or
-      // sink), so it only lands on the status here.
-      messages.push({ text: parsed.message ?? 'Action failed', severity: 'error' });
+      messages.push({ text, severity: 'error' });
       deps.setMessages([...messages]);
     } finally {
       deps.setPending(false);

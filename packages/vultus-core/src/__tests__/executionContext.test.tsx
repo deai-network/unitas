@@ -55,6 +55,31 @@ describe('ExecutionContext', () => {
     expect(result.current.errors).toEqual(['Step 2 broke']);
   });
 
+  it('a thrown error of an action without errorRoute goes to the sink', async () => {
+    const sink = vi.fn();
+    const { result } = renderHook(() => useAction({
+      id: 'unrouted', label: 'Go',
+      fire: async () => { throw { status: 409, body: { message: 'Conflict: renamed meanwhile.' } }; },
+    }), { wrapper: withSink(sink) });
+    await act(async () => { await result.current.firePromise(); });
+    expect(sink).toHaveBeenCalledTimes(1);
+    expect(sink).toHaveBeenCalledWith('Conflict: renamed meanwhile.', 'error');
+    expect(result.current.errors).toEqual(['Conflict: renamed meanwhile.']);
+  });
+
+  it('a routed action leaves the thrown error to routeApiError: shown once, in the routed place', async () => {
+    const sink = vi.fn();
+    const registry = { 'items.update': { 'name-taken': { i18nKey: 'items.nameTaken' } } };
+    const { result } = renderHook(() => useAction({
+      id: 'routed', label: 'Save', errorRoute: 'items.update',
+      fire: async () => { throw { status: 409, body: { reason: 'name-taken' } }; },
+    }, registry), { wrapper: withSink(sink) });
+    await act(async () => { await result.current.firePromise(); });
+    // No form or inline target here, so routeApiError falls back to the sink, once.
+    expect(sink).toHaveBeenCalledTimes(1);
+    expect(sink).toHaveBeenCalledWith('items.nameTaken');
+  });
+
   it('a new run starts with no messages', async () => {
     let first = true;
     const { result } = renderHook(() => useAction({
