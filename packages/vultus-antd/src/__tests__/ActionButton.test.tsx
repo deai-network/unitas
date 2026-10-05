@@ -47,6 +47,18 @@ describe('ActionButton', () => {
     expect(tip).toHaveTextContent('Admins only');
   });
 
+  it('buttonColor shows a danger action in another colour', () => {
+    render(wrap(<ActionButton action={makeStatus({ label: 'Cancel', variant: 'danger' })} buttonColor="default" />));
+    const btn = screen.getByRole('button', { name: 'Cancel' });
+    expect(btn).toHaveClass('ant-btn-color-default', 'ant-btn-variant-outlined');
+    expect(btn).not.toHaveClass('ant-btn-dangerous');
+  });
+
+  it('array form: className reaches the combined buttons', () => {
+    render(wrap(<ActionButton action={[makeStatus({ id: 'a', label: 'Analyze' }), makeStatus({ id: 'b', label: 'Sync' })]} className="look-y" />));
+    for (const btn of screen.getAllByRole('button')) expect(btn).toHaveClass('look-y');
+  });
+
   it('className reaches the button', () => {
     render(wrap(<ActionButton action={makeStatus({ label: 'Run' })} className="look-x" />));
     expect(screen.getByRole('button', { name: 'Run' })).toHaveClass('look-x');

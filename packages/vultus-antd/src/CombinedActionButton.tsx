@@ -33,9 +33,12 @@ interface Props {
   // and move together as one unit: before the label for `iconPlacement`
   // `'start'`/unset, after it for `'end'`.
   align?: 'start' | 'center' | 'end';
+  // Extra class on the buttons (the main half and the opener), e.g. a styling
+  // layer's look; in the single-button case on that button.
+  className?: string;
 }
 
-export function CombinedActionButton({ actions, size, keepOriginalDefault = false, iconPlacement, align }: Props) {
+export function CombinedActionButton({ actions, size, keepOriginalDefault = false, iconPlacement, align, className }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectionSource, setSelectionSource] = useState<'auto' | 'manual'>('auto');
   const [typingOpen, setTypingOpen] = useState(false);
@@ -49,7 +52,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
   const visible = actions.filter((a) => !a.invisible);
   if (visible.length === 0) return null;
   if (visible.length === 1) {
-    return <ActionButton action={visible[0]} size={size} iconPlacement={iconPlacement} align={align} />;
+    return <ActionButton action={visible[0]} size={size} iconPlacement={iconPlacement} align={align} className={className} />;
   }
 
   const justifyContent = alignToJustifyContent(align);
@@ -169,6 +172,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
   const renderMainButton = () => {
     const rawButton = (
       <Button
+        className={className}
         icon={active.icon}
         iconPlacement={iconPlacement}
         style={justifyContent ? { justifyContent } : undefined}
@@ -238,6 +242,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
         menu={{ items: menuItems, selectedKeys: active.disabled ? [] : [String(selectedIndex)] }}
       >
         <Button
+          className={className}
           // The opener mirrors the selected action's primary/danger styling
           // only while that action is enabled. Disabled, it renders in the
           // default style — it still opens the list either way, only its look

@@ -31,8 +31,12 @@ interface Props {
   // name and its tooltip (with the reason below it when disabled), and stays
   // the confirmation's OK text. Single action only.
   iconOnly?: boolean;
-  // Extra class on the button, e.g. a styling layer's look or flags. Single action only.
+  // Extra class on the button, e.g. a styling layer's look or flags. Array
+  // form: forwarded to CombinedActionButton's buttons.
   className?: string;
+  // Shows the action in this antd colour instead of its variant's (e.g. a
+  // cancel action, variant danger, shown neutral among quiet controls).
+  buttonColor?: ButtonProps['color'];
 }
 
 // Shared by ActionButton and CombinedActionButton: maps the `align` prop to
@@ -46,7 +50,7 @@ export function alignToJustifyContent(align: 'start' | 'center' | 'end' | undefi
   return undefined;
 }
 
-export function ActionButton({ action, size, block, keepOriginalDefault, iconPlacement, align, buttonVariant, iconOnly, className }: Props) {
+export function ActionButton({ action, size, block, keepOriginalDefault, iconPlacement, align, buttonVariant, iconOnly, className, buttonColor }: Props) {
   // Called unconditionally, before the early returns (Rules of Hooks); with the
   // array form the label and danger are unused.
   const single = Array.isArray(action) ? undefined : action;
@@ -60,6 +64,7 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
         keepOriginalDefault={keepOriginalDefault}
         iconPlacement={iconPlacement}
         align={align}
+        className={className}
       />
     );
   }
@@ -68,10 +73,11 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
 
   const justifyContent = alignToJustifyContent(align);
   // antd takes `type`/`danger` unless both `color` and `variant` are given.
-  const look: Pick<ButtonProps, 'type' | 'danger' | 'color' | 'variant'> = buttonVariant
+  const variantColor = action.variant === 'danger' ? 'danger' : action.variant === 'primary' ? 'primary' : 'default';
+  const look: Pick<ButtonProps, 'type' | 'danger' | 'color' | 'variant'> = buttonVariant || buttonColor
     ? {
-        color: action.variant === 'danger' ? 'danger' : action.variant === 'primary' ? 'primary' : 'default',
-        variant: buttonVariant,
+        color: buttonColor ?? variantColor,
+        variant: buttonVariant ?? (action.variant === 'primary' && !buttonColor ? 'solid' : 'outlined'),
       }
     : { type: action.variant === 'primary' ? 'primary' : 'default', danger: action.variant === 'danger' };
 
