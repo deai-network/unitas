@@ -4,6 +4,7 @@ import {
   MessageSinkContext, InternalLinkContext,
   type MessageSink, type InternalLinkComponent,
 } from 'vultus-core';
+import { defaultVultusTexts, VultusTextsContext, type VultusTexts } from './texts.js';
 
 /**
  * Fully-wired vultus provider. Wrap your app once and every vultus-antd
@@ -11,7 +12,8 @@ import {
  * the messages actions report go to antd's message API by severity
  * (error, warning, info), and internal (`/`-prefixed) markdown links render via
  * `linkComponent` when supplied (e.g. a react-router Link) — otherwise the
- * neutral plain-anchor default from vultus-core applies. The configurable
+ * neutral plain-anchor default from vultus-core applies. `texts` translates
+ * the few texts vultus-antd writes itself (English by default). The configurable
  * primitives (MessageSinkContext, InternalLinkContext, <Markdown>) remain
  * exported for advanced use.
  *
@@ -20,11 +22,12 @@ import {
  * app's ConfigProvider (theme, prefix).
  */
 export function VultusProvider({
-  children, linkComponent, messageSink,
+  children, linkComponent, messageSink, texts,
 }: {
   children: ReactNode;
   linkComponent?: InternalLinkComponent;
   messageSink?: MessageSink;
+  texts?: Partial<VultusTexts>;
 }) {
   const [messageApi, messageHolder] = antdMessage.useMessage();
   const sink = useMemo<MessageSink>(
@@ -35,11 +38,18 @@ export function VultusProvider({
     }),
     [messageSink, messageApi],
   );
+  const currentState = texts?.currentState;
+  const mergedTexts = useMemo<VultusTexts>(
+    () => ({ ...defaultVultusTexts, ...(currentState !== undefined ? { currentState } : {}) }),
+    [currentState],
+  );
   const wired = (
-    <MessageSinkContext.Provider value={sink}>
-      {messageHolder}
-      {children}
-    </MessageSinkContext.Provider>
+    <VultusTextsContext.Provider value={mergedTexts}>
+      <MessageSinkContext.Provider value={sink}>
+        {messageHolder}
+        {children}
+      </MessageSinkContext.Provider>
+    </VultusTextsContext.Provider>
   );
   return linkComponent
     ? <InternalLinkContext.Provider value={linkComponent}>{wired}</InternalLinkContext.Provider>

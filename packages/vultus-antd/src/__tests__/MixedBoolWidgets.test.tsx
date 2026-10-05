@@ -4,6 +4,7 @@ import { App as AntApp } from 'antd';
 import { denyWithReason, useBoolField, useMixedBoolField, type MixedBool } from 'vultus-core';
 import { BoolCheckbox } from '../BoolCheckbox.js';
 import { BoolSwitch } from '../BoolSwitch.js';
+import { VultusProvider } from '../VultusProvider.js';
 
 const descriptions = {
   true: 'All entities are on autopilot.',
@@ -50,19 +51,29 @@ describe('mixed boolean fields in the boolean widgets', () => {
     expect(screen.getByRole('checkbox')).not.toBeChecked();
   });
 
-  it('the current value\'s description is the accessible description', () => {
+  it('the description and the current state are the accessible description', () => {
     wrap(<Aggregate value="mixed" fire={vi.fn()} />);
-    expect(screen.getByRole('switch')).toHaveAttribute('aria-description', descriptions.mixed);
-    expect(screen.getByRole('checkbox')).toHaveAttribute('aria-description', descriptions.mixed);
+    const expected = `Runs the syncs unattended. Current state: ${descriptions.mixed}`;
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-description', expected);
+    expect(screen.getByRole('checkbox')).toHaveAttribute('aria-description', expected);
   });
 });
 
 describe('tooltip', () => {
-  it('enabled: the value\'s description, then the description', async () => {
-    wrap(<Aggregate value="mixed" fire={vi.fn()} />);
+  it('enabled: the description, then the current state', async () => {
+    wrap(<Aggregate value={false} fire={vi.fn()} />);
     fireEvent.mouseEnter(screen.getByRole('switch').closest('span[style]')!);
-    const tip = await screen.findByText(descriptions.mixed);
-    expect(tip.parentElement!.textContent).toBe(`${descriptions.mixed}Runs the syncs unattended.`);
+    const state = await screen.findByText(`Current state: ${descriptions.false}`);
+    expect(state.parentElement!.textContent).toBe(`Runs the syncs unattended.Current state: ${descriptions.false}`);
+  });
+
+  it('the app translates "Current state:" through VultusProvider', async () => {
+    render(<AntApp><VultusProvider texts={{ currentState: 'Jelenlegi állapot:' }}>
+      <Aggregate value={false} fire={vi.fn()} />
+    </VultusProvider></AntApp>);
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-description', `Runs the syncs unattended. Jelenlegi állapot: ${descriptions.false}`);
+    fireEvent.mouseEnter(screen.getByRole('switch').closest('span[style]')!);
+    expect(await screen.findByText(`Jelenlegi állapot: ${descriptions.false}`)).toBeInTheDocument();
   });
 
   it('disabled: the reason, then the description; no value description', async () => {

@@ -60,10 +60,14 @@ derived from data and whose change is an immediate server mutation.
 15. `valueDescriptions`: plain texts keyed by value (`true` / `false` / `mixed`, later the choices
     of a oneOf), next to the static `description` (sidedao's description, moxb's help). No values
     interpolated into them. The controls expose the current one as `valueDescription`.
-16. Tooltip: an enabled field shows the value description, then the description; a disabled field
-    shows the reason first, then the description, and leaves the value description out (it
-    usually says what a click does). The value description is also the control's accessible
-    description (a switch has no ARIA "mixed", so it says what the state is).
+16. Tooltip: an enabled field shows the description, then its current state: the value
+    description led by "Current state:" (owner, 2026-10-05: the value description first, then the
+    description, read as if the description were true now, e.g. "Off for all of them. Keeps this
+    connection's datasets synchronized automatically."). A disabled field shows the reason first,
+    then the description, and leaves the current state out (it usually says what a click does).
+    The description and the current state are also the control's accessible description (a
+    switch has no ARIA "mixed", so it says what the state is). "Current state:" is one of the
+    texts vultus-antd writes itself; apps translate it through VultusProvider's `texts`.
 17. Owner (2026-10-05): from the mixed state a single click requests on and a double click
     requests off (instead of leaving unchangeable items out of the aggregate). The widgets wait
     about 300 ms after a click from mixed to tell the two apart; from on or off a click acts at

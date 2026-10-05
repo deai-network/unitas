@@ -22,6 +22,10 @@ interface Props {
   // Unset keeps antd's default (centered) exactly. Array form: forwarded to
   // CombinedActionButton's main half (see there).
   align?: 'start' | 'center' | 'end';
+  // antd's Button variant, for a button that is not the usual outlined or
+  // solid one: 'text' in menus and pop-up panels, 'link' inline. The action's
+  // own variant still picks the colour (primary, danger). Single action only.
+  buttonVariant?: ButtonProps['variant'];
 }
 
 // Shared by ActionButton and CombinedActionButton: maps the `align` prop to
@@ -35,7 +39,7 @@ export function alignToJustifyContent(align: 'start' | 'center' | 'end' | undefi
   return undefined;
 }
 
-export function ActionButton({ action, size, block, keepOriginalDefault, iconPlacement, align }: Props) {
+export function ActionButton({ action, size, block, keepOriginalDefault, iconPlacement, align, buttonVariant }: Props) {
   // Called unconditionally, before the early returns (Rules of Hooks); with the
   // array form the label and danger are unused.
   const single = Array.isArray(action) ? undefined : action;
@@ -56,14 +60,20 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
   if (action.invisible) return null;
 
   const justifyContent = alignToJustifyContent(align);
+  // antd takes `type`/`danger` unless both `color` and `variant` are given.
+  const look: Pick<ButtonProps, 'type' | 'danger' | 'color' | 'variant'> = buttonVariant
+    ? {
+        color: action.variant === 'danger' ? 'danger' : action.variant === 'primary' ? 'primary' : 'default',
+        variant: buttonVariant,
+      }
+    : { type: action.variant === 'primary' ? 'primary' : 'default', danger: action.variant === 'danger' };
 
   return wrap(withReason(action.reason, action.disabled, (
     <Button
       icon={action.icon}
       iconPlacement={iconPlacement}
       style={justifyContent ? { justifyContent } : undefined}
-      type={action.variant === 'primary' ? 'primary' : 'default'}
-      danger={action.variant === 'danger'}
+      {...look}
       size={size}
       block={block}
       loading={action.pending}

@@ -14,6 +14,22 @@ describe('ActionButton', () => {
     expect(container.firstChild?.firstChild).toBeNull();
   });
 
+  it('buttonVariant: a text button, the action\'s variant still picks the colour', () => {
+    render(wrap(<>
+      <ActionButton action={makeStatus({ id: 'plain', label: 'Plain' })} buttonVariant="text" />
+      <ActionButton action={makeStatus({ id: 'del', label: 'Delete', variant: 'danger' })} buttonVariant="text" />
+    </>));
+    const plain = screen.getByRole('button', { name: 'Plain' });
+    const del = screen.getByRole('button', { name: 'Delete' });
+    expect(plain).toHaveClass('ant-btn-variant-text', 'ant-btn-color-default');
+    expect(del).toHaveClass('ant-btn-variant-text', 'ant-btn-color-dangerous');
+  });
+
+  it('without buttonVariant: the usual outlined button', () => {
+    render(wrap(<ActionButton action={makeStatus({ label: 'Plain' })} />));
+    expect(screen.getByRole('button', { name: 'Plain' })).toHaveClass('ant-btn-variant-outlined');
+  });
+
   it('pending → disabled', () => {
     render(wrap(<ActionButton action={makeStatus({ pending: true })} />));
     expect(screen.getByRole('button')).toBeDisabled();

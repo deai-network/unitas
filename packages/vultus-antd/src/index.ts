@@ -1,5 +1,6 @@
 export * from 'vultus-core';
 export { VultusProvider } from './VultusProvider.js';
+export { defaultVultusTexts, useVultusTexts, VultusTextsContext, type VultusTexts } from './texts.js';
 export { ActionButton } from './ActionButton.js';
 export { BoolCheckbox } from './BoolCheckbox.js';
 export { BoolSwitch } from './BoolSwitch.js';

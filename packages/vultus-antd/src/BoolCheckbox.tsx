@@ -1,6 +1,7 @@
 import { Checkbox, Spin } from 'antd';
 import type { BoolFieldControls, MixedBoolFieldControls } from 'vultus-core';
-import { fieldTooltip } from './fieldTooltip.js';
+import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { useVultusTexts } from './texts.js';
 import { useBoolRequest } from './useBoolRequest.js';
 import { useConfirm } from './useConfirm.js';
 import { withTooltip } from './WithReason.js';
@@ -14,14 +15,15 @@ import { withTooltip } from './WithReason.js';
 export function BoolCheckbox({ field }: { field: BoolFieldControls | MixedBoolFieldControls }) {
   const { confirm, wrap } = useConfirm({ okText: field.label });
   const click = useBoolRequest(field, confirm);
+  const texts = useVultusTexts();
   if (!field.visible) return null;
-  return wrap(withTooltip(fieldTooltip(field), !field.enabled, (
+  return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, (
     <Checkbox
       checked={field.value === true}
       indeterminate={field.value === 'mixed'}
       disabled={!field.enabled || field.pending}
       onChange={() => click()}
-      aria-description={field.valueDescription}
+      aria-description={fieldAccessibleDescription(field, texts)}
       data-field-id={field.id}
       data-value={String(field.value)}
     >

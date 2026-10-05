@@ -25,6 +25,25 @@ export const Kinds: StoryObj = {
   },
 };
 
+export const TextButtons: StoryObj = {
+  name: 'Text buttons (menus)',
+  render: function Render() {
+    const recreate = useAction({ id: 'recreate', label: 'Re-create source', fire: () => delay(600) });
+    const remove = useAction({ id: 'remove-text', label: 'Delete', variant: 'danger', icon: <DeleteOutlined />,
+      confirmation: { kind: 'popconfirm', question: 'Delete this connection?' }, fire: () => delay(600) });
+    return (
+      <Showcase title="buttonVariant" note='buttonVariant="text" for the actions of a menu or pop-up panel; the action&apos;s own variant still picks the colour (here danger for Delete).'>
+        <Example label='buttonVariant="text", block, align="start"'>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 220 }}>
+            <ActionButton action={recreate} buttonVariant="text" block align="start" />
+            <ActionButton action={remove} buttonVariant="text" block align="start" />
+          </div>
+        </Example>
+      </Showcase>
+    );
+  },
+};
+
 export const Confirmations: StoryObj = {
   render: function Render() {
     const pop = useAction({ id: 'pop', label: 'Archive', confirmation: { kind: 'popconfirm', question: 'Archive this project?' }, fire: () => delay(400) });
