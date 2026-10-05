@@ -27,11 +27,14 @@ npm install vultus-antd
 
 ## Boolean fields
 
-`<BoolSwitch field={f} />` and `<BoolCheckbox field={f} />` render a `useBoolField`
-field (vultus-core) as antd's Switch or Checkbox: the same field, two looks. Both show
-the value, disable with the field's reason as a tooltip, show progress while a commit
-is pending, and obtain the field's confirmation for the requested value before
-changing it. The switch uses the label as its accessible name; the checkbox shows it.
+`<BoolSwitch field={f} />` and `<BoolCheckbox field={f} />` render a `useBoolField` or
+`useMixedBoolField` field (vultus-core) as antd's Switch or Checkbox: the same field, two
+looks. Both show the value (mixed: the switch's knob in the middle of a half-tinted track,
+the checkbox indeterminate), show progress while a commit is pending, and obtain the
+field's confirmation for the requested value before changing it. The tooltip shows, when
+enabled, the current value's description and then the description; when disabled, the
+reason and then the description. The switch uses the label as its accessible name; the
+checkbox shows it; both use the value's description as their accessible description.
 `Confirmable` is the confirmation wrapper they share with `ActionButton`.
 
 ## CombinedActionButton selection

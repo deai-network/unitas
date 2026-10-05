@@ -68,6 +68,8 @@ export const CommittedImmediately: StoryObj<CommitArgs> = {
     const field = useBoolField({
       id: 'source.enabled',
       label: 'Enabled',
+      description: 'Whether this source may sync at all.',
+      valueDescriptions: { true: 'The source syncs.', false: 'The source does not sync.' },
       hidden,
       enabled: adminOnly ? denyWithReason('Only admins can enable or disable a source.') : true,
       value: stored,

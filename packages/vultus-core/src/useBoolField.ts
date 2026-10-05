@@ -1,9 +1,9 @@
 import { useFieldCore, type FieldControls, type FieldOptions } from './field.js';
 import type { ErrorRoutesRegistry } from './types.js';
 
-export type BoolFieldOptions<RouteId extends string = string> = FieldOptions<boolean, RouteId>;
+export type BoolFieldOptions<RouteId extends string = string> = FieldOptions<boolean, boolean, RouteId>;
 
-export interface BoolFieldControls extends FieldControls<boolean> {
+export interface BoolFieldControls extends FieldControls<boolean, boolean> {
   /**
    * Request the opposite value. Programmatic use; widgets obtain the field's
    * confirmation for `!value` first, then call `setValue`.
@@ -21,7 +21,7 @@ export function useBoolField<RouteId extends string = string>(
   registry?: ErrorRoutesRegistry<RouteId>,
 ): BoolFieldControls {
   const inside = !opts.onChange && !opts.commit;
-  const field = useFieldCore<boolean, RouteId>(
+  const field = useFieldCore<boolean, boolean, RouteId>(
     'boolean',
     inside ? { ...opts, initialValue: opts.initialValue ?? false } : opts,
     registry,

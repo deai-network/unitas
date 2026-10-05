@@ -8,8 +8,11 @@ export { useAction } from './useAction.js';
 export { useActionList } from './useActionList.js';
 export {
   useFieldCore, fieldStorageMode, calculateVisible, calculateEnabled,
-  type FieldCommit, type FieldControls, type FieldOptions, type FieldStorage, type FieldStorageMode,
+  type FieldCommit, type FieldControls, type FieldOptions, type FieldStorage, type FieldStorageMode, type ValueKey,
 } from './field.js';
 export { useBoolField, type BoolFieldControls, type BoolFieldOptions } from './useBoolField.js';
+export {
+  useMixedBoolField, aggregateBool, type MixedBool, type MixedBoolFieldControls, type MixedBoolFieldOptions,
+} from './useMixedBoolField.js';
 export { InternalLinkContext, useInternalLink, type InternalLinkComponent } from './LinkContext.js';
 export { MessageSinkContext, useMessageSink, type MessageSink } from './MessageSink.js';

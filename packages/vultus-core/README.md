@@ -51,8 +51,15 @@ and where the value lives:
   depend on the requested value.
 
 The returned controls (`value`, `setValue`, `toggle`, `pending`, `enabled`, `whyDisabled`,
-`messages`, `confirmationFor(next)`, ...) are what widgets render: vultus-antd's
-`BoolSwitch` and `BoolCheckbox` take the same field.
+`description`, `valueDescription`, `messages`, `confirmationFor(next)`, ...) are what widgets
+render: vultus-antd's `BoolSwitch` and `BoolCheckbox` take the same field.
+`valueDescriptions` (texts keyed by value: `true`, `false`, `mixed`) say what the current value
+means, next to `description` (what the field is).
+
+`useMixedBoolField` is the same field over an aggregate: it shows `true`, `false` or `'mixed'`
+and can be asked for `true` or `false` only (the field core separates the shown type from the
+requestable one); a toggle from mixed requests `true`. `aggregateBool(values)` derives the
+value; with no items at all, disable the field with a reason instead.
 
 ## Distribution
 
