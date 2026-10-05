@@ -65,8 +65,12 @@ export interface ActionStatus<TArgs = void> {
   reason?: string;
   invisible: boolean;
   confirmation?: ConfirmationSpec;
-  /** Messages of the last run: reported through the ExecutionContext, or the thrown error. */
-  messages: Message[];
+  /**
+   * Messages of the last run: reported through the ExecutionContext, or the thrown error.
+   * Optional so hand-built statuses (adapters, test fixtures) stay valid; read it as `[]` when
+   * absent. Statuses from useAction and useActionList always carry it.
+   */
+  messages?: Message[];
   /** The error texts among `messages` (kept for callers that only show errors). */
   errors: string[];
   fire(...args: FireArgs<TArgs>): void;

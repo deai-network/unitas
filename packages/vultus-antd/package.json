@@ -1,6 +1,6 @@
 {
   "name": "vultus-antd",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "license": "Apache-2.0",
   "description": "Ant Design action-button + markdown components for vultus (depends on and re-exports vultus-core)",
   "repository": { "type": "git", "url": "git+https://github.com/deai-network/unitas.git", "directory": "packages/vultus-antd" },

@@ -191,7 +191,7 @@ export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId e
     value,
     setValue,
     pending,
-    messages: mode === 'commit' ? setter.messages : [],
+    messages: mode === 'commit' ? (setter.messages ?? []) : [],
     confirmationFor,
   };
 }
