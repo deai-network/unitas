@@ -57,7 +57,7 @@ export const Aggregate: StoryObj<Args> = {
       valueDescriptions: {
         true: 'All entities are on autopilot. Click to turn it off for all.',
         false: 'No entity is on autopilot. Click to turn it on for all.',
-        mixed: 'Some entities are on autopilot, but not all. Click to turn it on for all.',
+        mixed: 'Some entities are on autopilot, but not all. Click to turn it on for all, double-click to turn it off for all.',
       },
       enabled: value === undefined ? denyWithReason('This connection has no entities with targets yet.') : true,
       value: value ?? false,
@@ -73,7 +73,7 @@ export const Aggregate: StoryObj<Args> = {
     return (
       <Showcase
         title="Aggregate over items"
-        note="The aggregate's value is derived (aggregateBool) from the items' own switches: change an item and the aggregate follows. A click on the aggregate turns all on (from off or mixed) or all off; the known-bad item cannot be turned on and is reported as skipped. Hover the switches for their texts. With no items the aggregate is disabled with a reason (toggle 'withItems')."
+        note="The aggregate's value is derived (aggregateBool) from the items' own switches: change an item and the aggregate follows. A click on the aggregate turns all on (from off or mixed) or all off (from on); from mixed, a double click turns all off. The known-bad item cannot be turned on and is reported as skipped, so after turning all on the aggregate stays mixed: double-click to turn all off. Hover the switches for their texts. With no items the aggregate is disabled with a reason (toggle 'withItems')."
       >
         <Space size={32} align="center">
           <Example label="BoolSwitch"><BoolSwitch field={autopilot} /></Example>

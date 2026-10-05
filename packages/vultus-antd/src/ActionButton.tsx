@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { Button, type ButtonProps } from 'antd';
 import type { ActionStatus } from 'vultus-core';
 import { CombinedActionButton } from './CombinedActionButton.js';
-import { Confirmable } from './Confirmable.js';
+import { useConfirm } from './useConfirm.js';
 import { withReason } from './WithReason.js';
 
 interface Props {
@@ -36,6 +36,11 @@ export function alignToJustifyContent(align: 'start' | 'center' | 'end' | undefi
 }
 
 export function ActionButton({ action, size, block, keepOriginalDefault, iconPlacement, align }: Props) {
+  // Called unconditionally, before the early returns (Rules of Hooks); with the
+  // array form the label and danger are unused.
+  const single = Array.isArray(action) ? undefined : action;
+  const { confirm, wrap } = useConfirm({ okText: single?.label ?? '', danger: single?.variant === 'danger' });
+
   if (Array.isArray(action)) {
     return (
       <CombinedActionButton
@@ -52,31 +57,21 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
 
   const justifyContent = alignToJustifyContent(align);
 
-  return (
-    <Confirmable
-      confirmation={action.confirmation}
-      onConfirm={() => action.fire()}
-      okText={action.label}
+  return wrap(withReason(action.reason, action.disabled, (
+    <Button
+      icon={action.icon}
+      iconPlacement={iconPlacement}
+      style={justifyContent ? { justifyContent } : undefined}
+      type={action.variant === 'primary' ? 'primary' : 'default'}
       danger={action.variant === 'danger'}
+      size={size}
+      block={block}
+      loading={action.pending}
       disabled={action.disabled || action.pending}
+      onClick={() => confirm(action.confirmation, () => action.fire())}
+      data-action-id={action.id}
     >
-      {(activate) => withReason(action.reason, action.disabled, (
-        <Button
-          icon={action.icon}
-          iconPlacement={iconPlacement}
-          style={justifyContent ? { justifyContent } : undefined}
-          type={action.variant === 'primary' ? 'primary' : 'default'}
-          danger={action.variant === 'danger'}
-          size={size}
-          block={block}
-          loading={action.pending}
-          disabled={action.disabled || action.pending}
-          onClick={activate}
-          data-action-id={action.id}
-        >
-          {action.label}
-        </Button>
-      ))}
-    </Confirmable>
-  );
+      {action.label}
+    </Button>
+  )));
 }

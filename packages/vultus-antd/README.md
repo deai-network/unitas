@@ -22,7 +22,7 @@ npm install vultus-antd
 
 - `.` — re-exports all of `vultus-core`, plus `VultusProvider`,
   `ActionButton`, `CombinedActionButton`, `FormSubmitButton`, `FormPanel`,
-  `BoolSwitch`, `BoolCheckbox`, `Confirmable` and `ConfirmTypingModal`.
+  `BoolSwitch`, `BoolCheckbox`, `useConfirm` and `ConfirmTypingModal`.
 - `./markdown` — `Markdown` and the `MarkdownProps` type, standalone.
 
 ## Boolean fields
@@ -35,7 +35,9 @@ field's confirmation for the requested value before changing it. The tooltip sho
 enabled, the current value's description and then the description; when disabled, the
 reason and then the description. The switch uses the label as its accessible name; the
 checkbox shows it; both use the value's description as their accessible description.
-`Confirmable` is the confirmation wrapper they share with `ActionButton`.
+In the mixed state a click requests on and a double click off (a click from mixed waits
+about 300 ms to tell them apart). `useConfirm` is the confirmation hook they share with
+`ActionButton`: the control decides what it requests, then calls `confirm`.
 
 ## CombinedActionButton selection
 
