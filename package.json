@@ -4,7 +4,8 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "pnpm -r build",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "gallery": "pnpm --filter vultus-gallery storybook"
   },
   "engines": { "node": ">=20" },
   "packageManager": "pnpm@11.1.1"
