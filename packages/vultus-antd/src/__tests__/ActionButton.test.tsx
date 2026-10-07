@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { App as AntApp, ConfigProvider } from 'antd';
 import { ActionButton } from '../ActionButton.js';
 import { makeStatus } from './helpers/makeStatus.js';
@@ -165,6 +165,44 @@ describe('ActionButton — confirmation modal context', () => {
     await waitFor(() => {
       expect(document.body.querySelector('.vx-modal-confirm-title')?.textContent).toBe('Delete it?');
     });
+  });
+});
+
+describe('ActionButton — typing confirmation', () => {
+  const burnAll = () => makeStatus({
+    id: 'burn',
+    label: 'Burn all',
+    variant: 'danger',
+    confirmation: {
+      kind: 'typing',
+      title: 'Burn the pool?',
+      entityName: 'burn pool',
+      description: 'Every agent goes.',
+      prompt: 'Zum Bestätigen {phrase} eingeben:',
+    },
+  });
+
+  it('the OK button shows the action label, danger; the prompt places the phrase', async () => {
+    render(wrap(<ActionButton action={burnAll()} />));
+    fireEvent.click(screen.getByRole('button', { name: 'Burn all' }));
+    const dialog = (await screen.findByText('Burn the pool?')).closest('.ant-modal') as HTMLElement;
+    const ok = within(dialog).getByRole('button', { name: 'Burn all' });
+    expect(ok).toBeDisabled();
+    expect(ok).toHaveClass('ant-btn-dangerous');
+    expect(within(dialog).queryByRole('button', { name: 'Delete' })).toBeNull();
+    const phrase = within(dialog).getByText('burn pool', { selector: 'code' });
+    expect(phrase.parentElement).toHaveTextContent(/^Zum Bestätigen burn pool eingeben:$/);
+  });
+
+  it('Enter with the phrase typed fires the action', async () => {
+    const action = burnAll();
+    render(wrap(<ActionButton action={action} />));
+    fireEvent.click(screen.getByRole('button', { name: 'Burn all' }));
+    const dialog = (await screen.findByText('Burn the pool?')).closest('.ant-modal') as HTMLElement;
+    const input = within(dialog).getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'burn pool' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13 });
+    expect(action.fire).toHaveBeenCalledTimes(1);
   });
 });
 

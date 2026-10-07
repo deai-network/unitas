@@ -61,6 +61,9 @@ export function useConfirm({ okText, danger }: { okText: string; danger?: boolea
           title={typing.title}
           entityName={typing.entityName}
           description={typing.description}
+          prompt={typing.prompt}
+          okText={okText}
+          danger={danger}
           onConfirm={() => { setTyping(null); runRef.current(); }}
           onCancel={() => setTyping(null)}
         />

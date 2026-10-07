@@ -39,6 +39,18 @@ In the mixed state a click requests on and a double click off (a click from mixe
 about 300 ms to tell them apart). `useConfirm` is the confirmation hook they share with
 `ActionButton`: the control decides what it requests, then calls `confirm`.
 
+## Typing confirmation
+
+A `{ kind: 'typing', title, entityName, description, prompt? }` confirmation
+opens `ConfirmTypingModal`: the description, an instruction line, and an input
+in which the user types the phrase (`entityName`). The OK button carries the
+action's label and enables once the phrase is
+typed exactly; Enter in the input then confirms too. `prompt` is the
+instruction line, with `{phrase}` where the highlighted phrase goes, so a
+translation can place it anywhere (`'Zum Bestätigen {phrase} eingeben:'`); a
+prompt without `{phrase}` gets the phrase after it. Without `prompt` the line
+reads "Type ‹phrase› to confirm:".
+
 ## CombinedActionButton selection
 
 By default a menu pick becomes the main action and stays there. Pass

@@ -35,7 +35,21 @@ export interface ExecutionContext {
 export type ConfirmationSpec =
   | { kind: 'popconfirm'; question: string }
   | { kind: 'cascade-modal'; title: string; content: React.ReactNode }
-  | { kind: 'typing'; title: string; entityName: string; description: React.ReactNode };
+  | {
+      kind: 'typing';
+      title: string;
+      /** The phrase to type. Confirming (the OK button, labelled with the action's label, or Enter) needs it typed exactly. */
+      entityName: string;
+      description: React.ReactNode;
+      /**
+       * The instruction line above the input, e.g. a translated
+       * `'Zum Bestätigen {phrase} eingeben:'`. Each `{phrase}` shows the phrase
+       * (`entityName`) highlighted, so a translation can place it anywhere; a
+       * prompt without `{phrase}` gets the phrase after it. Absent: the
+       * English `Type {phrase} to confirm:`.
+       */
+      prompt?: string;
+    };
 
 export interface ActionOptions<TArgs = void, TResult = void, RouteId extends string = string> {
   id: string;

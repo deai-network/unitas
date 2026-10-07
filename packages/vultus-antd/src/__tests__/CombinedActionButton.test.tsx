@@ -192,6 +192,37 @@ describe('ActionButton — combined mode', () => {
     expect(a.fire).not.toHaveBeenCalled();
   });
 
+  it('typing confirmation: OK shows the action label, the prompt places the phrase, Enter fires', async () => {
+    const a = makeStatus({
+      id: 'a',
+      label: 'Burn all',
+      variant: 'danger',
+      confirmation: {
+        kind: 'typing',
+        title: 'Burn the pool?',
+        entityName: 'burn pool',
+        description: 'Every agent goes.',
+        prompt: 'Zum Bestätigen {phrase} eingeben:',
+      },
+    });
+    const b = makeStatus({ id: 'b', label: 'Other' });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+
+    fireEvent.click(mainBtn(container));
+    const dialog = (await screen.findByText('Burn the pool?')).closest('.ant-modal') as HTMLElement;
+    const ok = within(dialog).getByRole('button', { name: 'Burn all' });
+    expect(ok).toBeDisabled();
+    expect(ok).toHaveClass('ant-btn-dangerous');
+    expect(within(dialog).queryByRole('button', { name: 'Delete' })).toBeNull();
+    const phrase = within(dialog).getByText('burn pool', { selector: 'code' });
+    expect(phrase.parentElement).toHaveTextContent(/^Zum Bestätigen burn pool eingeben:$/);
+
+    const input = within(dialog).getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'burn pool' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13 });
+    expect(a.fire).toHaveBeenCalledTimes(1);
+  });
+
   it('variant + danger follow the active selection (not actions[0])', async () => {
     const a = makeStatus({ id: 'a', label: 'A', variant: 'primary' });
     const b = makeStatus({ id: 'b', label: 'B', variant: 'danger' });

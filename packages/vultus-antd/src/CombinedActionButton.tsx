@@ -266,6 +266,9 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
           title={conf.title}
           entityName={conf.entityName}
           description={conf.description}
+          prompt={conf.prompt}
+          okText={active.label}
+          danger={active.variant === 'danger'}
           onConfirm={() => { setTypingOpen(false); active.fire(); settle(); }}
           onCancel={() => { setTypingOpen(false); settle(); }}
         />
