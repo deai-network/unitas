@@ -1,6 +1,6 @@
 {
   "name": "vultus-core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "Apache-2.0",
   "description": "Framework-neutral action model + hooks for vultus (antd-free by design)",
   "repository": { "type": "git", "url": "git+https://github.com/deai-network/unitas.git", "directory": "packages/vultus-core" },
