@@ -12,3 +12,4 @@ export { ConfirmTypingModal } from './ConfirmTypingModal.js';
 export { Markdown, type MarkdownProps } from './Markdown.js';
 export { OneOfSelect } from './OneOfSelect.js';
 export { OneOfSegmented } from './OneOfSegmented.js';
+export { OneOfSlider } from './OneOfSlider.js';

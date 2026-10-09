@@ -2,14 +2,15 @@ import { MoonOutlined, SunOutlined } from '@ant-design/icons';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Space, Tag } from 'antd';
 import { useState } from 'react';
-import { OneOfSegmented, OneOfSelect, denyWithReason, useOneOfField, type OneOfChoice } from 'vultus-antd';
+import { OneOfSegmented, OneOfSelect, OneOfSlider, denyWithReason, useOneOfField, type OneOfChoice } from 'vultus-antd';
 import { Example, Showcase, delay } from '../Showcase.js';
 
 /**
  * useOneOfField: a field whose value is one of a list of choices (moxb's
  * OneOf). Each choice has a label, a description (shown when hovering it, and
  * as the field's current state while it is chosen) and may be disabled with a
- * reason. The same field renders as OneOfSelect and as OneOfSegmented.
+ * reason. The same field renders as OneOfSelect, OneOfSegmented and, for
+ * ordered choices, OneOfSlider.
  */
 const meta: Meta = { title: 'Fields/One of' };
 export default meta;
@@ -139,6 +140,49 @@ export const Variants: StoryObj = {
       >
         <Space size={32} align="center" wrap>
           <Example label="OneOfSelect"><OneOfSelect field={field} /></Example>
+          <Example label="OneOfSegmented"><OneOfSegmented field={field} /></Example>
+          <Example label="field.value"><Tag>{field.value}</Tag></Example>
+        </Space>
+      </Showcase>
+    );
+  },
+};
+
+type Effort = 'low' | 'medium' | 'high' | 'max';
+
+interface EffortArgs { maxOnThisModel: boolean; compact: boolean; readOnly: boolean; latencyMs: number }
+
+export const Effort: StoryObj<EffortArgs> = {
+  name: 'Effort (slider)',
+  args: { maxOnThisModel: false, compact: false, readOnly: false, latencyMs: 600 },
+  argTypes: { latencyMs: { control: { type: 'range', min: 0, max: 3000, step: 100 } } },
+  render: function Render({ maxOnThisModel, compact, readOnly, latencyMs }) {
+    const [stored, setStored] = useState<Effort>('medium');
+    const field = useOneOfField<Effort>({
+      id: 'session.effort',
+      label: 'Effort',
+      description: 'How much should the model think before it answers?',
+      choices: [
+        { value: 'low', label: 'Low', description: 'Answers quickly' },
+        { value: 'medium', label: 'Medium', description: 'Thinks a little' },
+        { value: 'high', label: 'High', description: 'Thinks **carefully**' },
+        { value: 'max', label: 'Max', description: 'Thinks as long as it needs; slow and costly', variant: 'danger',
+          enabled: maxOnThisModel || denyWithReason('Not on this model.') },
+      ],
+      enabled: readOnly ? denyWithReason('The session has ended.') : true,
+      value: stored,
+      commit: {
+        confirmation: (next) => (next === 'max' ? { kind: 'popconfirm', question: 'Think as long as it needs? Answers get slow and costly.' } : undefined),
+        fire: async (next) => { await delay(latencyMs); setStored(next); },
+      },
+    });
+    return (
+      <Showcase
+        title="Effort"
+        note="Ordered choices as OneOfSlider: each choice a mark on the track, the handle on the current one. Hover a mark for its description (Max: its reason first while disabled), the handle for the field's description and current state. A choice is requested once per move, when it ends (release, a mark click, an arrow key), not at each step of a drag; a move that ends on a disabled choice requests nothing and the handle returns. While the requested choice is asked and committed (latency) the handle stays on it. 'compact' sets markStyle to a smaller font, as in a dense toolbar. The same field as OneOfSegmented for comparison; changes commit to a pretend server (latency)."
+      >
+        <Space size={32} align="center" wrap>
+          <Example label="OneOfSlider"><OneOfSlider field={field} markStyle={compact ? { fontSize: 11 } : undefined} /></Example>
           <Example label="OneOfSegmented"><OneOfSegmented field={field} /></Example>
           <Example label="field.value"><Tag>{field.value}</Tag></Example>
         </Space>

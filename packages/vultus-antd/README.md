@@ -41,8 +41,9 @@ about 300 ms to tell them apart). `useConfirm` is the confirmation hook they sha
 
 ## One-of fields
 
-`<OneOfSelect field={f} />` and `<OneOfSegmented field={f} />` render a `useOneOfField` field
-(vultus-core) as antd's Select or Segmented: the same field, two looks. Each choice shows its
+`<OneOfSelect field={f} />`, `<OneOfSegmented field={f} />` and `<OneOfSlider field={f} />`
+render a `useOneOfField` field (vultus-core) as antd's Select, Segmented or Slider: the same
+field, three looks. Each choice shows its
 icon before its label; `OneOfSegmented iconOnly` shows the icons only, the label becoming
 the segment's accessible name and the first line of its tooltip. Primary and danger choices
 are styled as `CombinedActionButton` styles its rows (primary bold in the primary colour,
@@ -51,6 +52,14 @@ choice. Hovering a choice shows its description, a disabled one its reason first
 select shows the field's tooltip (held back while the list is open). A choice's confirmation
 comes first; a danger choice's confirmation has a danger OK. antd's native label titles are
 switched off so they do not compete with the tooltips.
+
+`OneOfSlider` is for ordered choices (an effort level): each choice a mark on the track, the
+handle on the current one. Hovering a mark shows its choice's tooltip, hovering the handle the
+field's. A choice is requested once per move, when the move ends (release, a mark click, an
+arrow key's keyup), not at each step of a drag; a move that ends on a disabled choice requests
+nothing and the handle returns. While the requested choice is asked and committed the handle
+stays on it, then shows the stored value (the old one after a Cancel or a failure).
+`markStyle` styles the choices' labels (a smaller font in a dense toolbar).
 
 ## Tooltips
 
