@@ -190,3 +190,36 @@ export const Effort: StoryObj<EffortArgs> = {
     );
   },
 };
+
+type ModelId = 'default' | 'opus' | 'sonnet' | 'claude-opus-5' | 'claude-opus-4-8' | 'claude-sonnet-5';
+
+export const GroupedChoices: StoryObj = {
+  name: 'Grouped choices (model list)',
+  render: function Render() {
+    const field = useOneOfField<ModelId>({
+      id: 'session.model',
+      label: 'Model',
+      description: 'Which model should Claude use?',
+      initialValue: 'default',
+      choices: [
+        { value: 'default', label: 'Default (recommended)', description: 'Opus 5.5 - Best for everyday, complex tasks' },
+        { value: 'opus', label: 'Opus 5.5', description: 'For complex work and everyday tasks' },
+        { value: 'sonnet', label: 'Sonnet 5.5', description: 'Most efficient for simpler tasks' },
+        { value: 'claude-opus-5', label: 'Opus 5', description: 'Best for everyday, complex tasks', group: 'Older versions' },
+        { value: 'claude-opus-4-8', label: 'Opus 4.8', description: 'Best for everyday, complex tasks', group: 'Older versions' },
+        { value: 'claude-sonnet-5', label: 'Sonnet 5', description: 'Efficient for routine tasks', group: 'Older versions' },
+      ],
+    });
+    return (
+      <Showcase
+        title="Grouped choices"
+        note="A choice may name a group: OneOfSelect lists the choices without one first, then each group under its heading. Here Claude Code's model list: the current models, then older versions of each family."
+      >
+        <Space size={32} align="center" wrap>
+          <Example label="OneOfSelect"><OneOfSelect field={field} /></Example>
+          <Example label="field.value"><Tag>{field.value}</Tag></Example>
+        </Space>
+      </Showcase>
+    );
+  },
+};

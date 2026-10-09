@@ -20,7 +20,9 @@ interface Props<T extends string> {
  * list is open. In the list each choice shows its description on hover, a
  * disabled one its reason first (choiceTooltip). Primary and danger choices
  * are styled as CombinedActionButton styles its rows (ChoiceLabel), the closed
- * select mirroring the current one. The field's label is the
+ * select mirroring the current one. Choices with a `group` are listed after
+ * the others, under their group's heading (antd option groups, in the order
+ * the groups first appear). The field's label is the
  * accessible name; a pending commit shows a loading select; the field's
  * confirmation for the requested choice comes first, its OK labelled with the
  * choice.
@@ -31,6 +33,12 @@ export function OneOfSelect<T extends string>({ field, size, style }: Props<T>) 
   const [open, setOpen] = useState(false);
   if (!field.visible) return null;
   const byValue = new Map(field.choices.map((c) => [c.value as string, c]));
+  const option = (c: (typeof field.choices)[number]) => ({ value: c.value, label: c.label, title: '', disabled: !c.enabled });
+  const groups = [...new Set(field.choices.flatMap((c) => (c.group ? [c.group] : [])))];
+  const options = [
+    ...field.choices.filter((c) => !c.group).map(option),
+    ...groups.map((g) => ({ label: g, title: '', options: field.choices.filter((c) => c.group === g).map(option) })),
+  ];
   return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, (
     <Select
       value={field.value}
@@ -45,7 +53,7 @@ export function OneOfSelect<T extends string>({ field, size, style }: Props<T>) 
       // tooltip on each option and on the closed select, where it would
       // compete with ours.
       title=""
-      options={field.choices.map((c) => ({ value: c.value, label: c.label, title: '', disabled: !c.enabled }))}
+      options={options}
       optionRender={(option) => {
         const choice = byValue.get(String(option.value));
         if (!choice) return option.label;

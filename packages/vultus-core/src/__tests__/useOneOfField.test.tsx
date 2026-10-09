@@ -40,6 +40,14 @@ describe('useOneOfField: choices', () => {
     expect(result.current.current?.value).toBe('manual');
   });
 
+  it('passes a choice\'s group through (none: undefined)', () => {
+    const { result } = renderHook(() => useOneOfField({
+      id: 'model', initialValue: 'opus',
+      choices: [{ value: 'opus' }, { value: 'opus-4', group: 'Older versions' }],
+    }));
+    expect(result.current.choices.map((c) => c.group)).toEqual([undefined, 'Older versions']);
+  });
+
   it('choices may be derived (a function)', () => {
     const { result, rerender } = renderHook(({ allow }) => useOneOfField({
       id: 'mode', initialValue: 'manual',

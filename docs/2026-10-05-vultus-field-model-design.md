@@ -107,3 +107,7 @@ mode), starting from moxb's OneOf (`BindOneOfChoice`: value, label, help, disabl
     requests nothing and the handle returns. While the requested choice is asked and committed
     the handle stays on it (owner: no jump back to the old choice meanwhile), then shows the
     stored value. `markStyle` for dense toolbars.
+27. A choice may name a `group` (owner, 2026-10-09, for Claude Code's model list: older
+    versions of a family after the current models). OneOfSelect lists the choices without a
+    group first, then each group under its heading (antd option groups, in the order the groups
+    first appear); the other one-of widgets ignore it.

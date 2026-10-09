@@ -348,3 +348,35 @@ describe('the no-entry sign', () => {
     expect(sign.style.color).toBe('');
   });
 });
+
+describe('OneOfSelect groups', () => {
+  type Model = 'opus' | 'sonnet' | 'opus-4' | 'sonnet-4';
+  function Grouped() {
+    const field = useOneOfField<Model>({
+      id: 'model', label: 'Model', initialValue: 'opus',
+      choices: [
+        { value: 'opus', label: 'Opus 5' },
+        { value: 'opus-4', label: 'Opus 4', group: 'Older versions' },
+        { value: 'sonnet', label: 'Sonnet 5' },
+        { value: 'sonnet-4', label: 'Sonnet 4', group: 'Older versions', description: 'The previous Sonnet' },
+      ],
+    });
+    return <><OneOfSelect field={field} /><output>{field.value}</output></>;
+  }
+
+  it('lists the ungrouped choices first, then each group under its header', async () => {
+    wrap(<Grouped />);
+    await openChoices('OneOfSelect');
+    const rows = Array.from(document.querySelectorAll('.ant-select-item')).map((r) => (
+      r.classList.contains('ant-select-item-group') ? `## ${r.textContent}` : r.textContent));
+    expect(rows).toEqual(['Opus 5', 'Sonnet 5', '## Older versions', 'Opus 4', 'Sonnet 4']);
+  });
+
+  it('a grouped choice is described and chosen like any other', async () => {
+    wrap(<Grouped />);
+    await hoverChoice('OneOfSelect', 'Sonnet 4');
+    await waitFor(() => expect(screen.getByText('The previous Sonnet')).toBeInTheDocument());
+    fireEvent.click(choiceElement('OneOfSelect', 'Sonnet 4'));
+    await waitFor(() => expect(shown()).toBe('sonnet-4'));
+  });
+});

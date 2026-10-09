@@ -18,6 +18,8 @@ export interface OneOfChoice<T extends string = string> {
   disabled?: Decision;
   /** Shown as the main or a dangerous choice, like an action's variant. Default 'default'. */
   variant?: 'default' | 'primary' | 'danger';
+  /** A heading the choice is listed under, after the choices without one (OneOfSelect); default none. */
+  group?: string;
 }
 
 /** A choice as the widgets get it. */
@@ -29,6 +31,7 @@ export interface OneOfChoiceControls<T extends string = string> {
   enabled: boolean;
   whyDisabled: string | undefined;
   variant: 'default' | 'primary' | 'danger';
+  group: string | undefined;
 }
 
 export type OneOfFieldOptions<T extends string = string, RouteId extends string = string> =
@@ -54,6 +57,7 @@ function resolveChoice<T extends string>(fieldId: string, choice: OneOfChoice<T>
     enabled,
     whyDisabled: enabled ? undefined : getReason(decision),
     variant: choice.variant ?? 'default',
+    group: choice.group,
   };
 }
 
