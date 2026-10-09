@@ -89,3 +89,11 @@ describe('labels', () => {
     expect(screen.getByRole('checkbox', { name: 'Notify me' })).toBeInTheDocument();
   });
 });
+
+describe('descriptions in markdown', () => {
+  it('BoolSwitch: the description in its tooltip renders as markdown', async () => {
+    wrap(<Inside kind="BoolSwitch" description="Sends **email** notifications" />);
+    fireEvent.mouseEnter(control('BoolSwitch').closest('span[style]')!);
+    await waitFor(() => expect(screen.getByText('email', { selector: 'strong' })).toBeInTheDocument());
+  });
+});

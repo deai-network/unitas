@@ -1,5 +1,16 @@
-import { Tooltip } from 'antd';
+import { Tooltip, type TooltipProps } from 'antd';
 import type { ReactElement, ReactNode } from 'react';
+
+/**
+ * Optional tooltip settings: where it opens, `open: false` to hold it back,
+ * and `block` to anchor it on the whole width (e.g. a list row) rather than
+ * on the control alone.
+ */
+export interface TooltipOptions {
+  placement?: TooltipProps['placement'];
+  open?: boolean;
+  block?: boolean;
+}
 import { ReasonMarkdown } from './ReasonMarkdown.js';
 
 /**
@@ -9,11 +20,13 @@ import { ReasonMarkdown } from './ReasonMarkdown.js';
  * not a component: a Popconfirm around the result must get the control (or
  * the Tooltip) itself as its child to attach its click.
  */
-export function withTooltip(title: ReactNode | undefined, disabled: boolean, control: ReactElement): ReactElement {
+export function withTooltip(
+  title: ReactNode | undefined, disabled: boolean, control: ReactElement, options?: TooltipOptions,
+): ReactElement {
   if (!title) return control;
   return (
-    <Tooltip title={title}>
-      <span style={{ display: 'inline-block', cursor: disabled ? 'not-allowed' : undefined }}>
+    <Tooltip title={title} placement={options?.placement} open={options?.open}>
+      <span style={{ display: options?.block ? 'block' : 'inline-block', cursor: disabled ? 'not-allowed' : undefined }}>
         {control}
       </span>
     </Tooltip>

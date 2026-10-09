@@ -73,3 +73,27 @@ derived from data and whose change is an immediate server mutation.
     about 300 ms after a click from mixed to tell the two apart; from on or off a click acts at
     once. Confirmations open under program control after the gesture is resolved, for the value
     actually requested. The mixed value description should mention the double click.
+
+## One-of fields (owner, 2026-10-09)
+
+Built for optio-conversation-ui's session controls (model, mode, Claude Code's permission
+mode), starting from moxb's OneOf (`BindOneOfChoice`: value, label, help, disabled, reason).
+
+18. `useOneOfField` on the field core; choices `{ value, label?, description?, icon?,
+    enabled?/disabled?, variant? }`, static or derived (`ValueOrFn`). Requesting a disabled or
+    unknown choice is ignored with a warning.
+19. Texts: each choice has a `description` (what choosing it does), shown when hovering it and
+    used as the field's current state while it is chosen; `valueDescriptions` stays optional, to
+    word a state differently.
+20. Widgets: `OneOfSelect` (antd Select) and `OneOfSegmented` (antd Segmented), on the same
+    field; Segmented is for short always-visible choices (excavator's header preferences).
+21. A choice's `variant` (`default` / `primary` / `danger`) is styled as CombinedActionButton
+    styles its rows, only while the choice is enabled; the closed select mirrors the current
+    choice; a danger choice's confirmation has a danger OK. Dangerous choices get a simple
+    confirmation (popconfirm) where the caller asks for one.
+22. Choices may carry an `icon` (before the label); `OneOfSegmented iconOnly` shows icons only
+    (as ActionButton's iconOnly), the label becoming the accessible name and leading the tooltip.
+23. Descriptions and reasons are markdown, everywhere a field tooltip shows them.
+24. Tooltip paragraphs are marked: a reason is led by a gray no-entry sign, a description by an
+    info sign, also when only one of them is present. Not the danger colour for the no-entry
+    sign: a disabled option is no danger.

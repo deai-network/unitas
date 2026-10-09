@@ -39,6 +39,26 @@ In the mixed state a click requests on and a double click off (a click from mixe
 about 300 ms to tell them apart). `useConfirm` is the confirmation hook they share with
 `ActionButton`: the control decides what it requests, then calls `confirm`.
 
+## One-of fields
+
+`<OneOfSelect field={f} />` and `<OneOfSegmented field={f} />` render a `useOneOfField` field
+(vultus-core) as antd's Select or Segmented: the same field, two looks. Each choice shows its
+icon before its label; `OneOfSegmented iconOnly` shows the icons only, the label becoming
+the segment's accessible name and the first line of its tooltip. Primary and danger choices
+are styled as `CombinedActionButton` styles its rows (primary bold in the primary colour,
+danger in the danger colour), only while enabled; the closed select mirrors the current
+choice. Hovering a choice shows its description, a disabled one its reason first; the closed
+select shows the field's tooltip (held back while the list is open). A choice's confirmation
+comes first; a danger choice's confirmation has a danger OK. antd's native label titles are
+switched off so they do not compete with the tooltips.
+
+## Tooltips
+
+Field and choice tooltips render their texts as markdown (the accessible description gets
+the plain text). A reason paragraph is led by a gray no-entry sign, a description paragraph
+by an info sign, so the two never read as one text; "Current state:" has no sign. The no-entry
+sign is gray, not the danger colour: a disabled thing is no danger.
+
 ## Typing confirmation
 
 A `{ kind: 'typing', title, entityName, description, prompt? }` confirmation

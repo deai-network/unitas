@@ -61,6 +61,16 @@ and can be asked for `true` or `false` only (the field core separates the shown 
 requestable one); a toggle from mixed requests `true`. `aggregateBool(values)` derives the
 value; with no items at all, disable the field with a reason instead.
 
+`useOneOfField` is a field whose value is one of a list of `choices` (static or derived):
+each `{ value, label?, description?, icon?, enabled?/disabled?, variant? }`. A choice may
+be disabled with a reason (a `Decision`, as a field's), and be `primary` or `danger` like an
+action's variant; `description` (markdown) says what choosing it does and is also the field's
+current state while it is chosen, unless `valueDescriptions` words that state differently.
+Requesting a disabled or unknown choice is ignored with a warning. Storage is as for the
+boolean field (inside: `initialValue`, default the first enabled choice); `confirmation` may
+depend on the requested choice. vultus-antd's `OneOfSelect` and `OneOfSegmented` take the
+same field.
+
 ## Distribution
 
 This package ships compiled ESM (`dist/`) with TypeScript declarations to

@@ -64,7 +64,7 @@ describe('tooltip', () => {
     wrap(<Aggregate value={false} fire={vi.fn()} />);
     fireEvent.mouseEnter(screen.getByRole('switch').closest('span[style]')!);
     const state = await screen.findByText(`Current state: ${descriptions.false}`);
-    expect(state.parentElement!.textContent).toBe(`Runs the syncs unattended.Current state: ${descriptions.false}`);
+    expect(state.closest('[role="tooltip"]')!.textContent).toBe(`Runs the syncs unattended.Current state: ${descriptions.false}`);
   });
 
   it('the app translates "Current state:" through VultusProvider', async () => {
