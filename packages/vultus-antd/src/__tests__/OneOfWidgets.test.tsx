@@ -380,3 +380,62 @@ describe('OneOfSelect groups', () => {
     await waitFor(() => expect(shown()).toBe('sonnet-4'));
   });
 });
+
+describe('OneOfSelect inlineDescriptions', () => {
+  const DESCRIBED: OneOfChoice<Mode>[] = [
+    { value: 'manual', label: 'Manual', description: 'Asks before acting' },
+    { value: 'plan', label: 'Plan', description: 'Plans **without** editing; a longer description that has to wrap' },
+    { value: 'bypass', label: 'Bypass', description: 'Runs everything', enabled: denyWithReason('Not allowed for this task') },
+  ];
+  function Described() {
+    const field = useOneOfField<Mode>({ id: 'mode', label: 'Mode', choices: DESCRIBED, initialValue: 'manual' });
+    return <><OneOfSelect field={field} inlineDescriptions /><output>{field.value}</output></>;
+  }
+  /** An open list's row, by the choice's label. */
+  const row = (label: string) => Array.from(document.querySelectorAll<HTMLElement>('.ant-select-item-option'))
+    .find((o) => o.querySelector('[data-choice-part="label"]')?.textContent === label)!;
+  const part = (label: string, which: 'label' | 'description') =>
+    row(label).querySelector<HTMLElement>(`[data-choice-part="${which}"]`)!;
+
+  it('each item: its label as a bold heading, then its description, smaller and wrapping (markdown)', async () => {
+    wrap(<Described />);
+    await openChoices('OneOfSelect');
+    expect(part('Plan', 'label')).toHaveStyle({ fontWeight: '600' });
+    const description = part('Plan', 'description');
+    expect(description).toHaveStyle({ fontSize: '12px', whiteSpace: 'normal' });
+    expect(within(description).getByText('without', { selector: 'strong' })).toBeInTheDocument();
+  });
+
+  it('hovering an item opens no tooltip; a disabled item shows only its reason', async () => {
+    wrap(<Described />);
+    await openChoices('OneOfSelect');
+    fireEvent.mouseEnter(part('Plan', 'label'));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 300)); });
+    expect(openTooltips()).toHaveLength(0);
+    fireEvent.mouseEnter(row('Bypass').querySelector('span[style]')!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    expect(openTooltips()[0]).toHaveTextContent('Not allowed for this task');
+    expect(openTooltips()[0]).not.toHaveTextContent('Runs everything');
+  });
+
+  it('the closed select shows the label only', () => {
+    wrap(<Described />);
+    const selected = document.querySelector<HTMLElement>('.ant-select-content, .ant-select-selection-item')!;
+    expect(selected).toHaveTextContent('Manual');
+    expect(selected).not.toHaveTextContent('Asks before acting');
+  });
+
+  it('the list is at least 320px wide, so descriptions wrap readably', async () => {
+    wrap(<Described />);
+    await openChoices('OneOfSelect');
+    const list = document.querySelector<HTMLElement>('.ant-select-dropdown')!;
+    expect(list.style.width || list.style.minWidth).toBe('320px');
+  });
+
+  it('a choice is chosen as before', async () => {
+    wrap(<Described />);
+    await openChoices('OneOfSelect');
+    fireEvent.click(row('Plan'));
+    await waitFor(() => expect(shown()).toBe('plan'));
+  });
+});

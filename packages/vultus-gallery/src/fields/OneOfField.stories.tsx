@@ -193,9 +193,10 @@ export const Effort: StoryObj<EffortArgs> = {
 
 type ModelId = 'default' | 'opus' | 'sonnet' | 'claude-opus-5' | 'claude-opus-4-8' | 'claude-sonnet-5';
 
-export const GroupedChoices: StoryObj = {
+export const GroupedChoices: StoryObj<{ inlineDescriptions: boolean }> = {
   name: 'Grouped choices (model list)',
-  render: function Render() {
+  args: { inlineDescriptions: true },
+  render: function Render({ inlineDescriptions }) {
     const field = useOneOfField<ModelId>({
       id: 'session.model',
       label: 'Model',
@@ -213,10 +214,10 @@ export const GroupedChoices: StoryObj = {
     return (
       <Showcase
         title="Grouped choices"
-        note="A choice may name a group: OneOfSelect lists the choices without one first, then each group under its heading. Here Claude Code's model list: the current models, then older versions of each family."
+        note="A choice may name a group: OneOfSelect lists the choices without one first, then each group under its heading. Here Claude Code's model list: the current models, then older versions of each family. inlineDescriptions shows each description in the open list under its label instead of in a tooltip (the closed select shows the label only)."
       >
         <Space size={32} align="center" wrap>
-          <Example label="OneOfSelect"><OneOfSelect field={field} /></Example>
+          <Example label="OneOfSelect"><OneOfSelect field={field} inlineDescriptions={inlineDescriptions} /></Example>
           <Example label="field.value"><Tag>{field.value}</Tag></Example>
         </Space>
       </Showcase>

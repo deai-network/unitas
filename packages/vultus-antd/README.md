@@ -53,6 +53,9 @@ select shows the field's tooltip (held back while the list is open). A choice's 
 comes first; a danger choice's confirmation has a danger OK. antd's native label titles are
 switched off so they do not compete with the tooltips. In `OneOfSelect`, choices with a `group`
 are listed after the others, under their group's heading (e.g. older versions of a model).
+`OneOfSelect inlineDescriptions` shows each choice's description in the open list, under its
+label (a bold heading), smaller and wrapping, instead of in a tooltip; a disabled choice's
+tooltip keeps its reason, and the closed select shows the label only.
 
 `OneOfSlider` is for ordered choices (an effort level): each choice a mark on the track, the
 handle on the current one. Hovering a mark shows its choice's tooltip, hovering the handle the

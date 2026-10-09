@@ -111,3 +111,7 @@ mode), starting from moxb's OneOf (`BindOneOfChoice`: value, label, help, disabl
     versions of a family after the current models). OneOfSelect lists the choices without a
     group first, then each group under its heading (antd option groups, in the order the groups
     first appear); the other one-of widgets ignore it.
+28. `OneOfSelect inlineDescriptions` (owner, 2026-10-09, for model lists): in the open list each
+    choice shows its label as a bold heading and its description (markdown) under it, smaller
+    and wrapping; only a disabled choice's reason stays in a tooltip. The closed select shows
+    the label only; the list is at least 320px wide.

@@ -31,16 +31,18 @@ export function fieldTooltip(field: DescribedField, texts: VultusTexts): ReactNo
  * What a one-of field's choice says on hover: its description; a disabled
  * choice its reason first (each led by its sign, as in fieldTooltip).
  * `withLabel` leads with the label (an icon-only choice, whose label is not
- * shown).
+ * shown); `withDescription` false leaves the description out (shown in the
+ * list itself), so only a disabled choice's reason remains.
  */
 export function choiceTooltip(
   choice: { label: string; enabled: boolean; whyDisabled?: string; description?: string },
   withLabel = false,
+  withDescription = true,
 ): ReactNode | undefined {
   return stack([
     withLabel && choice.label,
     !choice.enabled && choice.whyDisabled && <TooltipPart kind="reason" text={choice.whyDisabled} />,
-    choice.description && <TooltipPart kind="description" text={choice.description} />,
+    withDescription && choice.description && <TooltipPart kind="description" text={choice.description} />,
   ]);
 }
 
