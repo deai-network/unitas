@@ -91,6 +91,23 @@ describe('OneOfSlider', () => {
     await waitFor(() => expect(screen.getByText('carefully', { selector: 'strong' })).toBeInTheDocument());
   });
 
+  it('hovering any part of the slider (here its rail) shows what the field is, then the current state', async () => {
+    wrap(<Inside />);
+    fireEvent.mouseEnter(document.querySelector<HTMLElement>('.ant-slider-rail')!);
+    await waitFor(() => expect(screen.getByText('How much should the model think?')).toBeInTheDocument());
+    expect(screen.getByText('Current state: Thinks a little')).toBeInTheDocument();
+  });
+
+  it('on a mark with its own tooltip, that one shows instead of the field\'s', async () => {
+    wrap(<Inside />);
+    fireEvent.mouseEnter(document.querySelector<HTMLElement>('.ant-slider-rail')!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    fireEvent.mouseEnter(mark('High').closest('span[style]')!);
+    await waitFor(() => expect(screen.getByText('carefully', { selector: 'strong' })).toBeInTheDocument());
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    expect(openTooltips()[0]).toHaveTextContent('Thinks carefully');
+  });
+
   it('hovering the handle shows what the field is, then the current state', async () => {
     wrap(<Inside />);
     fireEvent.mouseEnter(handle());

@@ -179,7 +179,7 @@ export const Effort: StoryObj<EffortArgs> = {
     return (
       <Showcase
         title="Effort"
-        note="Ordered choices as OneOfSlider: each choice a mark on the track, the handle on the current one. Hover a mark for its description (Max: its reason first while disabled), the handle for the field's description and current state. A choice is requested once per move, when it ends (release, a mark click, an arrow key), not at each step of a drag; a move that ends on a disabled choice requests nothing and the handle returns. While the requested choice is asked and committed (latency) the handle stays on it. 'compact' sets markStyle to a smaller font, as in a dense toolbar. The same field as OneOfSegmented for comparison; changes commit to a pretend server (latency)."
+        note="Ordered choices as OneOfSlider: each choice a mark on the track, the handle on the current one. Hover the slider anywhere for the field's description and current state, a mark for its own description (Max: its reason first while disabled). A choice is requested once per move, when it ends (release, a mark click, an arrow key), not at each step of a drag; a move that ends on a disabled choice requests nothing and the handle returns. While the requested choice is asked and committed (latency) the handle stays on it. 'compact' sets markStyle to a smaller font, as in a dense toolbar. The same field as OneOfSegmented for comparison; changes commit to a pretend server (latency)."
       >
         <Space size={32} align="center" wrap>
           <Example label="OneOfSlider"><OneOfSlider field={field} markStyle={compact ? { fontSize: 11 } : undefined} /></Example>

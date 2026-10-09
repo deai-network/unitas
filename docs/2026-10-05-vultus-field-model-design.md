@@ -102,7 +102,8 @@ mode), starting from moxb's OneOf (`BindOneOfChoice`: value, label, help, disabl
     widget (owner, 2026-10-09). `useConfirm` reports it as `asking`.
 26. A third widget, `OneOfSlider` (antd Slider), for ordered choices (owner, 2026-10-09; first
     consumer: the effort control in optio-conversation-ui's compact controls bar). Each choice
-    is a mark; a mark's tooltip is its choice's, the handle's is the field's. One request per
+    is a mark. The field's tooltip covers the whole slider (owner: not only the handle), except
+    a mark with a tooltip of its own, which shows that one instead. One request per
     move, when it ends (release, mark click, arrow key's keyup); ending on a disabled choice
     requests nothing and the handle returns. While the requested choice is asked and committed
     the handle stays on it (owner: no jump back to the old choice meanwhile), then shows the

@@ -58,8 +58,8 @@ label (a bold heading), smaller and wrapping, instead of in a tooltip; a disable
 tooltip keeps its reason, and the closed select shows the label only.
 
 `OneOfSlider` is for ordered choices (an effort level): each choice a mark on the track, the
-handle on the current one. Hovering a mark shows its choice's tooltip, hovering the handle the
-field's. A choice is requested once per move, when the move ends (release, a mark click, an
+handle on the current one. Hovering any part of the slider shows the field's tooltip, except a
+mark with a tooltip of its own (its choice's description or reason), which shows that one. A choice is requested once per move, when the move ends (release, a mark click, an
 arrow key's keyup), not at each step of a drag; a move that ends on a disabled choice requests
 nothing and the handle returns. While the requested choice is asked and committed the handle
 stays on it, then shows the stored value (the old one after a Cancel or a failure).
