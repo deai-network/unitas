@@ -12,13 +12,17 @@ export type Confirm = (confirmation: ConfirmationSpec | undefined, run: () => vo
  * it requests and when (a boolean widget in the mixed state first tells a
  * click from a double click), then calls `confirm`. `wrap` puts the
  * popconfirm's anchor around the control and renders the dialogs (cascade
- * modal, typing confirmation) next to it.
+ * modal, typing confirmation) next to it. `asking` is true while a
+ * confirmation is open: the control holds back its own tooltips meanwhile,
+ * which would otherwise cover the popconfirm.
  */
 export function useConfirm({ okText, danger }: { okText: string; danger?: boolean }): {
   confirm: Confirm;
   wrap: (control: ReactElement) => ReactElement;
+  asking: boolean;
 } {
   const [modal, modalHolder] = Modal.useModal();
+  const [modalOpen, setModalOpen] = useState(false);
   const [question, setQuestion] = useState<string | null>(null);
   const [typing, setTyping] = useState<Extract<ConfirmationSpec, { kind: 'typing' }> | null>(null);
   const runRef = useRef<() => void>(() => {});
@@ -32,12 +36,14 @@ export function useConfirm({ okText, danger }: { okText: string; danger?: boolea
     if (confirmation.kind === 'popconfirm') setQuestion(confirmation.question);
     else if (confirmation.kind === 'typing') setTyping(confirmation);
     else {
+      setModalOpen(true);
       modal.confirm({
         title: confirmation.title,
         content: confirmation.content,
         okText,
         okButtonProps: { danger },
         onOk: () => run(),
+        afterClose: () => setModalOpen(false),
       });
     }
   };
@@ -72,5 +78,5 @@ export function useConfirm({ okText, danger }: { okText: string; danger?: boolea
     </>
   );
 
-  return { confirm, wrap };
+  return { confirm, wrap, asking: question !== null || typing !== null || modalOpen };
 }

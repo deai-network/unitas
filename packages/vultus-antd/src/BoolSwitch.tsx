@@ -22,7 +22,7 @@ interface Props {
  */
 export function BoolSwitch({ field, size }: Props) {
   const { token } = theme.useToken();
-  const { confirm, wrap } = useConfirm({ okText: field.label });
+  const { confirm, wrap, asking } = useConfirm({ okText: field.label });
   const click = useBoolRequest(field, confirm);
   const texts = useVultusTexts();
   if (!field.visible) return null;
@@ -43,5 +43,5 @@ export function BoolSwitch({ field, size }: Props) {
         indicator: { insetInlineStart: '50%', transform: 'translateX(-50%)' },
       } : undefined}
     />
-  )));
+  ), { open: asking ? false : undefined }));
 }

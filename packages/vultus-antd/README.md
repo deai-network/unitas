@@ -57,7 +57,8 @@ switched off so they do not compete with the tooltips.
 Field and choice tooltips render their texts as markdown (the accessible description gets
 the plain text). A reason paragraph is led by a gray no-entry sign, a description paragraph
 by an info sign, so the two never read as one text; "Current state:" has no sign. The no-entry
-sign is gray, not the danger colour: a disabled thing is no danger.
+sign is gray, not the danger colour: a disabled thing is no danger. While a widget's
+confirmation is open, the widget holds back its own tooltips, which would cover it.
 
 ## Typing confirmation
 

@@ -54,7 +54,7 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
   // Called unconditionally, before the early returns (Rules of Hooks); with the
   // array form the label and danger are unused.
   const single = Array.isArray(action) ? undefined : action;
-  const { confirm, wrap } = useConfirm({ okText: single?.label ?? '', danger: single?.variant === 'danger' });
+  const { confirm, wrap, asking } = useConfirm({ okText: single?.label ?? '', danger: single?.variant === 'danger' });
 
   if (Array.isArray(action)) {
     return (
@@ -104,7 +104,7 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
     const title = action.reason
       ? <>{action.label}<div style={{ marginTop: 6 }}><ReasonMarkdown>{action.reason}</ReasonMarkdown></div></>
       : action.label;
-    return wrap(withTooltip(title, action.disabled, button));
+    return wrap(withTooltip(title, action.disabled, button, { open: asking ? false : undefined }));
   }
   return wrap(withReason(action.reason, action.disabled, button));
 }

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { App as AntApp, ConfigProvider } from 'antd';
 import { ActionButton } from '../ActionButton.js';
 import { makeStatus } from './helpers/makeStatus.js';
+import { openTooltips } from './helpers/tooltips.js';
 
 function wrap(node: React.ReactNode) {
   return <AntApp>{node}</AntApp>;
@@ -37,6 +38,17 @@ describe('ActionButton', () => {
     expect(btn).toHaveClass('ant-btn-icon-only');
     fireEvent.mouseEnter(btn.parentElement!);
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Delete');
+  });
+
+  it('iconOnly with a popconfirm: while it is open, the label tooltip is held back (it would cover it)', async () => {
+    render(wrap(<ActionButton action={makeStatus({ label: 'Delete', icon: <span>x</span>,
+      confirmation: { kind: 'popconfirm', question: 'Sure?' } })} iconOnly />));
+    const btn = screen.getByRole('button', { name: 'Delete' });
+    fireEvent.mouseEnter(btn.parentElement!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    fireEvent.click(btn);
+    expect(await screen.findByText('Sure?')).toBeInTheDocument();
+    expect(openTooltips()).toHaveLength(0);
   });
 
   it('iconOnly and disabled: the tooltip gives the label, then the reason', async () => {

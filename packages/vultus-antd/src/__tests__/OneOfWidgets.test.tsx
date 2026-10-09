@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { denyWithReason, useOneOfField, type FieldCommit, type OneOfChoice, type OneOfFieldOptions } from 'vultus-core';
 import { OneOfSegmented } from '../OneOfSegmented.js';
 import { OneOfSelect } from '../OneOfSelect.js';
+import { openTooltips } from './helpers/tooltips.js';
 
 type Mode = 'manual' | 'plan' | 'bypass';
 
@@ -110,6 +111,24 @@ describe.each(['OneOfSelect', 'OneOfSegmented'] as Kind[])('%s', (kind) => {
     expect(ok).toBeTruthy();
     await act(async () => { fireEvent.click(ok!); });
     expect(fire).toHaveBeenCalledWith('plan');
+  });
+
+  it('while a confirmation is open, the widget holds back its tooltips (they would cover it)', async () => {
+    wrap(<Committed kind={kind} fire={vi.fn()}
+      confirmation={(next) => (next === 'plan' ? { kind: 'popconfirm', question: 'Switch to Plan?' } : undefined)} />);
+    // Pointing at what is about to be chosen: the closed select, or the segment.
+    const point = async () => {
+      if (kind === 'OneOfSelect') fireEvent.mouseEnter(document.querySelector('[data-field-id="mode"]')!.closest('span[style]')!);
+      else await hoverChoice(kind, 'Plan');
+    };
+    await point();
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    await choose(kind, 'Plan');
+    expect(await screen.findByText('Switch to Plan?')).toBeInTheDocument();
+    // The pointer stays on the widget, or comes back to it (the select's list has closed).
+    await point();
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 300)); });
+    expect(openTooltips()).toHaveLength(0);
   });
 
   it('a disabled field: the reason on hover, no change', async () => {

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { denyWithReason, useBoolField, type BoolFieldOptions, type FieldCommit } from 'vultus-core';
 import { BoolCheckbox } from '../BoolCheckbox.js';
 import { BoolSwitch } from '../BoolSwitch.js';
+import { openTooltips } from './helpers/tooltips.js';
 
 const widgets = { BoolSwitch, BoolCheckbox } as const;
 type Kind = keyof typeof widgets;
@@ -16,15 +17,16 @@ function Inside({ kind, ...opts }: { kind: Kind } & Omit<BoolFieldOptions, 'valu
 }
 
 /** The value lives outside (here in state); the commit stores it after `fire` succeeds. */
-function Committed({ kind, fire, confirmation, enabled }: {
+function Committed({ kind, fire, confirmation, enabled, description }: {
   kind: Kind;
   fire: (next: boolean) => Promise<void> | void;
   confirmation?: FieldCommit<boolean>['confirmation'];
   enabled?: BoolFieldOptions['enabled'];
+  description?: string;
 }) {
   const [stored, setStored] = useState(true);
   const field = useBoolField({
-    id: 'source.enabled', label: 'Enabled', value: stored, enabled,
+    id: 'source.enabled', label: 'Enabled', description, value: stored, enabled,
     commit: { confirmation, fire: async (next) => { await fire(next); setStored(next); } },
   });
   const Widget = widgets[kind];
@@ -74,6 +76,16 @@ describe.each(['BoolSwitch', 'BoolCheckbox'] as Kind[])('%s', (kind) => {
     expect(await screen.findByText('Switch it off?')).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.includes('OK'))!);
     expect(fire).toHaveBeenCalledWith(false);
+  });
+
+  it('while its confirmation is open, the widget holds back its tooltip (it would cover it)', async () => {
+    wrap(<Committed kind={kind} fire={vi.fn()} description="Whether this source may sync"
+      confirmation={(next) => (next ? undefined : { kind: 'popconfirm', question: 'Switch it off?' })} />);
+    fireEvent.mouseEnter(control(kind).closest('span[style]')!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    fireEvent.click(control(kind));
+    expect(await screen.findByText('Switch it off?')).toBeInTheDocument();
+    expect(openTooltips()).toHaveLength(0);
   });
 
   it('renders nothing when hidden', () => {

@@ -27,7 +27,7 @@ interface Props<T extends string> {
  */
 export function OneOfSelect<T extends string>({ field, size, style }: Props<T>) {
   const texts = useVultusTexts();
-  const { request, wrap } = useOneOfRequest(field);
+  const { request, wrap, asking } = useOneOfRequest(field);
   const [open, setOpen] = useState(false);
   if (!field.visible) return null;
   const byValue = new Map(field.choices.map((c) => [c.value as string, c]));
@@ -64,5 +64,5 @@ export function OneOfSelect<T extends string>({ field, size, style }: Props<T>) 
       data-field-id={field.id}
       data-value={field.value}
     />
-  ), { open: open ? false : undefined }));
+  ), { open: open || asking ? false : undefined }));
 }

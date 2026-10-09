@@ -25,7 +25,7 @@ interface Props<T extends string> {
  */
 export function OneOfSegmented<T extends string>({ field, size, iconOnly }: Props<T>) {
   const texts = useVultusTexts();
-  const { request, wrap } = useOneOfRequest(field);
+  const { request, wrap, asking } = useOneOfRequest(field);
   if (!field.visible) return null;
   const control = (
     <Segmented<T>
@@ -37,7 +37,7 @@ export function OneOfSegmented<T extends string>({ field, size, iconOnly }: Prop
         value: c.value,
         disabled: !c.enabled,
         label: field.enabled
-          ? withTooltip(choiceTooltip(c, iconOnly), !c.enabled, <ChoiceLabel choice={c} iconOnly={iconOnly} />)
+          ? withTooltip(choiceTooltip(c, iconOnly), !c.enabled, <ChoiceLabel choice={c} iconOnly={iconOnly} />, { open: asking ? false : undefined })
           : <ChoiceLabel choice={{ ...c, enabled: false }} iconOnly={iconOnly} />,
       }))}
       aria-label={field.label || undefined}

@@ -13,7 +13,7 @@ import { withTooltip } from './WithReason.js';
  * behaviour as BoolSwitch otherwise.
  */
 export function BoolCheckbox({ field }: { field: BoolFieldControls | MixedBoolFieldControls }) {
-  const { confirm, wrap } = useConfirm({ okText: field.label });
+  const { confirm, wrap, asking } = useConfirm({ okText: field.label });
   const click = useBoolRequest(field, confirm);
   const texts = useVultusTexts();
   if (!field.visible) return null;
@@ -30,5 +30,5 @@ export function BoolCheckbox({ field }: { field: BoolFieldControls | MixedBoolFi
       {field.label}
       {field.pending && <Spin size="small" style={{ marginInlineStart: 8 }} />}
     </Checkbox>
-  )));
+  ), { open: asking ? false : undefined }));
 }

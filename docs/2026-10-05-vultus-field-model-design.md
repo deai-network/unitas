@@ -97,3 +97,6 @@ mode), starting from moxb's OneOf (`BindOneOfChoice`: value, label, help, disabl
 24. Tooltip paragraphs are marked: a reason is led by a gray no-entry sign, a description by an
     info sign, also when only one of them is present. Not the danger colour for the no-entry
     sign: a disabled option is no danger.
+25. While a widget's confirmation is open (popconfirm, cascade modal, typing confirmation), the
+    widget holds back its own tooltips, which would cover the popconfirm: every confirming
+    widget (owner, 2026-10-09). `useConfirm` reports it as `asking`.
