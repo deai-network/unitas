@@ -266,13 +266,14 @@ describe.each(['OneOfSelect', 'OneOfSegmented'] as Kind[])('%s icons and markdow
 });
 
 describe('OneOfSegmented iconOnly', () => {
-  it('shows only the icons; the label is the accessible name and leads the tooltip', async () => {
+  it('shows only the icons; the label is the accessible name and leads the choice\'s part of the tooltip, after the field\'s description', async () => {
     wrap(<ThemeField kind="OneOfSegmented" iconOnly />);
     expect(screen.queryByText('Dark')).toBeNull();
     expect(screen.getByRole('radio', { name: 'Dark' })).toBeInTheDocument();
     fireEvent.mouseEnter(screen.getByTestId('moon-icon').closest('span[style]')!);
     await waitFor(() => expect(screen.getByText('Dark')).toBeInTheDocument());
     expect(screen.getByText('A dark background')).toBeInTheDocument();
+    expect(openTooltips()[0]).toHaveTextContent(/^The colour scheme\s*Dark\s*A dark background$/);
   });
 });
 
@@ -335,6 +336,63 @@ describe('field tooltip paragraphs', () => {
       ['reason', 'stop', 'Read-only here'],
       ['description', 'info-circle', 'What it is'],
     ]));
+  });
+});
+
+describe('OneOfSegmented: the field\'s description on each segment', () => {
+  const FIELD = 'How Claude asks for permission';
+
+  it('an enabled field: each segment\'s tooltip leads with the field\'s description (info sign), then the choice\'s', async () => {
+    wrap(<Inside kind="OneOfSegmented" description={FIELD} />);
+    await hoverChoice('OneOfSegmented', 'Plan');
+    await waitFor(() => expect(tooltipParts()).toEqual([
+      ['description', 'info-circle', FIELD],
+      ['description', 'info-circle', 'Plans without editing'],
+    ]));
+  });
+
+  it('a disabled choice: the field\'s description, then the choice\'s reason, then its description', async () => {
+    wrap(<Inside kind="OneOfSegmented" description={FIELD} />);
+    await hoverChoice('OneOfSegmented', 'Bypass');
+    await waitFor(() => expect(tooltipParts()).toEqual([
+      ['description', 'info-circle', FIELD],
+      ['reason', 'stop', 'Not allowed for this task'],
+      ['description', 'info-circle', 'Runs everything'],
+    ]));
+  });
+
+  it('a segment with nothing of its own still shows the field\'s description', async () => {
+    wrap(<Inside kind="OneOfSegmented" description={FIELD}
+      choices={[{ value: 'manual', label: 'Manual' }, { value: 'plan', label: 'Plan' }]} />);
+    await hoverChoice('OneOfSegmented', 'Plan');
+    await waitFor(() => expect(tooltipParts()).toEqual([['description', 'info-circle', FIELD]]));
+  });
+
+  it('no field description: as before, a segment shows its choice\'s own, one with nothing of its own no tooltip', async () => {
+    wrap(<Inside kind="OneOfSegmented"
+      choices={[{ value: 'manual', label: 'Manual', description: 'Asks before acting' }, { value: 'plan', label: 'Plan' }]} />);
+    await hoverChoice('OneOfSegmented', 'Plan');
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 300)); });
+    expect(openTooltips()).toHaveLength(0);
+    await hoverChoice('OneOfSegmented', 'Manual');
+    await waitFor(() => expect(tooltipParts()).toEqual([['description', 'info-circle', 'Asks before acting']]));
+  });
+
+  it('a disabled field: as before, only the whole control\'s tooltip (its reason, then its description)', async () => {
+    wrap(<Inside kind="OneOfSegmented" description={FIELD} enabled={denyWithReason('Read-only here')} />);
+    await hoverChoice('OneOfSegmented', 'Plan');
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 300)); });
+    expect(openTooltips()).toHaveLength(1);
+    expect(tooltipParts()).toEqual([
+      ['reason', 'stop', 'Read-only here'],
+      ['description', 'info-circle', FIELD],
+    ]);
+  });
+
+  it('the accessible description is as before: the field\'s description, then the current state', () => {
+    wrap(<Inside kind="OneOfSegmented" description={FIELD} />);
+    const root = document.querySelector<HTMLElement>('[data-field-id="mode"]')!;
+    expect(root.getAttribute('aria-description')).toBe(`${FIELD} Current state: Asks before acting`);
   });
 });
 

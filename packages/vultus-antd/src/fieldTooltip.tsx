@@ -5,6 +5,8 @@ import type { VultusTexts } from './texts.js';
 
 type DescribedField = Pick<FieldControls<unknown, unknown>, 'enabled' | 'whyDisabled' | 'description' | 'valueDescription'>;
 
+type DescribedChoice = { label: string; enabled: boolean; whyDisabled?: string; description?: string };
+
 /** "Current state: <what the current value means>" (markdown), or nothing without a value description. */
 function currentState(field: DescribedField, texts: VultusTexts): string | undefined {
   return field.valueDescription ? `${texts.currentState} ${field.valueDescription}` : undefined;
@@ -34,16 +36,33 @@ export function fieldTooltip(field: DescribedField, texts: VultusTexts): ReactNo
  * shown); `withDescription` false leaves the description out (shown in the
  * list itself), so only a disabled choice's reason remains.
  */
-export function choiceTooltip(
-  choice: { label: string; enabled: boolean; whyDisabled?: string; description?: string },
-  withLabel = false,
-  withDescription = true,
+export function choiceTooltip(choice: DescribedChoice, withLabel = false, withDescription = true): ReactNode | undefined {
+  return stack(choiceParts(choice, withLabel, withDescription));
+}
+
+/**
+ * What a segment of an enabled one-of field says on hover (OneOfSegmented,
+ * whose enabled control has no tooltip of its own): the field's description,
+ * led by its info sign as in fieldTooltip, then what the choice says
+ * (choiceTooltip). A choice with nothing of its own still shows the field's
+ * description.
+ */
+export function segmentTooltip(
+  field: Pick<DescribedField, 'description'>, choice: DescribedChoice, withLabel = false,
 ): ReactNode | undefined {
   return stack([
+    field.description && <TooltipPart kind="description" text={field.description} />,
+    ...choiceParts(choice, withLabel, true),
+  ]);
+}
+
+/** choiceTooltip's paragraphs, unstacked. */
+function choiceParts(choice: DescribedChoice, withLabel: boolean, withDescription: boolean): ReactNode[] {
+  return [
     withLabel && choice.label,
     !choice.enabled && choice.whyDisabled && <TooltipPart kind="reason" text={choice.whyDisabled} />,
     withDescription && choice.description && <TooltipPart kind="description" text={choice.description} />,
-  ]);
+  ];
 }
 
 /** Tooltip paragraphs one under the other, the empty ones left out. */

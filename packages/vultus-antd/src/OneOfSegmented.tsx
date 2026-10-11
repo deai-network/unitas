@@ -1,7 +1,7 @@
 import { Segmented, type SegmentedProps } from 'antd';
 import type { OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
-import { choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { fieldAccessibleDescription, fieldTooltip, segmentTooltip } from './fieldTooltip.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -9,19 +9,21 @@ import { withTooltip } from './WithReason.js';
 interface Props<T extends string> {
   field: OneOfFieldControls<T>;
   size?: SegmentedProps['size'];
-  /** Show each choice's icon only (as ActionButton's iconOnly): its label becomes the accessible name and leads its tooltip. */
+  /** Show each choice's icon only (as ActionButton's iconOnly): its label becomes the accessible name and leads its choice's part of the tooltip. */
   iconOnly?: boolean;
 }
 
 /**
  * A one-of field (useOneOfField) as antd's Segmented: every choice visible,
- * the current one selected. Each segment shows its choice's description on
- * hover, a disabled one its reason first (choiceTooltip); primary and danger
- * choices are styled as CombinedActionButton styles its rows. A disabled field
- * shows its reason for the whole control instead (fieldTooltip). The field's
- * label is the accessible name; a pending commit locks it; the field's
- * confirmation for the requested choice comes first, its OK labelled with the
- * choice.
+ * the current one selected. Each segment shows on hover the field's
+ * description first (the enabled control has no tooltip of its own;
+ * OneOfSelect's leads with it too), then its choice's description, a disabled
+ * one its reason first (segmentTooltip); a segment with nothing of its own
+ * still shows the field's description. Primary and danger choices are styled as
+ * CombinedActionButton styles its rows. A disabled field shows its reason for
+ * the whole control instead (fieldTooltip). The field's label is the
+ * accessible name; a pending commit locks it; the field's confirmation for
+ * the requested choice comes first, its OK labelled with the choice.
  */
 export function OneOfSegmented<T extends string>({ field, size, iconOnly }: Props<T>) {
   const texts = useVultusTexts();
@@ -37,7 +39,7 @@ export function OneOfSegmented<T extends string>({ field, size, iconOnly }: Prop
         value: c.value,
         disabled: !c.enabled,
         label: field.enabled
-          ? withTooltip(choiceTooltip(c, iconOnly), !c.enabled, <ChoiceLabel choice={c} iconOnly={iconOnly} />, { open: asking ? false : undefined })
+          ? withTooltip(segmentTooltip(field, c, iconOnly), !c.enabled, <ChoiceLabel choice={c} iconOnly={iconOnly} />, { open: asking ? false : undefined })
           : <ChoiceLabel choice={{ ...c, enabled: false }} iconOnly={iconOnly} />,
       }))}
       aria-label={field.label || undefined}
