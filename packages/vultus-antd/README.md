@@ -45,6 +45,15 @@ value (or vultus-core's `{}` default, meaning "render antd's own spinners") unto
 A nested `components={{ Spinner: undefined }}` explicitly clears an inherited `Spinner`,
 so that one subtree can opt back into antd's own spinner under a provider that set one.
 
+Where vultus-antd shows it (all `size="small"`):
+
+| component | local key | where |
+|---|---|---|
+| `ActionButton`, `CombinedActionButton`, `FormSubmitButton` | `vultus:action:<id>` | the button's loading icon |
+| `BoolCheckbox` | `vultus:field:<id>` | after the checkbox and its label, while a commit is pending |
+| `BoolSwitch` | `vultus:field:<id>` | after the switch (antd's Switch has no icon slot, so it shows no loading state of its own) |
+| `OneOfSelect` | `vultus:field:<id>` | the select's suffix icon, while a commit is pending |
+
 Wrap a subtree in `<SpinnerScope name="...">` (from vultus-core) to prefix every spinner
 key inside with that name, so several instances of the same view on one page get distinct,
 stable keys — e.g. an app wrapping each open process's view in

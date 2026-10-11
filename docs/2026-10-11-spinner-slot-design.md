@@ -89,7 +89,7 @@ All sizes are `'small'` unless noted. "Provided" means `useVultusComponents().Sp
 
 | # | file | today | provided |
 |---|---|---|---|
-| 7 | `components/ProcessList.tsx` (~16) | `<List loading={loading} …>` | `loading={{ spinning: loading, indicator: <Spinner spinnerKey={useSpinnerKey('optio:process-list')} size="default" /> }}` |
+| 7 | `components/ProcessList.tsx` (~16) | `<List loading={loading} …>` | `loading={{ spinning: loading, indicator: … }}`, the indicator a small wrapper (`span.optio-spinner-slot-indicator`) around `<Spinner spinnerKey={useSpinnerKey('optio:process-list')} size="default" />`: antd's Spin clones its indicator and injects `className`/`style`/`percent`, which the wrapper absorbs so the lent spinner receives only `SpinnerProps` |
 | 8 | `components/LaunchControls.tsx` (~87) | `icon={<LoadingOutlined spin style={iconStyle} />}` | `icon={<Spinner spinnerKey={useSpinnerKey(\`optio:process:${process._id}:resurrecting\`)} />}` |
 | 9 | `components/ProcessDetailView.tsx` (~72) | `<div data-testid="optio-detail-loading">Loading…</div>` | the Spinner before the text (key `optio:process:${processId}:detail`); the text and test id stay |
 | 10 | `widgets/IframeWidget.tsx` (~34) | `<div data-testid="optio-widget-loading">Loading…</div>` | the Spinner before the text (key `optio:process:${process._id}:widget`) |
