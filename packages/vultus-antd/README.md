@@ -70,6 +70,8 @@ field's confirmation for the requested value before changing it. The tooltip sho
 enabled, the current value's description and then the description; when disabled, the
 reason and then the description. The switch uses the label as its accessible name; the
 checkbox shows it; both use the value's description as their accessible description.
+`BoolSwitch` also takes antd's `checkedChildren` / `unCheckedChildren` for a short text
+inside the switch (the unchecked one shows while mixed).
 In the mixed state a click requests on and a double click off (a click from mixed waits
 about 300 ms to tell them apart). `useConfirm` is the confirmation hook they share with
 `ActionButton`: the control decides what it requests, then calls `confirm`.

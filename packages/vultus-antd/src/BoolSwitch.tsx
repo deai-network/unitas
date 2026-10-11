@@ -9,6 +9,10 @@ import { withTooltip } from './WithReason.js';
 interface Props {
   field: BoolFieldControls | MixedBoolFieldControls;
   size?: SwitchProps['size'];
+  /** Text inside the switch when on (antd's checkedChildren), e.g. the field's short name. */
+  checkedChildren?: SwitchProps['checkedChildren'];
+  /** Text inside the switch when off or mixed (antd's unCheckedChildren). */
+  unCheckedChildren?: SwitchProps['unCheckedChildren'];
 }
 
 /**
@@ -20,7 +24,7 @@ interface Props {
  * fieldTooltip; a pending commit shows a loading switch; the field's
  * confirmation for the requested value comes first.
  */
-export function BoolSwitch({ field, size }: Props) {
+export function BoolSwitch({ field, size, checkedChildren, unCheckedChildren }: Props) {
   const { token } = theme.useToken();
   const { confirm, wrap, asking } = useConfirm({ okText: field.label });
   const click = useBoolRequest(field, confirm);
@@ -33,6 +37,8 @@ export function BoolSwitch({ field, size }: Props) {
     <Switch
       checked={field.value === true}
       size={size}
+      checkedChildren={checkedChildren}
+      unCheckedChildren={unCheckedChildren}
       // With a lent Spinner, the Switch shows no built-in loading state (antd's Switch has
       // no icon slot for one) — the Spinner renders right after it instead (Decision 6); it
       // still disables while pending either way.

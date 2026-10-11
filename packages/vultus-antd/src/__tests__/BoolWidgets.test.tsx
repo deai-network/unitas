@@ -109,3 +109,18 @@ describe('descriptions in markdown', () => {
     await waitFor(() => expect(screen.getByText('email', { selector: 'strong' })).toBeInTheDocument());
   });
 });
+
+describe('BoolSwitch texts inside the switch', () => {
+  function Labelled({ initial }: { initial: boolean }) {
+    const field = useBoolField({ id: 'autopilot', label: 'Autopilot', initialValue: initial });
+    return <BoolSwitch field={field} checkedChildren="On" unCheckedChildren="Off" />;
+  }
+
+  it('shows checkedChildren when on and unCheckedChildren when off', () => {
+    wrap(<Labelled initial />);
+    const sw = screen.getByRole('switch');
+    expect(sw.textContent).toContain('On');
+    fireEvent.click(sw);
+    expect(screen.getByRole('switch').textContent).toContain('Off');
+  });
+});
