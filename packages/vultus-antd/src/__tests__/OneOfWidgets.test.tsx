@@ -266,14 +266,14 @@ describe.each(['OneOfSelect', 'OneOfSegmented'] as Kind[])('%s icons and markdow
 });
 
 describe('OneOfSegmented iconOnly', () => {
-  it('shows only the icons; the label is the accessible name and leads the choice\'s part of the tooltip, after the field\'s description', async () => {
+  it('shows only the icons; the label is the accessible name and leads the tooltip, before the field\'s description', async () => {
     wrap(<ThemeField kind="OneOfSegmented" iconOnly />);
     expect(screen.queryByText('Dark')).toBeNull();
     expect(screen.getByRole('radio', { name: 'Dark' })).toBeInTheDocument();
     fireEvent.mouseEnter(screen.getByTestId('moon-icon').closest('span[style]')!);
     await waitFor(() => expect(screen.getByText('Dark')).toBeInTheDocument());
     expect(screen.getByText('A dark background')).toBeInTheDocument();
-    expect(openTooltips()[0]).toHaveTextContent(/^The colour scheme\s*Dark\s*A dark background$/);
+    expect(openTooltips()[0]).toHaveTextContent(/^Dark\s*The colour scheme\s*A dark background$/);
   });
 });
 

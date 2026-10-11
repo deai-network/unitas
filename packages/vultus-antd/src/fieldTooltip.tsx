@@ -37,29 +37,30 @@ export function fieldTooltip(field: DescribedField, texts: VultusTexts): ReactNo
  * list itself), so only a disabled choice's reason remains.
  */
 export function choiceTooltip(choice: DescribedChoice, withLabel = false, withDescription = true): ReactNode | undefined {
-  return stack(choiceParts(choice, withLabel, withDescription));
+  return stack([withLabel && choice.label, ...choiceParts(choice, withDescription)]);
 }
 
 /**
  * What a segment of an enabled one-of field says on hover (OneOfSegmented,
  * whose enabled control has no tooltip of its own): the field's description,
- * led by its info sign as in fieldTooltip, then what the choice says
- * (choiceTooltip). A choice with nothing of its own still shows the field's
- * description.
+ * led by its info sign as in fieldTooltip, then the choice's reason and
+ * description (as choiceTooltip). `withLabel` leads with the choice's label,
+ * before the field's description (an icon-only choice, named nowhere else).
+ * A choice with nothing of its own still shows the field's description.
  */
 export function segmentTooltip(
   field: Pick<DescribedField, 'description'>, choice: DescribedChoice, withLabel = false,
 ): ReactNode | undefined {
   return stack([
+    withLabel && choice.label,
     field.description && <TooltipPart kind="description" text={field.description} />,
-    ...choiceParts(choice, withLabel, true),
+    ...choiceParts(choice, true),
   ]);
 }
 
-/** choiceTooltip's paragraphs, unstacked. */
-function choiceParts(choice: DescribedChoice, withLabel: boolean, withDescription: boolean): ReactNode[] {
+/** A choice's own tooltip paragraphs, unstacked: a disabled one's reason, then its description. */
+function choiceParts(choice: DescribedChoice, withDescription: boolean): ReactNode[] {
   return [
-    withLabel && choice.label,
     !choice.enabled && choice.whyDisabled && <TooltipPart kind="reason" text={choice.whyDisabled} />,
     withDescription && choice.description && <TooltipPart kind="description" text={choice.description} />,
   ];

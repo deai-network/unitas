@@ -82,13 +82,14 @@ about 300 ms to tell them apart). `useConfirm` is the confirmation hook they sha
 render a `useOneOfField` field (vultus-core) as antd's Select, Segmented or Slider: the same
 field, three looks. Each choice shows its
 icon before its label; `OneOfSegmented iconOnly` shows the icons only, the label becoming
-the segment's accessible name and the first line of its choice's part of the tooltip. Primary
+the segment's accessible name and the first line of its tooltip. Primary
 and danger choices are styled as `CombinedActionButton` styles its rows (primary bold in the
 primary colour, danger in the danger colour), only while enabled; the closed select mirrors
 the current choice. Hovering a choice shows its description, a disabled one its reason first;
 the closed select shows the field's tooltip (held back while the list is open). An enabled
 `OneOfSegmented` has no tooltip of its own, so each segment's tooltip leads with the field's
-description (a segment with nothing of its own still shows it). A choice's confirmation
+description, after an icon-only choice's label (a segment with nothing of its own still shows
+it). A choice's confirmation
 comes first; a danger choice's confirmation has a danger OK. antd's native label titles are
 switched off so they do not compete with the tooltips. In `OneOfSelect`, choices with a `group`
 are listed after the others, under their group's heading (e.g. older versions of a model).

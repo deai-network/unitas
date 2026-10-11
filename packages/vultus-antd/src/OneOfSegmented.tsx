@@ -9,7 +9,7 @@ import { withTooltip } from './WithReason.js';
 interface Props<T extends string> {
   field: OneOfFieldControls<T>;
   size?: SegmentedProps['size'];
-  /** Show each choice's icon only (as ActionButton's iconOnly): its label becomes the accessible name and leads its choice's part of the tooltip. */
+  /** Show each choice's icon only (as ActionButton's iconOnly): its label becomes the accessible name and leads its tooltip, before the field's description. */
   iconOnly?: boolean;
 }
 
@@ -17,9 +17,10 @@ interface Props<T extends string> {
  * A one-of field (useOneOfField) as antd's Segmented: every choice visible,
  * the current one selected. Each segment shows on hover the field's
  * description first (the enabled control has no tooltip of its own;
- * OneOfSelect's leads with it too), then its choice's description, a disabled
- * one its reason first (segmentTooltip); a segment with nothing of its own
- * still shows the field's description. Primary and danger choices are styled as
+ * OneOfSelect's leads with it too; an icon-only choice's label comes before
+ * it), then its choice's description, a disabled one its reason first
+ * (segmentTooltip); a segment with nothing of its own still shows the field's
+ * description. Primary and danger choices are styled as
  * CombinedActionButton styles its rows. A disabled field shows its reason for
  * the whole control instead (fieldTooltip). The field's label is the
  * accessible name; a pending commit locks it; the field's confirmation for
