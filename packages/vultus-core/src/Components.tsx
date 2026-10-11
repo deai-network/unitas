@@ -1,4 +1,4 @@
-import { createContext, useContext, type ComponentType, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ComponentType, type ReactNode } from 'react';
 
 /** A spinner an app lends to vultus/optio, rendered in place of their native loading indicators. */
 export interface SpinnerProps {
@@ -33,9 +33,11 @@ const SpinnerScopeContext = createContext<string[]>([]);
 /** Prefixes every spinner key below with `name` (scopes nest: outer/inner). */
 export function SpinnerScope({ name, children }: { name: string; children?: ReactNode }) {
   const outer = useContext(SpinnerScopeContext);
-  return (
-    <SpinnerScopeContext.Provider value={[...outer, name]}>{children}</SpinnerScopeContext.Provider>
-  );
+  // Memoized so consumers below (useSpinnerKey, via SpinnerScopeContext) don't re-render
+  // on every SpinnerScope re-render — only when the scope path actually changes. Matters
+  // once whole conversation views sit inside a SpinnerScope.
+  const scope = useMemo(() => [...outer, name], [outer, name]);
+  return <SpinnerScopeContext.Provider value={scope}>{children}</SpinnerScopeContext.Provider>;
 }
 
 /** The scoped key for a library-local key: 'outer/inner/local', or 'local' outside any scope. */
