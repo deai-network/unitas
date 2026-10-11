@@ -1,6 +1,6 @@
 import { Select, theme, type SelectProps } from 'antd';
 import { useState, type CSSProperties } from 'react';
-import type { OneOfChoiceControls, OneOfFieldControls } from 'vultus-core';
+import { useSpinnerKey, useVultusComponents, type OneOfChoiceControls, type OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
@@ -66,6 +66,8 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
   const texts = useVultusTexts();
   const { request, wrap, asking } = useOneOfRequest(field);
   const [open, setOpen] = useState(false);
+  const { Spinner } = useVultusComponents();
+  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   if (!field.visible) return null;
   const byValue = new Map(field.choices.map((c) => [c.value as string, c]));
   const option = (c: (typeof field.choices)[number]) => ({ value: c.value, label: c.label, title: '', disabled: !c.enabled });
@@ -80,6 +82,7 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
       size={size}
       style={{ minWidth: 160, ...style }}
       loading={field.pending}
+      loadingIcon={Spinner ? <Spinner spinnerKey={spinnerKey} size="small" /> : undefined}
       disabled={!field.enabled || field.pending}
       onChange={(next: T) => request(next)}
       onOpenChange={setOpen}

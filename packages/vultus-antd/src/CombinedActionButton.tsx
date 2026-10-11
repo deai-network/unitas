@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Dropdown, Modal, Popconfirm, Space, Tooltip, theme, type ButtonProps } from 'antd';
-import type { ActionStatus } from 'vultus-core';
+import { useSpinnerKey, useVultusComponents, type ActionStatus } from 'vultus-core';
 import { ConfirmTypingModal } from './ConfirmTypingModal.js';
 import { ActionButton, alignToJustifyContent } from './ActionButton.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
@@ -48,19 +48,18 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
   // `modalHolder` inside the app's tree, so it follows the app's
   // ConfigProvider (theme, prefix, locale).
   const [modal, modalHolder] = Modal.useModal();
+  const { Spinner } = useVultusComponents();
 
   const visible = actions.filter((a) => !a.invisible);
-  if (visible.length === 0) return null;
-  if (visible.length === 1) {
-    return <ActionButton action={visible[0]} size={size} iconPlacement={iconPlacement} align={align} className={className} />;
-  }
-
-  const justifyContent = alignToJustifyContent(align);
 
   // Manual picks stay put even when the picked action becomes disabled
   // (operator's choice is respected — button disables but selection holds).
   // Auto picks re-evaluate to first-enabled each render, so the default
   // tracks state changes without any effect.
+  //
+  // Computed above the early returns below, together with the spinner key, so
+  // useSpinnerKey runs on every render (Rules of Hooks); harmless when `visible`
+  // is empty or holds a single action — those branches never read `active`.
   const selectedIndex = (() => {
     if (selectionSource === 'manual' && selectedId !== null) {
       const idx = visible.findIndex((a) => a.id === selectedId);
@@ -69,8 +68,15 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
     const firstEnabled = visible.findIndex((a) => !a.disabled);
     return firstEnabled !== -1 ? firstEnabled : 0;
   })();
-
   const active = visible[selectedIndex];
+  const spinnerKey = useSpinnerKey(`vultus:action:${active?.id ?? ''}`);
+
+  if (visible.length === 0) return null;
+  if (visible.length === 1) {
+    return <ActionButton action={visible[0]} size={size} iconPlacement={iconPlacement} align={align} className={className} />;
+  }
+
+  const justifyContent = alignToJustifyContent(align);
 
   // keepOriginalDefault: drop the pick, so the main half re-evaluates to the
   // first enabled action (the auto rule above). A no-op otherwise.
@@ -179,7 +185,9 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
         type={active.variant === 'primary' ? 'primary' : 'default'}
         danger={active.variant === 'danger'}
         size={size}
-        loading={active.pending}
+        loading={Spinner
+          ? (active.pending ? { icon: <Spinner spinnerKey={spinnerKey} size="small" /> } : false)
+          : active.pending}
         disabled={active.disabled || active.pending}
         // Single path for every confirmation kind. For popconfirm, fire()
         // opens the controlled bubble (the Popconfirm no longer auto-opens

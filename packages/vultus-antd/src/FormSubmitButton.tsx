@@ -1,5 +1,5 @@
 import { Button, type ButtonProps, type FormInstance } from 'antd';
-import { useActionErrorCtx, type ActionStatus } from 'vultus-core';
+import { useActionErrorCtx, useSpinnerKey, useVultusComponents, type ActionStatus } from 'vultus-core';
 
 interface Props<TArgs> {
   action: ActionStatus<TArgs>;
@@ -11,6 +11,8 @@ interface Props<TArgs> {
 
 export function FormSubmitButton<TArgs>({ action, size, block }: Props<TArgs>) {
   const ctx = useActionErrorCtx();
+  const { Spinner } = useVultusComponents();
+  const spinnerKey = useSpinnerKey(`vultus:action:${action.id}`);
 
   if (action.invisible) return null;
 
@@ -42,7 +44,9 @@ export function FormSubmitButton<TArgs>({ action, size, block }: Props<TArgs>) {
       icon={action.icon}
       size={size}
       block={block}
-      loading={action.pending}
+      loading={Spinner
+        ? (action.pending ? { icon: <Spinner spinnerKey={spinnerKey} size="small" /> } : false)
+        : action.pending}
       disabled={action.disabled || action.pending}
       onClick={handleClick}
       title={action.reason}

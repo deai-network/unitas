@@ -1,5 +1,5 @@
 import { Switch, theme, type SwitchProps } from 'antd';
-import type { BoolFieldControls, MixedBoolFieldControls } from 'vultus-core';
+import { useSpinnerKey, useVultusComponents, type BoolFieldControls, type MixedBoolFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
 import { useVultusTexts } from './texts.js';
 import { useBoolRequest } from './useBoolRequest.js';
@@ -25,13 +25,18 @@ export function BoolSwitch({ field, size }: Props) {
   const { confirm, wrap, asking } = useConfirm({ okText: field.label });
   const click = useBoolRequest(field, confirm);
   const texts = useVultusTexts();
+  const { Spinner } = useVultusComponents();
+  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   if (!field.visible) return null;
   const mixed = field.value === 'mixed';
-  return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, (
+  const switchEl = (
     <Switch
       checked={field.value === true}
       size={size}
-      loading={field.pending}
+      // With a lent Spinner, the Switch shows no built-in loading state (antd's Switch has
+      // no icon slot for one) — the Spinner renders right after it instead (Decision 6); it
+      // still disables while pending either way.
+      loading={Spinner ? undefined : field.pending}
       disabled={!field.enabled || field.pending}
       onChange={() => click()}
       aria-label={field.label || undefined}
@@ -43,5 +48,9 @@ export function BoolSwitch({ field, size }: Props) {
         indicator: { insetInlineStart: '50%', transform: 'translateX(-50%)' },
       } : undefined}
     />
-  ), { open: asking ? false : undefined }));
+  );
+  const control = Spinner
+    ? <>{switchEl}{field.pending && <span style={{ marginInlineStart: 8 }}><Spinner spinnerKey={spinnerKey} size="small" /></span>}</>
+    : switchEl;
+  return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, control, { open: asking ? false : undefined }));
 }

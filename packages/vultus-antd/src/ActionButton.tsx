@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { Button, type ButtonProps } from 'antd';
-import type { ActionStatus } from 'vultus-core';
+import { useSpinnerKey, useVultusComponents, type ActionStatus } from 'vultus-core';
 import { CombinedActionButton } from './CombinedActionButton.js';
 import { useConfirm } from './useConfirm.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
@@ -52,9 +52,11 @@ export function alignToJustifyContent(align: 'start' | 'center' | 'end' | undefi
 
 export function ActionButton({ action, size, block, keepOriginalDefault, iconPlacement, align, buttonVariant, iconOnly, className, buttonColor }: Props) {
   // Called unconditionally, before the early returns (Rules of Hooks); with the
-  // array form the label and danger are unused.
+  // array form the label, danger and spinner key are unused.
   const single = Array.isArray(action) ? undefined : action;
   const { confirm, wrap, asking } = useConfirm({ okText: single?.label ?? '', danger: single?.variant === 'danger' });
+  const { Spinner } = useVultusComponents();
+  const spinnerKey = useSpinnerKey(`vultus:action:${single?.id ?? ''}`);
 
   if (Array.isArray(action)) {
     return (
@@ -81,6 +83,12 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
       }
     : { type: action.variant === 'primary' ? 'primary' : 'default', danger: action.variant === 'danger' };
 
+  // Without a lent Spinner, antd's own loading icon (unchanged). With one, it takes the
+  // icon's slot while pending (the icon-end placement above still governs where that goes).
+  const loading = Spinner
+    ? (action.pending ? { icon: <Spinner spinnerKey={spinnerKey} size="small" /> } : false)
+    : action.pending;
+
   const button = (
     <Button
       icon={action.icon}
@@ -90,7 +98,7 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
       size={size}
       block={block}
       className={className}
-      loading={action.pending}
+      loading={loading}
       disabled={action.disabled || action.pending}
       onClick={() => confirm(action.confirmation, () => action.fire())}
       aria-label={iconOnly ? action.label : undefined}
