@@ -1,8 +1,8 @@
 import { useMemo, type ReactNode } from 'react';
 import { message as antdMessage } from 'antd';
 import {
-  MessageSinkContext, InternalLinkContext,
-  type MessageSink, type InternalLinkComponent,
+  MessageSinkContext, InternalLinkContext, VultusComponentsContext, useVultusComponents,
+  type MessageSink, type InternalLinkComponent, type VultusComponents,
 } from 'vultus-core';
 import { defaultVultusTexts, VultusTextsContext, type VultusTexts } from './texts.js';
 
@@ -20,15 +20,28 @@ import { defaultVultusTexts, VultusTextsContext, type VultusTexts } from './text
  * The default sink uses antd's hook-based message API (not the static
  * `message.*` functions), so the toast renders inside the app's tree and follows the
  * app's ConfigProvider (theme, prefix).
+ *
+ * `components` lends the app's own widgets (today: `Spinner`) to vultus/optio in place of
+ * their antd defaults, e.g. `<VultusProvider components={{ Spinner: DaeoSpinner }}>`. It
+ * merges over whatever an outer `VultusProvider` (or `VultusComponentsContext.Provider`,
+ * for apps without vultus-antd) already provided, so a nested provider can override one
+ * slot (`{ ...outer, ...components }`) without losing the others; omit it and the outer
+ * value (or core's `{}` default) applies unchanged.
  */
 export function VultusProvider({
-  children, linkComponent, messageSink, texts,
+  children, linkComponent, messageSink, texts, components,
 }: {
   children: ReactNode;
   linkComponent?: InternalLinkComponent;
   messageSink?: MessageSink;
   texts?: Partial<VultusTexts>;
+  components?: VultusComponents;
 }) {
+  const outerComponents = useVultusComponents();
+  const mergedComponents = useMemo<VultusComponents>(
+    () => ({ ...outerComponents, ...components }),
+    [outerComponents, components],
+  );
   const [messageApi, messageHolder] = antdMessage.useMessage();
   const sink = useMemo<MessageSink>(
     () => messageSink ?? ((text, severity = 'error') => {
@@ -51,7 +64,10 @@ export function VultusProvider({
       </MessageSinkContext.Provider>
     </VultusTextsContext.Provider>
   );
-  return linkComponent
-    ? <InternalLinkContext.Provider value={linkComponent}>{wired}</InternalLinkContext.Provider>
+  const withComponents = components
+    ? <VultusComponentsContext.Provider value={mergedComponents}>{wired}</VultusComponentsContext.Provider>
     : wired;
+  return linkComponent
+    ? <InternalLinkContext.Provider value={linkComponent}>{withComponents}</InternalLinkContext.Provider>
+    : withComponents;
 }

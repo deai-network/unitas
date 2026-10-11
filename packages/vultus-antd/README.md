@@ -25,6 +25,30 @@ npm install vultus-antd
   `BoolSwitch`, `BoolCheckbox`, `useConfirm` and `ConfirmTypingModal`.
 - `./markdown` — `Markdown` and the `MarkdownProps` type, standalone.
 
+## Spinner slot
+
+`<VultusProvider components={{ Spinner }}>` lends the app's own loading spinner to
+vultus (and, through vultus-antd, to optio) in place of antd's `<Spin>`:
+
+```tsx
+<VultusProvider components={{ Spinner: DaeoSpinner }}>
+  <App />
+</VultusProvider>
+```
+
+`DaeoSpinner` (or any app spinner) implements `SpinnerProps` from `vultus-core`
+(`spinnerKey`, `size?`, `label?`); neither side imports the other. `components` merges
+over whatever an outer `VultusProvider` (or a bare `VultusComponentsContext.Provider`,
+for apps without vultus-antd) already provided, so a nested `VultusProvider` can
+override one slot without losing the others, and omitting `components` leaves the outer
+value (or vultus-core's `{}` default, meaning "render antd's own spinners") untouched.
+
+Wrap a subtree in `<SpinnerScope name="...">` (from vultus-core) to prefix every spinner
+key inside with that name, so several instances of the same view on one page get distinct,
+stable keys — e.g. an app wrapping each open process's view in
+`<SpinnerScope name={"process:" + id}>` turns the library-local key `vultus:action:send`
+into `process:123/vultus:action:send`. Scopes nest (outer/inner).
+
 ## Boolean fields
 
 `<BoolSwitch field={f} />` and `<BoolCheckbox field={f} />` render a `useBoolField` or
