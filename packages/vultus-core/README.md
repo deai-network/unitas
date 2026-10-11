@@ -22,8 +22,10 @@ npm install vultus-core
   `parseApiError`, `routeApiError`, `ActionErrorContext` / `useActionErrorCtx`,
   `useAction`, `useActionList`, the fields (`useBoolField`, `useFieldCore` and
   their types), `InternalLinkContext` / `useInternalLink` /
-  `InternalLinkComponent`, and `MessageSinkContext` / `useMessageSink` /
-  `MessageSink`.
+  `InternalLinkComponent`, `MessageSinkContext` / `useMessageSink` /
+  `MessageSink`, and `VultusComponentsContext` / `useVultusComponents` /
+  `SpinnerScope` / `useSpinnerKey` / `VultusComponents` / `SpinnerProps` /
+  `SpinnerComponent`.
 - `./link` — `InternalLinkContext`, `useInternalLink`, and the
   `InternalLinkComponent` type on their own, for consumers that only need the
   link-injection seam.
@@ -70,6 +72,21 @@ Requesting a disabled or unknown choice is ignored with a warning. Storage is as
 boolean field (inside: `initialValue`, default the first enabled choice); `confirmation` may
 depend on the requested choice. vultus-antd's `OneOfSelect` and `OneOfSegmented` take the
 same field.
+
+## Components
+
+`VultusComponentsContext` (default `{}`) / `useVultusComponents()` is how an app lends its own
+UI to vultus/optio in place of their native indicators — today just `Spinner` (`SpinnerProps`:
+`spinnerKey`, `size?`, `label?`; `VultusComponents.Spinner?: SpinnerComponent`). vultus-antd's
+`VultusProvider` merges a `components` prop into the outer context value; without one, the
+outer value (or this default) applies, as `linkComponent` does today.
+
+Every call site that may render a lent `Spinner` asks for its key through `useSpinnerKey(localKey)`
+rather than hardcoding it, so an app can scope a whole subtree's keys to one instance:
+`<SpinnerScope name="optio:process:p1">` makes every `useSpinnerKey` call inside it return
+`'optio:process:p1/' + localKey`; scopes nest by joining names with `/`, outermost first.
+Library-local keys are namespaced (`vultus:...`, `optio:...`) so they never collide with an
+app's own keys.
 
 ## Distribution
 
