@@ -95,6 +95,17 @@ describe('VultusProvider', () => {
     expect(getByTestId('probe').textContent).toBe('none');
   });
 
+  it('an explicit Spinner: undefined in a nested provider clears the inherited one', () => {
+    const { getByTestId } = render(
+      <VultusProvider components={{ Spinner: SpinnerA }}>
+        <VultusProvider components={{ Spinner: undefined }}>
+          <ComponentsProbe />
+        </VultusProvider>
+      </VultusProvider>,
+    );
+    expect(getByTestId('probe').textContent).toBe('none');
+  });
+
   it('a fresh inline components object with the same Spinner does not re-render consumers below', () => {
     let renderCount = 0;
     const CountingProbe = memo(function CountingProbe() {

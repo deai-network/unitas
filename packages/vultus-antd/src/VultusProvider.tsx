@@ -37,15 +37,19 @@ export function VultusProvider({
   texts?: Partial<VultusTexts>;
   components?: VultusComponents;
 }) {
-  // Keyed on each slot's own value, not on `outerComponents`/`components` themselves: the
-  // natural call site is an inline `components={{ Spinner: X }}` literal, a new object every
-  // render, and we don't want that alone to change the context value (and so re-render every
-  // consumer below). Add a line here per slot as VultusComponents grows.
-  const { Spinner: outerSpinner } = useVultusComponents();
-  const { Spinner: componentsSpinner } = components ?? {};
+  // `{ ...outerComponents, ...components }`, kept on purpose: `components={{ Spinner:
+  // undefined }}` explicitly clears an inherited slot (a subtree wants antd's own spinner
+  // back), which a `??` fallback would not do. But keyed on each slot's own value and
+  // whether `components` itself sets that key — not on the `outerComponents`/`components`
+  // object references — so the natural inline call site (`components={{ Spinner: X }}`, a
+  // new object literal every render) doesn't change the merged value's identity (and so
+  // re-render every consumer below) unless a slot actually changed. Add one triplet here
+  // per slot as VultusComponents grows.
+  const outerComponents = useVultusComponents();
+  const hasOwnSpinner = components ? 'Spinner' in components : false;
   const mergedComponents = useMemo<VultusComponents>(
-    () => ({ Spinner: componentsSpinner ?? outerSpinner }),
-    [componentsSpinner, outerSpinner],
+    () => ({ ...outerComponents, ...components }),
+    [outerComponents.Spinner, hasOwnSpinner, components?.Spinner],
   );
   const [messageApi, messageHolder] = antdMessage.useMessage();
   const sink = useMemo<MessageSink>(

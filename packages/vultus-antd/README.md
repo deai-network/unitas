@@ -42,6 +42,8 @@ over whatever an outer `VultusProvider` (or a bare `VultusComponentsContext.Prov
 for apps without vultus-antd) already provided, so a nested `VultusProvider` can
 override one slot without losing the others, and omitting `components` leaves the outer
 value (or vultus-core's `{}` default, meaning "render antd's own spinners") untouched.
+A nested `components={{ Spinner: undefined }}` explicitly clears an inherited `Spinner`,
+so that one subtree can opt back into antd's own spinner under a provider that set one.
 
 Wrap a subtree in `<SpinnerScope name="...">` (from vultus-core) to prefix every spinner
 key inside with that name, so several instances of the same view on one page get distinct,
