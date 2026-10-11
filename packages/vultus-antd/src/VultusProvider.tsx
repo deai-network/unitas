@@ -37,10 +37,15 @@ export function VultusProvider({
   texts?: Partial<VultusTexts>;
   components?: VultusComponents;
 }) {
-  const outerComponents = useVultusComponents();
+  // Keyed on each slot's own value, not on `outerComponents`/`components` themselves: the
+  // natural call site is an inline `components={{ Spinner: X }}` literal, a new object every
+  // render, and we don't want that alone to change the context value (and so re-render every
+  // consumer below). Add a line here per slot as VultusComponents grows.
+  const { Spinner: outerSpinner } = useVultusComponents();
+  const { Spinner: componentsSpinner } = components ?? {};
   const mergedComponents = useMemo<VultusComponents>(
-    () => ({ ...outerComponents, ...components }),
-    [outerComponents, components],
+    () => ({ Spinner: componentsSpinner ?? outerSpinner }),
+    [componentsSpinner, outerSpinner],
   );
   const [messageApi, messageHolder] = antdMessage.useMessage();
   const sink = useMemo<MessageSink>(

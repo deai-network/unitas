@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { ConfigProvider } from 'antd';
@@ -92,5 +93,37 @@ describe('VultusProvider', () => {
   it('without any provider, components is empty', () => {
     const { getByTestId } = render(<ComponentsProbe />);
     expect(getByTestId('probe').textContent).toBe('none');
+  });
+
+  it('a fresh inline components object with the same Spinner does not re-render consumers below', () => {
+    let renderCount = 0;
+    const CountingProbe = memo(function CountingProbe() {
+      renderCount += 1;
+      useVultusComponents();
+      return null;
+    });
+    const { rerender } = render(
+      <VultusProvider components={{ Spinner: SpinnerA }}>
+        <CountingProbe />
+      </VultusProvider>,
+    );
+    expect(renderCount).toBe(1);
+
+    // A new object literal every time, as the natural inline call site produces, but the
+    // same Spinner reference: the merged context value must stay referentially stable.
+    rerender(
+      <VultusProvider components={{ Spinner: SpinnerA }}>
+        <CountingProbe />
+      </VultusProvider>,
+    );
+    expect(renderCount).toBe(1);
+
+    // A different Spinner: the context value must change and the consumer must re-render.
+    rerender(
+      <VultusProvider components={{ Spinner: SpinnerB }}>
+        <CountingProbe />
+      </VultusProvider>,
+    );
+    expect(renderCount).toBe(2);
   });
 });
