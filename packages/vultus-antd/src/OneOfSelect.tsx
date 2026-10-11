@@ -82,7 +82,13 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
       size={size}
       style={{ minWidth: 160, ...style }}
       loading={field.pending}
-      loadingIcon={Spinner ? <Spinner spinnerKey={spinnerKey} size="small" /> : undefined}
+      // `loadingIcon` isn't stripped before antd forwards the rest of the Select's props
+      // to @rc-component/select, which spreads it onto the root div — an invalid DOM
+      // attribute even when `undefined` (React still warns on the prop name), and
+      // `[object Object]` when set. `suffixIcon` IS stripped, and (per antd's useIcons)
+      // wins over the default loading icon whenever it's defined, so only set it while
+      // pending — unset the rest of the time, so the normal arrow/search icon still shows.
+      suffixIcon={Spinner && field.pending ? <Spinner spinnerKey={spinnerKey} size="small" /> : undefined}
       disabled={!field.enabled || field.pending}
       onChange={(next: T) => request(next)}
       onOpenChange={setOpen}

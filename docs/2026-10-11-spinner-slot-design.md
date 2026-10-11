@@ -83,7 +83,7 @@ All sizes are `'small'` unless noted. "Provided" means `useVultusComponents().Sp
 | 3 | `FormSubmitButton.tsx` (~45) | `loading={action.pending}` | same, with `action.id` |
 | 4 | `BoolCheckbox.tsx` (~31) | `<Spin size="small" style={{ marginInlineStart: 8 }} />` | the provided Spinner in the same place and spacing, key `vultus:field:${field.id}` |
 | 5 | `BoolSwitch.tsx` (~34) | `loading={field.pending}` | no `loading` on the Switch; the Spinner right after it (key `vultus:field:${field.id}`), same spacing as BoolCheckbox |
-| 6 | `OneOfSelect.tsx` (~82) | `loading={field.pending}` | `loading={field.pending}` plus `loadingIcon={<Spinner .../>}`, key `vultus:field:${field.id}` |
+| 6 | `OneOfSelect.tsx` (~82) | `loading={field.pending}` | `loading={field.pending}` kept; while pending, `suffixIcon={<Spinner .../>}` (antd's `loadingIcon` prop is read by `useIcons` but not stripped before the rest of the props reach `@rc-component/select`, which spreads it onto the root DOM node; `suffixIcon` is stripped, and wins over the default loading icon when defined), key `vultus:field:${field.id}` |
 
 ### optio-ui
 
