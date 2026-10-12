@@ -15,13 +15,14 @@ function currentState(field: DescribedField, texts: VultusTexts): string | undef
 /**
  * What a field's tooltip says. Enabled: what the field is, then its current
  * state (the value's description, led by "Current state:", so it is not read
- * as a promise of what the field does). Disabled: why, then what the field
+ * as a promise of what the field does); `withState` false leaves the state
+ * out (OneOfSlider, whose marks say it). Disabled: why, then what the field
  * is; the current state is left out, since its description usually says what
  * a click would do. A reason is led by a no-entry sign, a description by an
  * info sign, so the two never read as one text.
  */
-export function fieldTooltip(field: DescribedField, texts: VultusTexts): ReactNode | undefined {
-  const state = currentState(field, texts);
+export function fieldTooltip(field: DescribedField, texts: VultusTexts, withState = true): ReactNode | undefined {
+  const state = withState ? currentState(field, texts) : undefined;
   return stack(field.enabled
     ? [field.description && <TooltipPart kind="description" text={field.description} />,
       state && <ReasonMarkdown>{state}</ReasonMarkdown>]
@@ -31,7 +32,7 @@ export function fieldTooltip(field: DescribedField, texts: VultusTexts): ReactNo
 
 /**
  * What leads a choice's description where every choice is on show
- * (OneOfSegmented's segments, OneOfSlider's marks): "Current state:" for the
+ * (shownChoiceTooltip: OneOfSegmented's segments, OneOfSlider's marks): "Current state:" for the
  * current choice, "Switch to:" for another enabled one (what a click does),
  * nothing for a disabled one (it cannot be switched to; its reason says why).
  */
@@ -55,15 +56,15 @@ export function choiceTooltip(
 }
 
 /**
- * What a segment of an enabled one-of field says on hover (OneOfSegmented,
- * whose enabled control has no tooltip of its own): the field's description,
- * led by its info sign as in fieldTooltip, then the choice's reason and
- * description (as choiceTooltip, `lead` before the description). `withLabel`
- * leads with the choice's label, before the field's description (an
- * icon-only choice, named nowhere else). A choice with nothing of its own
- * still shows the field's description.
+ * What a choice shown on an enabled one-of field's control says on hover (a
+ * segment of OneOfSegmented, a mark of OneOfSlider): the field's description,
+ * led by its info sign as in fieldTooltip, so the choice is read as a value of
+ * that field, then the choice's reason and description (as choiceTooltip,
+ * `lead` before the description). `withLabel` leads with the choice's label,
+ * before the field's description (an icon-only choice, named nowhere else).
+ * A choice with nothing of its own still shows the field's description.
  */
-export function segmentTooltip(
+export function shownChoiceTooltip(
   field: Pick<DescribedField, 'description'>, choice: DescribedChoice, withLabel = false, lead?: string,
 ): ReactNode | undefined {
   return stack([

@@ -91,32 +91,32 @@ describe('OneOfSlider', () => {
     await waitFor(() => expect(screen.getByText('carefully', { selector: 'strong' })).toBeInTheDocument());
   });
 
-  it('another enabled mark\'s description is led by "Switch to:"', async () => {
+  it('another enabled mark: what the field is, then its description led by "Switch to:"', async () => {
     wrap(<Inside />);
     fireEvent.mouseEnter(mark('High').closest('span[style]')!);
     await waitFor(() => expect(openTooltips()).toHaveLength(1));
-    expect(openTooltips()[0]).toHaveTextContent(/^Switch to: Thinks carefully$/);
+    expect(openTooltips()[0]).toHaveTextContent(/^How much should the model think\?\s*Switch to: Thinks carefully$/);
   });
 
-  it('the current mark\'s description is led by "Current state:"', async () => {
+  it('the current mark: what the field is, then its description led by "Current state:"', async () => {
     wrap(<Inside />);
     fireEvent.mouseEnter(mark('Medium').closest('span[style]')!);
     await waitFor(() => expect(openTooltips()).toHaveLength(1));
-    expect(openTooltips()[0]).toHaveTextContent(/^Current state: Thinks a little$/);
+    expect(openTooltips()[0]).toHaveTextContent(/^How much should the model think\?\s*Current state: Thinks a little$/);
   });
 
-  it('a disabled mark: its reason, then its description without "Switch to:"', async () => {
+  it('a disabled mark: what the field is, its reason, then its description without "Switch to:"', async () => {
     wrap(<Inside />);
     fireEvent.mouseEnter(mark('Max').closest('span[style]')!);
     await waitFor(() => expect(openTooltips()).toHaveLength(1));
-    expect(openTooltips()[0]).toHaveTextContent(/^Not on this model\s*Thinks as long as it needs$/);
+    expect(openTooltips()[0]).toHaveTextContent(/^How much should the model think\?\s*Not on this model\s*Thinks as long as it needs$/);
   });
 
-  it('hovering any part of the slider (here its rail) shows what the field is, then the current state', async () => {
+  it('hovering any part of the slider (here its rail) shows only what the field is, nothing about the values', async () => {
     wrap(<Inside />);
     fireEvent.mouseEnter(document.querySelector<HTMLElement>('.ant-slider-rail')!);
-    await waitFor(() => expect(screen.getByText('How much should the model think?')).toBeInTheDocument());
-    expect(screen.getByText('Current state: Thinks a little')).toBeInTheDocument();
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    expect(openTooltips()[0]).toHaveTextContent(/^How much should the model think\?$/);
   });
 
   it('on a mark with its own tooltip, that one shows instead of the field\'s', async () => {
@@ -129,11 +129,27 @@ describe('OneOfSlider', () => {
     expect(openTooltips()[0]).toHaveTextContent('Thinks carefully');
   });
 
-  it('hovering the handle shows what the field is, then the current state', async () => {
+  it('hovering the handle shows only what the field is', async () => {
     wrap(<Inside />);
     fireEvent.mouseEnter(handle());
-    await waitFor(() => expect(screen.getByText('How much should the model think?')).toBeInTheDocument());
-    expect(screen.getByText('Current state: Thinks a little')).toBeInTheDocument();
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    expect(openTooltips()[0]).toHaveTextContent(/^How much should the model think\?$/);
+  });
+
+  it('a field without a description: no tooltip on the track; a mark still shows its own', async () => {
+    wrap(<Inside description={undefined} />);
+    fireEvent.mouseEnter(document.querySelector<HTMLElement>('.ant-slider-rail')!);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 300)); });
+    expect(openTooltips()).toHaveLength(0);
+    fireEvent.mouseEnter(mark('High').closest('span[style]')!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    expect(openTooltips()[0]).toHaveTextContent(/^Switch to: Thinks carefully$/);
+  });
+
+  it('the accessible description still names the current state', () => {
+    wrap(<Inside />);
+    const root = document.querySelector<HTMLElement>('[data-field-id="effort"]')!;
+    expect(root.getAttribute('aria-description')).toBe('How much should the model think? Current state: Thinks a little');
   });
 
   it('commit: one request per move, with the choice\'s confirmation first', async () => {

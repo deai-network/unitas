@@ -88,7 +88,7 @@ export const HeaderPreferences: StoryObj = {
   render: () => (
     <Showcase
       title="Header preferences"
-      note="Short choices that are always visible, as OneOfSegmented: the value lives inside each field. A choice may carry an icon (shown before its label); iconOnly shows just the icons, the label becoming the accessible name and leading the tooltip. Descriptions are markdown. Hover a segment for its description."
+      note="Short choices that are always visible, as OneOfSegmented: the value lives inside each field. A choice may carry an icon (shown before its label); iconOnly shows just the icons, the label becoming the accessible name and leading the tooltip. Descriptions are markdown. Hover a segment for the field's description, then the segment's: 'Current state:' on the selected one, 'Switch to:' on the others."
     >
       <Space orientation="vertical" size={16}>
         <Preference id="pref.theme" label="Theme (iconOnly)" description="The colour scheme." initial="light" iconOnly
@@ -179,7 +179,7 @@ export const Effort: StoryObj<EffortArgs> = {
     return (
       <Showcase
         title="Effort"
-        note="Ordered choices as OneOfSlider: each choice a mark on the track, the handle on the current one. Hover the slider anywhere for the field's description and current state, a mark for its own description (Max: its reason first while disabled). A choice is requested once per move, when it ends (release, a mark click, an arrow key), not at each step of a drag; a move that ends on a disabled choice requests nothing and the handle returns. While the requested choice is asked and committed (latency) the handle stays on it. 'compact' sets markStyle to a smaller font, as in a dense toolbar. The same field as OneOfSegmented for comparison; changes commit to a pretend server (latency)."
+        note="Ordered choices as OneOfSlider: each choice a mark on the track, the handle on the current one. Hover the track or the handle for the field's description only; hover a mark for the field's description, then the mark's: 'Current state:' on the current one, 'Switch to:' on the others (Max: its reason first while disabled, no 'Switch to:'). A choice is requested once per move, when it ends (release, a mark click, an arrow key), not at each step of a drag; a move that ends on a disabled choice requests nothing and the handle returns. While the requested choice is asked and committed (latency) the handle stays on it. 'compact' sets markStyle to a smaller font, as in a dense toolbar. The same field as OneOfSegmented for comparison; changes commit to a pretend server (latency)."
       >
         <Space size={32} align="center" wrap>
           <Example label="OneOfSlider"><OneOfSlider field={field} markStyle={compact ? { fontSize: 11 } : undefined} /></Example>

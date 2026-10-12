@@ -2,7 +2,7 @@ import { Slider } from 'antd';
 import { useEffect, useState, type CSSProperties } from 'react';
 import type { OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
-import { choiceLead, choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { choiceLead, fieldAccessibleDescription, fieldTooltip, shownChoiceTooltip } from './fieldTooltip.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -17,12 +17,12 @@ interface Props<T extends string> {
 /**
  * A one-of field (useOneOfField) as antd's Slider, for ordered choices: each
  * choice a mark on the track, the handle on the current one. Hovering a mark
- * shows its choice's description, led by "Current state:" on the current mark
- * and "Switch to:" on another enabled one, a disabled one its reason first
- * (choiceTooltip, choiceLead); primary and danger choices are styled as
- * CombinedActionButton styles its rows. Hovering any part of the slider shows
- * the field's tooltip (what it is, then the current state), except a mark
- * with a tooltip of its own, which shows that one instead. A choice is
+ * shows what the field is, then its choice's description, led by "Current
+ * state:" on the current mark and "Switch to:" on another enabled one, a
+ * disabled one its reason first (shownChoiceTooltip, choiceLead); primary and
+ * danger choices are styled as CombinedActionButton styles its rows. Hovering
+ * any other part of the slider (track, handle) shows only what the field is,
+ * nothing about its values; a mark shows its own tooltip instead. A choice is
  * requested when the move ends (release, a mark click, an arrow key), not at
  * every step of a drag; ending on a disabled choice requests nothing and the
  * handle returns. The field's confirmation for the requested choice comes
@@ -62,7 +62,7 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
       onChange={(index: number) => setMoving(index)}
       onChangeComplete={(index: number) => settle(index)}
       marks={Object.fromEntries(choices.map((c, i) => {
-        const tip = field.enabled ? choiceTooltip(c, false, true, choiceLead(c, c.value === field.value, texts)) : undefined;
+        const tip = field.enabled ? shownChoiceTooltip(field, c, false, choiceLead(c, c.value === field.value, texts)) : undefined;
         return [i, {
           style: { whiteSpace: 'nowrap', ...markStyle },
           label: !field.enabled ? c.label
@@ -92,7 +92,8 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
       {slider}
     </span>
   );
-  return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, body, {
+  // The track and handle say what the field is, not its value: the marks do.
+  return wrap(withTooltip(fieldTooltip(field, texts, false), !field.enabled, body, {
     open: asking || onMark ? false : undefined,
   }));
 }

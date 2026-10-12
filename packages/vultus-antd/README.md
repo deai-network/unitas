@@ -92,7 +92,7 @@ description first (after the label, for an icon-only choice); a segment with not
 own still shows it. On a segment and on a slider's mark, every choice being on show, the
 choice's description is led by "Current state:" on the current one and by "Switch to:" on
 another enabled one (what a click does); a disabled one's has no lead, as it cannot be
-switched to. A choice's confirmation comes first; a danger choice's confirmation has a danger OK. antd's native label titles are
+switched to. A slider's mark, like a segment, shows the field's description first. A choice's confirmation comes first; a danger choice's confirmation has a danger OK. antd's native label titles are
 switched off so they do not compete with the tooltips. In `OneOfSelect`, choices with a `group`
 are listed after the others, under their group's heading (e.g. older versions of a model).
 `OneOfSelect inlineDescriptions` shows each choice's description in the open list, under its
@@ -100,8 +100,9 @@ label (a bold heading), smaller and wrapping, instead of in a tooltip; a disable
 tooltip keeps its reason, and the closed select shows the label only.
 
 `OneOfSlider` is for ordered choices (an effort level): each choice a mark on the track, the
-handle on the current one. Hovering any part of the slider shows the field's tooltip, except a
-mark with a tooltip of its own (its choice's description or reason), which shows that one. A choice is requested once per move, when the move ends (release, a mark click, an
+handle on the current one. Hovering the track or the handle shows only what the field is (its
+description), nothing about its values; hovering a mark shows the field's description, then the
+choice's ("Current state:" / "Switch to:", a disabled one's reason first). A choice is requested once per move, when the move ends (release, a mark click, an
 arrow key's keyup), not at each step of a drag; a move that ends on a disabled choice requests
 nothing and the handle returns. While the requested choice is asked and committed the handle
 stays on it, then shows the stored value (the old one after a Cancel or a failure).
