@@ -30,39 +30,58 @@ export function fieldTooltip(field: DescribedField, texts: VultusTexts): ReactNo
 }
 
 /**
+ * What leads a choice's description where every choice is on show
+ * (OneOfSegmented's segments, OneOfSlider's marks): "Current state:" for the
+ * current choice, "Switch to:" for another enabled one (what a click does),
+ * nothing for a disabled one (it cannot be switched to; its reason says why).
+ */
+export function choiceLead(choice: { enabled: boolean }, current: boolean, texts: VultusTexts): string | undefined {
+  if (current) return texts.currentState;
+  return choice.enabled ? texts.switchTo : undefined;
+}
+
+/**
  * What a one-of field's choice says on hover: its description; a disabled
  * choice its reason first (each led by its sign, as in fieldTooltip).
  * `withLabel` leads with the label (an icon-only choice, whose label is not
  * shown); `withDescription` false leaves the description out (shown in the
- * list itself), so only a disabled choice's reason remains.
+ * list itself), so only a disabled choice's reason remains. `lead` (see
+ * choiceLead) goes before the description.
  */
-export function choiceTooltip(choice: DescribedChoice, withLabel = false, withDescription = true): ReactNode | undefined {
-  return stack([withLabel && choice.label, ...choiceParts(choice, withDescription)]);
+export function choiceTooltip(
+  choice: DescribedChoice, withLabel = false, withDescription = true, lead?: string,
+): ReactNode | undefined {
+  return stack([withLabel && choice.label, ...choiceParts(choice, withDescription, lead)]);
 }
 
 /**
  * What a segment of an enabled one-of field says on hover (OneOfSegmented,
  * whose enabled control has no tooltip of its own): the field's description,
  * led by its info sign as in fieldTooltip, then the choice's reason and
- * description (as choiceTooltip). `withLabel` leads with the choice's label,
- * before the field's description (an icon-only choice, named nowhere else).
- * A choice with nothing of its own still shows the field's description.
+ * description (as choiceTooltip, `lead` before the description). `withLabel`
+ * leads with the choice's label, before the field's description (an
+ * icon-only choice, named nowhere else). A choice with nothing of its own
+ * still shows the field's description.
  */
 export function segmentTooltip(
-  field: Pick<DescribedField, 'description'>, choice: DescribedChoice, withLabel = false,
+  field: Pick<DescribedField, 'description'>, choice: DescribedChoice, withLabel = false, lead?: string,
 ): ReactNode | undefined {
   return stack([
     withLabel && choice.label,
     field.description && <TooltipPart kind="description" text={field.description} />,
-    ...choiceParts(choice, true),
+    ...choiceParts(choice, true, lead),
   ]);
 }
 
-/** A choice's own tooltip paragraphs, unstacked: a disabled one's reason, then its description. */
-function choiceParts(choice: DescribedChoice, withDescription: boolean): ReactNode[] {
+/**
+ * A choice's own tooltip paragraphs, unstacked: a disabled one's reason, then
+ * its description (led by `lead` when given).
+ */
+function choiceParts(choice: DescribedChoice, withDescription: boolean, lead?: string): ReactNode[] {
+  const description = choice.description && (lead ? `${lead} ${choice.description}` : choice.description);
   return [
     !choice.enabled && choice.whyDisabled && <TooltipPart kind="reason" text={choice.whyDisabled} />,
-    withDescription && choice.description && <TooltipPart kind="description" text={choice.description} />,
+    withDescription && description && <TooltipPart kind="description" text={description} />,
   ];
 }
 

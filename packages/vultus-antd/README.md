@@ -87,10 +87,12 @@ and danger choices are styled as `CombinedActionButton` styles its rows (primary
 primary colour, danger in the danger colour), only while enabled; the closed select mirrors
 the current choice. Hovering a choice shows its description, a disabled one its reason first;
 the closed select shows the field's tooltip (held back while the list is open). An enabled
-`OneOfSegmented` has no tooltip of its own, so each segment's tooltip leads with the field's
-description, after an icon-only choice's label (a segment with nothing of its own still shows
-it). A choice's confirmation
-comes first; a danger choice's confirmation has a danger OK. antd's native label titles are
+`OneOfSegmented` has no tooltip of its own, so each segment's tooltip shows the field's
+description first (after the label, for an icon-only choice); a segment with nothing of its
+own still shows it. On a segment and on a slider's mark, every choice being on show, the
+choice's description is led by "Current state:" on the current one and by "Switch to:" on
+another enabled one (what a click does); a disabled one's has no lead, as it cannot be
+switched to. A choice's confirmation comes first; a danger choice's confirmation has a danger OK. antd's native label titles are
 switched off so they do not compete with the tooltips. In `OneOfSelect`, choices with a `group`
 are listed after the others, under their group's heading (e.g. older versions of a model).
 `OneOfSelect inlineDescriptions` shows each choice's description in the open list, under its
@@ -109,7 +111,9 @@ stays on it, then shows the stored value (the old one after a Cancel or a failur
 
 Field and choice tooltips render their texts as markdown (the accessible description gets
 the plain text). A reason paragraph is led by a gray no-entry sign, a description paragraph
-by an info sign, so the two never read as one text; "Current state:" has no sign. The no-entry
+by an info sign, so the two never read as one text; "Current state:" has no sign of its own.
+`VultusProvider texts` translates "Current state:" (`currentState`) and "Switch to:"
+(`switchTo`). The no-entry
 sign is gray, not the danger colour: a disabled thing is no danger. While a widget's
 confirmation is open, the widget holds back its own tooltips, which would cover it.
 

@@ -91,6 +91,27 @@ describe('OneOfSlider', () => {
     await waitFor(() => expect(screen.getByText('carefully', { selector: 'strong' })).toBeInTheDocument());
   });
 
+  it('another enabled mark\'s description is led by "Switch to:"', async () => {
+    wrap(<Inside />);
+    fireEvent.mouseEnter(mark('High').closest('span[style]')!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    expect(openTooltips()[0]).toHaveTextContent(/^Switch to: Thinks carefully$/);
+  });
+
+  it('the current mark\'s description is led by "Current state:"', async () => {
+    wrap(<Inside />);
+    fireEvent.mouseEnter(mark('Medium').closest('span[style]')!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    expect(openTooltips()[0]).toHaveTextContent(/^Current state: Thinks a little$/);
+  });
+
+  it('a disabled mark: its reason, then its description without "Switch to:"', async () => {
+    wrap(<Inside />);
+    fireEvent.mouseEnter(mark('Max').closest('span[style]')!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    expect(openTooltips()[0]).toHaveTextContent(/^Not on this model\s*Thinks as long as it needs$/);
+  });
+
   it('hovering any part of the slider (here its rail) shows what the field is, then the current state', async () => {
     wrap(<Inside />);
     fireEvent.mouseEnter(document.querySelector<HTMLElement>('.ant-slider-rail')!);

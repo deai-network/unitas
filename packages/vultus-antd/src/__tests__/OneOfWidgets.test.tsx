@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { denyWithReason, useOneOfField, type FieldCommit, type OneOfChoice, type OneOfFieldOptions } from 'vultus-core';
 import { OneOfSegmented } from '../OneOfSegmented.js';
 import { OneOfSelect } from '../OneOfSelect.js';
+import { VultusProvider } from '../VultusProvider.js';
 import { openTooltips } from './helpers/tooltips.js';
 
 type Mode = 'manual' | 'plan' | 'bypass';
@@ -80,7 +81,8 @@ describe.each(['OneOfSelect', 'OneOfSegmented'] as Kind[])('%s', (kind) => {
   it('hovering a choice shows its description', async () => {
     wrap(<Inside kind={kind} />);
     await hoverChoice(kind, 'Plan');
-    await waitFor(() => expect(screen.getByText('Plans without editing')).toBeInTheDocument());
+    // (OneOfSegmented leads it with "Switch to:".)
+    await waitFor(() => expect(screen.getByText(/Plans without editing$/)).toBeInTheDocument());
   });
 
   it('a disabled choice cannot be chosen; hovering it shows its reason, then its description', async () => {
@@ -272,8 +274,8 @@ describe('OneOfSegmented iconOnly', () => {
     expect(screen.getByRole('radio', { name: 'Dark' })).toBeInTheDocument();
     fireEvent.mouseEnter(screen.getByTestId('moon-icon').closest('span[style]')!);
     await waitFor(() => expect(screen.getByText('Dark')).toBeInTheDocument());
-    expect(screen.getByText('A dark background')).toBeInTheDocument();
-    expect(openTooltips()[0]).toHaveTextContent(/^Dark\s*The colour scheme\s*A dark background$/);
+    expect(screen.getByText(/A dark background$/)).toBeInTheDocument();
+    expect(openTooltips()[0]).toHaveTextContent(/^Dark\s*The colour scheme\s*Switch to: A dark background$/);
   });
 });
 
@@ -316,7 +318,9 @@ describe.each(['OneOfSelect', 'OneOfSegmented'] as Kind[])('%s tooltip paragraph
   it('only a description: still led by the info sign', async () => {
     wrap(<Inside kind={kind} />);
     await hoverChoice(kind, 'Plan');
-    await waitFor(() => expect(tooltipParts()).toEqual([['description', 'info-circle', 'Plans without editing']]));
+    // A segment says what picking it does (OneOfSegmented: "Switch to:").
+    const lead = kind === 'OneOfSegmented' ? 'Switch to: ' : '';
+    await waitFor(() => expect(tooltipParts()).toEqual([['description', 'info-circle', `${lead}Plans without editing`]]));
   });
 
   it('only a reason: still led by the no-entry sign', async () => {
@@ -347,7 +351,7 @@ describe('OneOfSegmented: the field\'s description on each segment', () => {
     await hoverChoice('OneOfSegmented', 'Plan');
     await waitFor(() => expect(tooltipParts()).toEqual([
       ['description', 'info-circle', FIELD],
-      ['description', 'info-circle', 'Plans without editing'],
+      ['description', 'info-circle', 'Switch to: Plans without editing'],
     ]));
   });
 
@@ -375,7 +379,7 @@ describe('OneOfSegmented: the field\'s description on each segment', () => {
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 300)); });
     expect(openTooltips()).toHaveLength(0);
     await hoverChoice('OneOfSegmented', 'Manual');
-    await waitFor(() => expect(tooltipParts()).toEqual([['description', 'info-circle', 'Asks before acting']]));
+    await waitFor(() => expect(tooltipParts()).toEqual([['description', 'info-circle', 'Current state: Asks before acting']]));
   });
 
   it('a disabled field: as before, only the whole control\'s tooltip (its reason, then its description)', async () => {
@@ -393,6 +397,41 @@ describe('OneOfSegmented: the field\'s description on each segment', () => {
     wrap(<Inside kind="OneOfSegmented" description={FIELD} />);
     const root = document.querySelector<HTMLElement>('[data-field-id="mode"]')!;
     expect(root.getAttribute('aria-description')).toBe(`${FIELD} Current state: Asks before acting`);
+  });
+});
+
+describe('OneOfSegmented: the current choice and the others', () => {
+  it('the current segment\'s description is led by "Current state:"', async () => {
+    wrap(<Inside kind="OneOfSegmented" />);
+    await hoverChoice('OneOfSegmented', 'Manual');
+    await waitFor(() => expect(tooltipParts()).toEqual([['description', 'info-circle', 'Current state: Asks before acting']]));
+  });
+
+  it('another enabled segment\'s description is led by "Switch to:"', async () => {
+    wrap(<Inside kind="OneOfSegmented" />);
+    await hoverChoice('OneOfSegmented', 'Plan');
+    await waitFor(() => expect(tooltipParts()).toEqual([['description', 'info-circle', 'Switch to: Plans without editing']]));
+  });
+
+  it('a disabled segment: its reason, then its description without "Switch to:" (it cannot be switched to)', async () => {
+    wrap(<Inside kind="OneOfSegmented" />);
+    await hoverChoice('OneOfSegmented', 'Bypass');
+    await waitFor(() => expect(tooltipParts()).toEqual([
+      ['reason', 'stop', 'Not allowed for this task'],
+      ['description', 'info-circle', 'Runs everything'],
+    ]));
+  });
+
+  it('both leads are translated through VultusProvider\'s texts', async () => {
+    render(
+      <VultusProvider texts={{ currentState: 'Jelenleg:', switchTo: 'Váltás erre:' }}>
+        <AntApp><Inside kind="OneOfSegmented" /></AntApp>
+      </VultusProvider>,
+    );
+    await hoverChoice('OneOfSegmented', 'Plan');
+    await waitFor(() => expect(tooltipParts()).toEqual([['description', 'info-circle', 'Váltás erre: Plans without editing']]));
+    await hoverChoice('OneOfSegmented', 'Manual');
+    await waitFor(() => expect(tooltipParts()).toContainEqual(['description', 'info-circle', 'Jelenleg: Asks before acting']));
   });
 });
 

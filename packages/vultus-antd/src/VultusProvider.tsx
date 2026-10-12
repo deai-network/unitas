@@ -61,9 +61,14 @@ export function VultusProvider({
     [messageSink, messageApi],
   );
   const currentState = texts?.currentState;
+  const switchTo = texts?.switchTo;
   const mergedTexts = useMemo<VultusTexts>(
-    () => ({ ...defaultVultusTexts, ...(currentState !== undefined ? { currentState } : {}) }),
-    [currentState],
+    () => ({
+      ...defaultVultusTexts,
+      ...(currentState !== undefined ? { currentState } : {}),
+      ...(switchTo !== undefined ? { switchTo } : {}),
+    }),
+    [currentState, switchTo],
   );
   const wired = (
     <VultusTextsContext.Provider value={mergedTexts}>

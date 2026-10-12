@@ -1,7 +1,7 @@
 import { Segmented, type SegmentedProps } from 'antd';
 import type { OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
-import { fieldAccessibleDescription, fieldTooltip, segmentTooltip } from './fieldTooltip.js';
+import { choiceLead, fieldAccessibleDescription, fieldTooltip, segmentTooltip } from './fieldTooltip.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -18,8 +18,9 @@ interface Props<T extends string> {
  * the current one selected. Each segment shows on hover the field's
  * description first (the enabled control has no tooltip of its own;
  * OneOfSelect's leads with it too; an icon-only choice's label comes before
- * it), then its choice's description, a disabled one its reason first
- * (segmentTooltip); a segment with nothing of its own still shows the field's
+ * it), then its choice's description, led by "Current state:" on the current
+ * segment and "Switch to:" on another enabled one, a disabled one its reason
+ * first (segmentTooltip, choiceLead); a segment with nothing of its own still shows the field's
  * description. Primary and danger choices are styled as
  * CombinedActionButton styles its rows. A disabled field shows its reason for
  * the whole control instead (fieldTooltip). The field's label is the
@@ -40,7 +41,7 @@ export function OneOfSegmented<T extends string>({ field, size, iconOnly }: Prop
         value: c.value,
         disabled: !c.enabled,
         label: field.enabled
-          ? withTooltip(segmentTooltip(field, c, iconOnly), !c.enabled, <ChoiceLabel choice={c} iconOnly={iconOnly} />, { open: asking ? false : undefined })
+          ? withTooltip(segmentTooltip(field, c, iconOnly, choiceLead(c, c.value === field.value, texts)), !c.enabled, <ChoiceLabel choice={c} iconOnly={iconOnly} />, { open: asking ? false : undefined })
           : <ChoiceLabel choice={{ ...c, enabled: false }} iconOnly={iconOnly} />,
       }))}
       aria-label={field.label || undefined}

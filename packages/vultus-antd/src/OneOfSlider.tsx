@@ -2,7 +2,7 @@ import { Slider } from 'antd';
 import { useEffect, useState, type CSSProperties } from 'react';
 import type { OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
-import { choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { choiceLead, choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -17,8 +17,9 @@ interface Props<T extends string> {
 /**
  * A one-of field (useOneOfField) as antd's Slider, for ordered choices: each
  * choice a mark on the track, the handle on the current one. Hovering a mark
- * shows its choice's description, a disabled one its reason first
- * (choiceTooltip); primary and danger choices are styled as
+ * shows its choice's description, led by "Current state:" on the current mark
+ * and "Switch to:" on another enabled one, a disabled one its reason first
+ * (choiceTooltip, choiceLead); primary and danger choices are styled as
  * CombinedActionButton styles its rows. Hovering any part of the slider shows
  * the field's tooltip (what it is, then the current state), except a mark
  * with a tooltip of its own, which shows that one instead. A choice is
@@ -61,7 +62,7 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
       onChange={(index: number) => setMoving(index)}
       onChangeComplete={(index: number) => settle(index)}
       marks={Object.fromEntries(choices.map((c, i) => {
-        const tip = field.enabled ? choiceTooltip(c) : undefined;
+        const tip = field.enabled ? choiceTooltip(c, false, true, choiceLead(c, c.value === field.value, texts)) : undefined;
         return [i, {
           style: { whiteSpace: 'nowrap', ...markStyle },
           label: !field.enabled ? c.label
