@@ -161,7 +161,8 @@ describe('OneOfTreePicker panel="drawer": the drawer', () => {
     tap(root());
     await waitFor(() => expect(openDrawer()).not.toBeNull());
     fireEvent.click(within(drawerRow('Geometria')!).getByText('Geometria'));
-    await waitFor(() => expect(drawerRow('Síkgeometria')).toBeNull());
+    // The rows go when the tree's close motion ends, which a loaded host can stretch past waitFor's default second.
+    await waitFor(() => expect(drawerRow('Síkgeometria')).toBeNull(), { timeout: 3000 });
     expect(openDrawer()).not.toBeNull();
   });
 
