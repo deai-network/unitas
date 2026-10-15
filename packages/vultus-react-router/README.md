@@ -97,13 +97,20 @@ a redirect took it, or where the router stayed if it was cancelled. So a
 write made in the same tick as a navigation to another path — a handler
 that sets an argument and then navigates, in either order — lands in the
 new path's query (`/other?rounds=final`) once that path has loaded, not on
-the page it was made on.
+the page it was made on. One exception: a data router created with
+`getContext` (middleware) may publish its navigation only after awaiting
+`getContext`, so a write in the same tick can still cancel the navigation
+there.
 
 **Scrolling.** A write changes only the query, so its navigation (push or
 replace) passes `preventScrollReset`: under `<ScrollRestoration>` the page
-stays where it was scrolled instead of jumping to the top. A location with
-a `#hash` still scrolls to that element on every write, as react-router
-scrolls to the hash's element before it looks at `preventScrollReset`.
+stays where it was scrolled instead of jumping to the top. When the batch
+lands on top of a navigation from outside that has not rendered yet (the
+same tick, or after waiting for it), the two render as one, so the store's
+navigation passes the router's choice for that navigation instead: a new
+page still opens at the top. A location with a `#hash` still scrolls to
+that element on every write, as react-router scrolls to the hash's element
+before it looks at `preventScrollReset`.
 
 **A readable query.** Keys and values are percent-encoded, except `,`, `.`
 and `/`, so lists and ranges read as they are: `?rounds=final,regional&years=2010..2025`.

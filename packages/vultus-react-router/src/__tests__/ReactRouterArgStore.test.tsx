@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import {
-  createHashRouter, createMemoryRouter, createPath, HashRouter, MemoryRouter, redirect, Route, RouterProvider, Routes,
-  ScrollRestoration, useNavigate,
+  createHashRouter, createMemoryRouter, createPath, HashRouter, MemoryRouter, Outlet, redirect, Route, RouterProvider,
+  Routes, ScrollRestoration, useNavigate,
   type InitialEntry, type LoaderFunction, type Location, type NavigateFunction, type RouteObject,
 } from 'react-router';
 import {
@@ -57,7 +57,8 @@ function gate() {
  * element, so a location change re-renders it only through the store's notification.
  * `navigations` lists every location the router moved to, as `'PUSH /m?…'` / `'REPLACE /m?…'`.
  * A `loader` makes every navigation to `/m` wait for it (the first render does not); `routes`
- * are added beside `/m` and `/start`; `scrollRestoration` renders a `<ScrollRestoration>` in `/m`.
+ * are added beside `/m` and `/start`; `scrollRestoration` renders a `<ScrollRestoration>` in a
+ * layout route around all of them (so it stays mounted across navigations, as at an app's root).
  */
 function setup(
   entries: InitialEntry[],
@@ -71,22 +72,13 @@ function setup(
     seen.store = useRouterArgStore();
     return <span data-testid="value">{`${seen.rounds.value.join(',')}|${seen.q.value}`}</span>;
   }
+  const pages: RouteObject[] = [
+    { id: 'm', path: '/m', loader, element: <ReactRouterArgStore><Probe /></ReactRouterArgStore> },
+    { path: '/start', element: null },
+    ...routes,
+  ];
   const router = createMemoryRouter(
-    [
-      {
-        id: 'm',
-        path: '/m',
-        loader,
-        element: (
-          <>
-            {scrollRestoration && <ScrollRestoration />}
-            <ReactRouterArgStore><Probe /></ReactRouterArgStore>
-          </>
-        ),
-      },
-      { path: '/start', element: null },
-      ...routes,
-    ],
+    scrollRestoration ? [{ element: <><ScrollRestoration /><Outlet /></>, children: pages }] : pages,
     { initialEntries: entries, initialIndex: entries.length - 1, hydrationData: { loaderData: { m: null } } },
   );
   const navigations: string[] = [];
@@ -419,6 +411,55 @@ describe('ReactRouterArgStore under <ScrollRestoration>', () => {
       await act(async () => {
         await router.navigate('/m?q=w');
       });
+      expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    } finally {
+      scrollTo.mockRestore();
+    }
+  });
+
+  // The navigation from outside and the store's navigation on top of it render as one, so the
+  // store's navigation must not hold back the scroll to the top the other one asked for.
+  it.each([
+    ['a write, then a navigation to another path', 'write first'],
+    ['a navigation to another path, then a write', 'navigation first'],
+  ])('%s in the same tick: the new page opens scrolled to the top', async (_, order) => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    try {
+      const { seen, router, url } = setup(['/m?q=x'], {
+        scrollRestoration: true,
+        routes: [{ path: '/other', element: null }],
+      });
+      scrollTo.mockClear();
+      await act(async () => {
+        if (order === 'write first') seen.q.set('y');
+        void router.navigate('/other');
+        if (order === 'navigation first') seen.q.set('y');
+      });
+      expect(url()).toBe('/other?q=y');
+      expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    } finally {
+      scrollTo.mockRestore();
+    }
+  });
+
+  it('a write that waited for a loading navigation to another path: the new page opens scrolled to the top', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    try {
+      const other = gate();
+      const { seen, router, url } = setup(['/m?q=x'], {
+        scrollRestoration: true,
+        routes: [{ path: '/other', loader: other.loader, element: null }],
+      });
+      scrollTo.mockClear();
+      await act(async () => {
+        seen.q.set('y');
+        void router.navigate('/other');
+      });
+      await act(async () => {
+        other.open();
+      });
+      await act(() => vi.waitFor(() => expect(router.state.navigation.state).toBe('idle')));
+      expect(url()).toBe('/other?q=y');
       expect(scrollTo).toHaveBeenCalledWith(0, 0);
     } finally {
       scrollTo.mockRestore();

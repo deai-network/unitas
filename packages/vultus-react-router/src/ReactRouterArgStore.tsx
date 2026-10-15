@@ -20,6 +20,11 @@ type Place = Path & { state: unknown };
  * navigations are synchronous (no loaders), so the location read now already includes the store's
  * own last navigation.
  *
+ * `rendered` says whether that location is the one the store last rendered (a data router
+ * renders its updates later, in a transition), and `preventScrollReset` is a data router's
+ * choice for the navigation that brought it there (`true` for other routers, which have no
+ * `<ScrollRestoration>`).
+ *
  * `loading` is a data router's navigation in flight (loading or submitting; the router's location
  * stays where it was until it completes): where it goes (`to`, `undefined` outside the basename),
  * and `settled(then)`, which calls `then` once, when the router is idle again.
@@ -27,6 +32,8 @@ type Place = Path & { state: unknown };
 interface RouterNow {
   at: object;
   path: Place;
+  rendered: boolean;
+  preventScrollReset: boolean;
   loading?: { to: Path | undefined; settled(then: () => void): void };
 }
 
@@ -115,23 +122,28 @@ class RouterArgStore implements ArgStore {
   private flush(): void {
     const now = this.now();
     const { loading } = now;
-    const own = loading?.to !== undefined && this.navigated !== undefined && samePath(loading.to, this.navigated.to);
-    if (loading !== undefined && !own) {
+    const ownLoading = loading?.to !== undefined && this.navigated !== undefined && samePath(loading.to, this.navigated.to);
+    if (loading !== undefined && !ownLoading) {
       loading.settled(() => queueMicrotask(() => this.flush()));
       return;
     }
     const { changes, push } = this.batch!;
     this.batch = undefined;
-    const base = this.navigated !== undefined && this.navigated.from === now.at ? this.navigated.to : now.path;
+    const onOwn = this.navigated !== undefined && this.navigated.from === now.at;
+    const base = onOwn ? this.navigated!.to : now.path;
     const search = applyChanges(base.search, changes);
     if (search === writeQuery(new URLSearchParams(base.search))) return;
     // A replace stands in for the same history entry, so it keeps that entry's state; a push starts a new one.
     const state = push ? undefined : base.state;
     const to: Path = { pathname: base.pathname, search, hash: base.hash };
     this.navigated = { from: now.at, to: { ...to, state } };
-    // Only the query changes, so the page stays where it was scrolled (<ScrollRestoration> would
-    // scroll to the top otherwise).
-    void this.navigate(to, { replace: !push, state, preventScrollReset: true });
+    // Only the query changes, so on top of the rendered location or the store's own navigation the
+    // page stays where it was scrolled (<ScrollRestoration> would scroll to the top otherwise). On
+    // top of a navigation from outside that has not rendered yet, the two render as one and
+    // <ScrollRestoration> sees only this navigation's flag, so it carries the router's choice for
+    // that navigation over (a new page still opens at the top).
+    const preventScrollReset = onOwn || now.rendered || now.preventScrollReset;
+    void this.navigate(to, { replace: !push, state, preventScrollReset });
   }
 }
 
@@ -159,9 +171,10 @@ export function ReactRouterArgStore({ children }: { children?: ReactNode }) {
   store.now = () => {
     const at = dataRouter?.router.state.location ?? (navigator as { location?: Location }).location;
     const pathname = at === undefined ? undefined : stripBasename(at.pathname, basename);
+    const preventScrollReset = dataRouter?.router.state.preventScrollReset ?? true;
     const now: RouterNow = at !== undefined && pathname !== undefined
-      ? { at, path: { pathname, search: at.search, hash: at.hash, state: at.state } }
-      : { at: location, path: location };
+      ? { at, path: { pathname, search: at.search, hash: at.hash, state: at.state }, rendered: at.key === location.key, preventScrollReset }
+      : { at: location, path: location, rendered: true, preventScrollReset };
     const router = dataRouter?.router;
     const navigation = router?.state.navigation;
     if (router !== undefined && navigation !== undefined && navigation.state !== 'idle') {
