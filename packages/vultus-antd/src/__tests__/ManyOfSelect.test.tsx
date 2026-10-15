@@ -87,6 +87,38 @@ describe('ManyOfSelect', () => {
     await waitFor(() => expect(shown()).toBe(''));
   });
 
+  it("a selected choice that becomes disabled is marked disabled in the field's options — the same `option.disabled` antd's own tag render reads to drop a selected tag's close icon, so a later custom tagRender can't silently lose it", async () => {
+    // `maxTagCount="responsive"` never actually collapses/measures real tags
+    // under jsdom: `vitest.setup.ts` stubs `ResizeObserver.observe` as a
+    // no-op, so the responsive overflow's container width never resolves and
+    // no individual tag node ever mounts here (confirmed empirically: with
+    // this stub, antd always renders the summary "+N ..." item and zero
+    // per-tag nodes, for any number of selections — see "tags collapse"
+    // below). The close icon on a selected tag is something antd's own
+    // default tag render derives straight from the matching option's
+    // `disabled` — the same `options` array that keeps a disabled choice's
+    // row unclickable in the open list (already covered by "a disabled
+    // choice cannot be selected" above). This test pins that same signal for
+    // a choice that starts selected and enabled, then becomes disabled while
+    // still selected — the scenario a future custom `tagRender` ignoring
+    // `option.disabled` would silently get wrong.
+    const { rerender } = wrap(<Inside initialValue={['a', 'b']} />);
+    await openChoices();
+    expect(optionRow('Alpha')).not.toHaveClass('ant-select-item-option-disabled');
+    const NOW_DISABLED: OneOfChoice<Tag>[] = [
+      { value: 'a', label: 'Alpha', note: '3', enabled: denyWithReason('No longer allowed') },
+      { value: 'b', label: 'Beta', note: '1', description: 'The second tag' },
+      { value: 'c', label: 'Gamma', description: 'The third tag', enabled: denyWithReason('Not allowed for this task') },
+    ];
+    rerender(<AntApp><Inside initialValue={['a', 'b']} choices={NOW_DISABLED} /></AntApp>);
+    await openChoices();
+    expect(optionRow('Alpha')).toHaveClass('ant-select-item-option-disabled');
+    expect(optionRow('Beta')).not.toHaveClass('ant-select-item-option-disabled');
+    // Still selected, just disabled now — this is the "selected choice that
+    // becomes disabled" scenario, not a choice that was never selected.
+    expect(shown()).toBe('a,b');
+  });
+
   it('a disabled choice cannot be selected; hovering it shows its reason, then its description', async () => {
     wrap(<Inside />);
     await choose('Gamma');

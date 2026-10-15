@@ -1,8 +1,7 @@
 import { Select, type SelectProps } from 'antd';
 import { useState, type CSSProperties } from 'react';
 import { normalizeText, useSpinnerKey, useVultusComponents, type ManyOfChoiceControls, type ManyOfFieldControls } from 'vultus-core';
-import { ChoiceLabel } from './ChoiceLabel.js';
-import { ChoiceNote } from './ChoiceNote.js';
+import { ChoiceRow } from './ChoiceNote.js';
 import { choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
 import { useManyOfRequest } from './useManyOfRequest.js';
 import { useVultusTexts } from './texts.js';
@@ -12,16 +11,6 @@ interface Props<T extends string> {
   field: ManyOfFieldControls<T>;
   size?: SelectProps['size'];
   style?: CSSProperties;
-}
-
-/** A choice's label and note in the open list, the note right-aligned (as OneOfSelect's plain rows). */
-function ChoiceRow<T extends string>({ choice }: { choice: ManyOfChoiceControls<T> }) {
-  return (
-    <span style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-      <ChoiceLabel choice={choice} />
-      <ChoiceNote note={choice.note} />
-    </span>
-  );
 }
 
 /**

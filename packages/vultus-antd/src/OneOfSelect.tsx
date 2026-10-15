@@ -2,7 +2,7 @@ import { Select, theme, type SelectProps } from 'antd';
 import { useState, type CSSProperties } from 'react';
 import { useSpinnerKey, useVultusComponents, type OneOfChoiceControls, type OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
-import { ChoiceNote } from './ChoiceNote.js';
+import { ChoiceNote, ChoiceRow } from './ChoiceNote.js';
 import { choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
@@ -57,16 +57,6 @@ function InlineChoice<T extends string>({ choice }: { choice: OneOfChoiceControl
         </div>
       )}
     </div>
-  );
-}
-
-/** A choice's label and note in the closed-off list, the note right-aligned (OneOfSelect's plain rows). */
-function ChoiceRow<T extends string>({ choice }: { choice: OneOfChoiceControls<T> }) {
-  return (
-    <span style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-      <ChoiceLabel choice={choice} />
-      <ChoiceNote note={choice.note} />
-    </span>
   );
 }
 
