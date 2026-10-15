@@ -60,6 +60,9 @@ export {
   useArg, useArgWriter, setArg, resetArg,
   type ArgDefinition, type ArgControls, type ArgChange,
 } from './useArg.js';
+export {
+  argOf, useStoredField, useStoredFields, type StoredField, type StoredFields,
+} from './useStoredField.js';
 export { InternalLinkContext, useInternalLink, type InternalLinkComponent } from './LinkContext.js';
 export { MessageSinkContext, useMessageSink, type MessageSink } from './MessageSink.js';
 export {
