@@ -26,3 +26,5 @@ export { RangeSlider } from './RangeSlider.js';
 export { TreeChecklist, type TreeChecklistProps } from './TreeChecklist.js';
 export { TreePicker, type TreePickerProps } from './TreePicker.js';
 export { useTreeRequest } from './useTreeRequest.js';
+export { TextInput } from './TextInput.js';
+export { SearchInput } from './SearchInput.js';

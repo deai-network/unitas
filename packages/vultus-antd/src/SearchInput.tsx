@@ -1,0 +1,87 @@
+import { Input, Spin } from 'antd';
+import { useEffect, useState, type ChangeEvent, type CSSProperties, type KeyboardEvent } from 'react';
+import { useSpinnerKey, useVultusComponents, type TextFieldControls } from 'vultus-core';
+import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { useFieldRequest } from './useFieldRequest.js';
+import { useVultusTexts } from './texts.js';
+import { withTooltip } from './WithReason.js';
+
+interface Props {
+  field: TextFieldControls;
+  /** Called on Enter, after the typed value has been requested (at once, or — when the field commits — the draft). */
+  onEnter?: () => void;
+  style?: CSSProperties;
+}
+
+/**
+ * A text field (useTextField) as antd's Input with a search icon as its
+ * `prefix` (an inline SVG, as fieldTooltip.tsx's icons — no
+ * @ant-design/icons dependency) and `allowClear`, whose clear button
+ * requests `''`. Same request rule as TextInput: a field that does not
+ * commit requests on every keystroke; a committing field keeps a draft and
+ * requests on blur or Enter. Escape also clears — the draft (if any) and the
+ * field, requesting `''` — as the clear button does. `onEnter` fires after
+ * Enter's request, so a caller can run a search once the field holds (or is
+ * about to hold) the typed text.
+ */
+export function SearchInput({ field, onEnter, style }: Props) {
+  const texts = useVultusTexts();
+  const { request, wrap, asking } = useFieldRequest(field, { equal: (a, b) => a === b });
+  const [draft, setDraft] = useState(field.value);
+  const { Spinner } = useVultusComponents();
+  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
+  const inFlight = asking || field.pending;
+  useEffect(() => { if (!inFlight) setDraft(field.value); }, [field.value, inFlight]);
+  if (!field.visible) return null;
+  const commitDraft = () => request(draft);
+  const value = field.commits ? draft : field.value;
+  const disabled = !field.enabled || field.pending;
+  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const next = e.target.value;
+    if (field.commits) setDraft(next); else request(next);
+  };
+  const clear = () => {
+    if (field.commits) setDraft('');
+    request('');
+  };
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') clear();
+    else if (e.key === 'Enter') {
+      if (field.commits) commitDraft();
+      onEnter?.();
+    }
+  };
+  const spinner = field.pending
+    ? (Spinner ? <Spinner spinnerKey={spinnerKey} size="small" /> : <Spin size="small" />)
+    : null;
+  return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, (
+    <Input
+      value={value}
+      placeholder={field.placeholder}
+      disabled={disabled}
+      allowClear
+      prefix={<SearchIcon />}
+      suffix={spinner || undefined}
+      onChange={onChange}
+      onBlur={field.commits ? commitDraft : undefined}
+      onKeyDown={onKeyDown}
+      aria-label={field.label || undefined}
+      aria-description={fieldAccessibleDescription(field, texts)}
+      data-field-id={field.id}
+      data-value={field.value}
+      style={{ minWidth: 200, ...style }}
+    />
+  ), { open: asking ? false : undefined, block: !!style?.width }));
+}
+
+// antd's SearchOutlined, inlined (as InfoCircleIcon/StopIcon in fieldTooltip.tsx) so
+// vultus-antd needs no @ant-design/icons dependency; same markup and path as the icon component.
+function SearchIcon() {
+  return (
+    <span role="img" aria-label="search" className="anticon anticon-search">
+      <svg viewBox="64 64 896 896" focusable="false" data-icon="search" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+        <path d="M909.6 854.5L649.9 594.8C690.2 542.7 712 479 712 412c0-80.2-31.3-155.4-87.9-212.1-56.6-56.7-132-87.9-212.1-87.9s-155.5 31.3-212.1 87.9C143.2 256.5 112 331.8 112 412c0 80.1 31.3 155.5 87.9 212.1C256.5 680.8 331.8 712 412 712c67 0 130.6-21.8 182.7-62l259.7 259.6a8.2 8.2 0 0011.6 0l43.6-43.5a8.2 8.2 0 000-11.6zM570.4 570.4C528 612.7 471.8 636 412 636s-116-23.3-158.4-65.6C211.3 528 188 471.8 188 412s23.3-116.1 65.6-158.4C296 211.3 352.2 188 412 188s116.1 23.2 158.4 65.6S636 352.2 636 412s-23.3 116.1-65.6 158.4z" />
+      </svg>
+    </span>
+  );
+}
