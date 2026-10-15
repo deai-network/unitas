@@ -1,12 +1,12 @@
 import { Input, Spin } from 'antd';
-import { useEffect, useState, type ChangeEvent, type CSSProperties, type KeyboardEvent } from 'react';
+import type { ChangeEvent, CSSProperties, KeyboardEvent } from 'react';
 import { useSpinnerKey, useVultusComponents, type TextFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
-import { useFieldRequest } from './useFieldRequest.js';
+import { useTextDraft } from './useTextDraft.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
 
-interface Props {
+export interface SearchInputProps {
   field: TextFieldControls;
   /** Called on Enter with the typed text, after it has been requested (at once, or — when the field commits — the draft). */
   onEnter?: (typed: string) => void;
@@ -32,29 +32,21 @@ interface Props {
  * both ignored mid-IME-composition (`e.nativeEvent.isComposing`), as
  * TextInput's `onPressEnter` already is by antd itself — composing text is
  * not done yet, so the value should not request and no shortcut should fire.
+ * The input shows a draft in both modes, as TextInput's (useTextDraft).
  */
-export function SearchInput({ field, onEnter, style }: Props) {
+export function SearchInput({ field, onEnter, style }: SearchInputProps) {
   const texts = useVultusTexts();
-  const { request, wrap, asking } = useFieldRequest(field, { equal: (a, b) => a === b });
-  const [draft, setDraft] = useState(field.value);
+  const { value, change, commit, clear, wrap, asking } = useTextDraft(field);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
-  const inFlight = asking || field.pending;
-  useEffect(() => { if (!inFlight) setDraft(field.value); }, [field.value, inFlight]);
   if (!field.visible) return null;
-  const commitDraft = () => request(draft);
-  const value = field.commits ? draft : field.value;
   const disabled = !field.enabled || field.pending;
-  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const next = e.target.value;
-    if (field.commits) setDraft(next); else request(next);
-  };
-  const clear = () => { setDraft(''); request(''); };
+  const onChange = (e: ChangeEvent<HTMLInputElement>) => change(e.target.value);
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.nativeEvent.isComposing) return;
     if (e.key === 'Escape') clear();
     else if (e.key === 'Enter') {
-      if (field.commits) commitDraft();
+      if (field.commits) commit();
       onEnter?.(value);
     }
   };
@@ -75,7 +67,7 @@ export function SearchInput({ field, onEnter, style }: Props) {
       suffix={spinner ?? <></>}
       onChange={onChange}
       onClear={field.commits ? clear : undefined}
-      onBlur={field.commits ? commitDraft : undefined}
+      onBlur={field.commits ? commit : undefined}
       onKeyDown={onKeyDown}
       aria-label={field.label || undefined}
       aria-description={fieldAccessibleDescription(field, texts)}

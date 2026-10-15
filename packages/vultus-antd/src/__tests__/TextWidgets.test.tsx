@@ -310,3 +310,77 @@ describe('SearchInput', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
   });
 });
+
+const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+
+/** Types `text` at `at` as a keystroke does: the DOM value and the caret change, then the input event fires. */
+function typeAt(el: HTMLInputElement, at: number, text: string) {
+  valueSetter.call(el, el.value.slice(0, at) + text + el.value.slice(at));
+  el.setSelectionRange(at + text.length, at + text.length);
+  fireEvent.input(el);
+}
+
+/** Deletes the character before `at`, as Backspace does. */
+function backspaceAt(el: HTMLInputElement, at: number) {
+  valueSetter.call(el, el.value.slice(0, at - 1) + el.value.slice(at));
+  el.setSelectionRange(at - 1, at - 1);
+  fireEvent.input(el);
+}
+
+describe.each([['TextInput', TextInput], ['SearchInput', SearchInput]] as const)('%s, live, over an app that stores asynchronously', (_, Widget) => {
+  /** The app keeps the value and stores each change a tick later (`later`, a timer each); `external` sets it from outside. */
+  function AsyncOutside({ initial = 'abc' }: { initial?: string }) {
+    const [value, setValue] = useState(initial);
+    const field = useTextField({ id: 'q', label: 'Query', value, onChange: (next) => { setTimeout(() => setValue(next), 0); } });
+    return <><Widget field={field} /><output>{field.value}</output><button onClick={() => setValue('external')}>External set</button></>;
+  }
+  /** Lets the app's pending stores land. */
+  const landed = () => act(() => new Promise((resolve) => { setTimeout(resolve, 5); }));
+  const el = () => input() as HTMLInputElement;
+
+  it('typing in the middle keeps the caret', async () => {
+    wrap(<AsyncOutside />);
+    act(() => el().focus());
+    typeAt(el(), 1, 'X');
+    expect(el().value).toBe('aXbc');
+    expect(el().selectionStart).toBe(2);
+    await landed();
+    expect(shown()).toBe('aXbc');
+    expect(el().value).toBe('aXbc');
+    expect(el().selectionStart).toBe(2);
+  });
+
+  it('keystrokes before the first lands all land, and an own change landing late does not take the input back', async () => {
+    wrap(<AsyncOutside />);
+    act(() => el().focus());
+    typeAt(el(), 3, 'X');
+    typeAt(el(), 4, 'Y');
+    expect(el().value).toBe('abcXY');
+    // The first store lands ('abcX'), the second is still on its way: the input keeps 'abcXY'.
+    await act(() => new Promise((resolve) => { setTimeout(resolve, 0); }));
+    expect(el().value).toBe('abcXY');
+    await landed();
+    expect(shown()).toBe('abcXY');
+    expect(el().value).toBe('abcXY');
+  });
+
+  it('typing back to the stored value while a change is on its way still requests it', async () => {
+    wrap(<AsyncOutside />);
+    act(() => el().focus());
+    typeAt(el(), 3, 'd');
+    backspaceAt(el(), 4);
+    expect(el().value).toBe('abc');
+    await landed();
+    expect(shown()).toBe('abc');
+    expect(el().value).toBe('abc');
+  });
+
+  it('a change from outside (not one of the widget\'s requests) shows in the input', async () => {
+    wrap(<AsyncOutside />);
+    typeAt(el(), 3, 'X');
+    await landed();
+    fireEvent.click(screen.getByText('External set'));
+    expect(shown()).toBe('external');
+    expect(el().value).toBe('external');
+  });
+});

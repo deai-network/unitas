@@ -1,12 +1,12 @@
 import { Input, Spin } from 'antd';
-import { useEffect, useState, type ChangeEvent, type CSSProperties, type ReactElement } from 'react';
+import type { ChangeEvent, CSSProperties, ReactElement } from 'react';
 import { useSpinnerKey, useVultusComponents, type TextFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
-import { useFieldRequest } from './useFieldRequest.js';
+import { useTextDraft } from './useTextDraft.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
 
-interface Props {
+export interface TextInputProps {
   field: TextFieldControls;
   style?: CSSProperties;
 }
@@ -23,26 +23,20 @@ interface Props {
  * stays consistent with the shared hook regardless). A committing field
  * keeps a draft while typing and requests only when editing ends: on blur,
  * or on Enter for the single-line input (a textarea's Enter is a newline,
- * so only blur requests there). The draft follows the field's value
- * whenever it changes other than through this widget's own in-flight
- * request (as NumericInput's).
+ * so only blur requests there). The input shows a draft in both modes
+ * (useTextDraft), so a value stored later than the keystroke (an app's
+ * asynchronous onChange, the URL store) keeps the caret and every character;
+ * the draft follows the field's value whenever it changes other than through
+ * this widget's own requests.
  */
-export function TextInput({ field, style }: Props) {
+export function TextInput({ field, style }: TextInputProps) {
   const texts = useVultusTexts();
-  const { request, wrap, asking } = useFieldRequest(field, { equal: (a, b) => a === b });
-  const [draft, setDraft] = useState(field.value);
+  const { value, change, commit, wrap, asking } = useTextDraft(field);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
-  const inFlight = asking || field.pending;
-  useEffect(() => { if (!inFlight) setDraft(field.value); }, [field.value, inFlight]);
   if (!field.visible) return null;
-  const commitDraft = () => request(draft);
-  const value = field.commits ? draft : field.value;
   const disabled = !field.enabled || field.pending;
-  const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const next = e.target.value;
-    if (field.commits) setDraft(next); else request(next);
-  };
+  const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => change(e.target.value);
   const spinner = field.pending
     ? (Spinner ? <Spinner spinnerKey={spinnerKey} size="small" /> : <Spin size="small" />)
     : null;
@@ -51,7 +45,7 @@ export function TextInput({ field, style }: Props) {
     placeholder: field.placeholder,
     disabled,
     onChange,
-    onBlur: field.commits ? commitDraft : undefined,
+    onBlur: field.commits ? commit : undefined,
     'aria-label': field.label || undefined,
     'aria-description': fieldAccessibleDescription(field, texts),
     'data-field-id': field.id,
@@ -67,7 +61,7 @@ export function TextInput({ field, style }: Props) {
     : (
       <Input
         {...sharedProps}
-        onPressEnter={field.commits ? commitDraft : undefined}
+        onPressEnter={field.commits ? commit : undefined}
         // Always a real element, never undefined: toggling antd's `suffix` between a node and
         // undefined as `field.pending` flips makes antd remount the affix wrapper and drop
         // focus (its own dev warning) — an always-present (if sometimes empty) slot keeps the
