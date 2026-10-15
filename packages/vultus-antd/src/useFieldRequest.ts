@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import type { ConfirmationSpec } from 'vultus-core';
-import { useConfirm } from './useConfirm.js';
+import { useConfirm, type ConfirmLabels } from './useConfirm.js';
 
 /** What useFieldRequest needs from a field: just enough to request a value on it. */
 export interface RequestableField<TRequest> {
@@ -34,11 +34,19 @@ export function sameMembers<T>(a: T[], b: T[]): boolean {
  * confirmation for `next`, then requests it. `okText` defaults to the
  * field's label, as a request that names no single choice to label the
  * confirmation's OK with (a one-of field's choice does; see useOneOfRequest).
+ * `labelsFor` labels the OK for the requested value itself (the chosen
+ * node's label, a danger button for a danger choice), over `okText`; the
+ * labels go with the confirmation (see Confirm), so a cascade modal, which
+ * takes them when it opens, names what was just requested.
  * `asking`: the confirmation is open (see useConfirm).
  */
 export function useFieldRequest<TRequest>(
   field: RequestableField<TRequest>,
-  { equal, okText }: { equal: (a: TRequest, b: TRequest) => boolean; okText?: string },
+  { equal, okText, labelsFor }: {
+    equal: (a: TRequest, b: TRequest) => boolean;
+    okText?: string;
+    labelsFor?: (next: TRequest) => ConfirmLabels;
+  },
 ): {
   request: (next: TRequest) => void;
   wrap: (control: ReactElement) => ReactElement;
@@ -47,7 +55,7 @@ export function useFieldRequest<TRequest>(
   const { confirm, wrap, asking } = useConfirm({ okText: okText ?? field.label });
   const request = (next: TRequest) => {
     if (!field.enabled || field.pending || asking || equal(next, field.value)) return;
-    confirm(field.confirmationFor(next), () => field.setValue(next));
+    confirm(field.confirmationFor(next), () => field.setValue(next), labelsFor?.(next));
   };
   return { request, wrap, asking };
 }
