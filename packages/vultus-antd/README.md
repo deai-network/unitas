@@ -264,6 +264,12 @@ by an info sign, so the two never read as one text; "Current state:" has no sign
 sign is gray, not the danger colour: a disabled thing is no danger. While a widget's
 confirmation is open, the widget holds back its own tooltips, which would cover it.
 
+A widget that takes `style` (the inputs, selects, sliders and `TreePicker`) keeps a
+`style.width` — `'100%'` to fill a form column — also when its field has a tooltip: the span the
+tooltip sits on takes the width, so the control fills it and the tooltip stays on the control. A
+slider's width goes to its body (with `showValue`, the value and the slider), in which the slider
+grows.
+
 `VultusTexts` (`VultusProvider texts`) also carries `done` (TreePicker's drawer, closing it),
 `search` (a tree widget's search box placeholder), `joiningWords` (TreePicker's first-words
 summary), and `from` / `to` (RangeSlider's handle names) — see Tree fields and Numeric and range

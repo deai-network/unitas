@@ -1,4 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
+
+/**
+ * The style of a slider widget's antd Slider (NumericSlider, RangeSlider, OneOfSlider), from the
+ * widget's `style`: at least 160px wide. A `style.width` goes to the slider's body (a flex box,
+ * beside the shown value if any), in which the Slider grows instead, so `'100%'` fills the
+ * container.
+ */
+export function sliderStyle(style: CSSProperties | undefined): CSSProperties {
+  if (style?.width === undefined) return { minWidth: 160, ...style };
+  const { width: _body, ...rest } = style;
+  return { minWidth: 160, ...rest, flex: 1 };
+}
 
 export interface SliderMove<T> {
   /** What the slider should show now. */

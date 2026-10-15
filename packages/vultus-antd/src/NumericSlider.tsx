@@ -3,7 +3,7 @@ import { useState, type CSSProperties, type MouseEvent } from 'react';
 import type { NumericFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
 import { useNumericRequest } from './useNumericRequest.js';
-import { useSliderMove } from './useSliderMove.js';
+import { sliderStyle, useSliderMove } from './useSliderMove.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
 
@@ -50,7 +50,7 @@ export function NumericSlider({ field, style, showValue }: Props) {
       onChangeComplete={move.onChangeComplete}
       tooltip={{ formatter: (value?: number) => (value === undefined ? '' : field.format(value)) }}
       ariaLabelForHandle={field.label || undefined}
-      style={{ minWidth: 160, ...style }}
+      style={sliderStyle(style)}
     />
   );
   // antd's Slider puts no data-* attributes on its root: a wrapper carries them.
@@ -61,7 +61,7 @@ export function NumericSlider({ field, style, showValue }: Props) {
       aria-description={fieldAccessibleDescription(field, texts)}
       onMouseOver={(e: MouseEvent<HTMLElement>) => setOnHandle(!!(e.target as HTMLElement).closest('.ant-slider-handle'))}
       onMouseLeave={() => setOnHandle(false)}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+      style={{ display: style?.width === undefined ? 'inline-flex' : 'flex', alignItems: 'center', gap: 8, width: style?.width }}
     >
       {showValue && <span>{field.valueText}</span>}
       {slider}
@@ -70,5 +70,6 @@ export function NumericSlider({ field, style, showValue }: Props) {
   // The handle shows what the value is (its own tooltip); the track says what the field is.
   return wrap(withTooltip(fieldTooltip(field, texts, false), !field.enabled, body, {
     open: asking || onHandle ? false : undefined,
+    width: style?.width,
   }));
 }

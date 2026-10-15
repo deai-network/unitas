@@ -72,6 +72,6 @@ export function TextInput({ field, style }: TextInputProps) {
     );
   return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, control, {
     open: asking ? false : undefined,
-    block: !!style?.width,
+    width: style?.width,
   }));
 }

@@ -81,5 +81,5 @@ export function ManyOfSelect<T extends string>({ field, size, style }: Props<T>)
       data-field-id={field.id}
       data-value={field.value.join(',')}
     />
-  ), { open: open || asking ? false : undefined }));
+  ), { open: open || asking ? false : undefined, width: style?.width }));
 }

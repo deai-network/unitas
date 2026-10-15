@@ -4,6 +4,7 @@ import type { OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { choiceLead, fieldAccessibleDescription, fieldTooltip, shownChoiceTooltip } from './fieldTooltip.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
+import { sliderStyle } from './useSliderMove.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
 
@@ -78,7 +79,7 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
       tooltip={{ open: false }}
       ariaLabelForHandle={field.label || undefined}
       ariaValueTextFormatterForHandle={(index?: number) => (index === undefined ? '' : choices[index]?.label ?? '')}
-      style={{ minWidth: 160, ...style }}
+      style={sliderStyle(style)}
     />
   );
   // antd's Slider puts no data-* attributes on its root: a wrapper carries them.
@@ -87,7 +88,7 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
       data-field-id={field.id}
       data-value={field.value}
       aria-description={fieldAccessibleDescription(field, texts)}
-      style={{ display: 'inline-block' }}
+      style={style?.width === undefined ? { display: 'inline-block' } : { display: 'flex', width: style.width }}
     >
       {slider}
     </span>
@@ -95,5 +96,6 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
   // The track and handle say what the field is, not its value: the marks do.
   return wrap(withTooltip(fieldTooltip(field, texts, false), !field.enabled, body, {
     open: asking || onMark ? false : undefined,
+    width: style?.width,
   }));
 }

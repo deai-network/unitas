@@ -134,5 +134,5 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
       data-field-id={field.id}
       data-value={field.value}
     />
-  ), { open: open || asking ? false : undefined }));
+  ), { open: open || asking ? false : undefined, width: style?.width }));
 }

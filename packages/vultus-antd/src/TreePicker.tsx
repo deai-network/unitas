@@ -197,6 +197,7 @@ export function TreePicker<T extends string>({
   );
   const closed = wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, select, {
     open: open || drawerOpen || asking ? false : undefined,
+    width: style?.width,
   }));
   if (panel !== 'drawer') return closed;
   return (

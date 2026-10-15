@@ -75,7 +75,7 @@ export function SearchInput({ field, onEnter, style }: SearchInputProps) {
       data-value={field.value}
       style={{ minWidth: 200, ...style }}
     />
-  ), { open: asking ? false : undefined, block: !!style?.width }));
+  ), { open: asking ? false : undefined, width: style?.width }));
 }
 
 // antd's SearchOutlined, inlined (as InfoCircleIcon/StopIcon in fieldTooltip.tsx) so
