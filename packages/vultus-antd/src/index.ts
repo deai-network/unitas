@@ -28,7 +28,5 @@ export { TreePicker, type TreePickerProps } from './TreePicker.js';
 export { useTreeRequest } from './useTreeRequest.js';
 export { TextInput } from './TextInput.js';
 export { SearchInput } from './SearchInput.js';
-export {
-  FieldWidget, type FieldWidgetProps, type WidgetName, type WidgetNameOf, type WidgetHintOf, type FieldValueOf, type FieldRequestOf,
-} from './FieldWidget.js';
-export { Field, type FieldProps, type DefinitionOverridesOf } from './Field.js';
+export { FieldWidget, type FieldWidgetProps, type WidgetNameOf, type WidgetHintOf } from './FieldWidget.js';
+export { Field, type FieldProps } from './Field.js';

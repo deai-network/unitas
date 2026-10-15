@@ -318,6 +318,55 @@ describe('Field: storage', () => {
       .toThrow("Field 'duplex': an \"initialValue\" override is for a value inside the field; with \"commit\" it lives outside");
   });
 
+  const ROOMS: FieldDefinition = { kind: 'oneOf', id: 'room', label: 'Room', choices: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }, { value: 'c', label: 'C' }], widget: 'segmented' };
+  const STORE_READ_MESSAGE = (key: string) => `Field 'room': with "stored", "${key}" comes from the definition, which the store reads; give it there (a context function covers data that changes)`;
+
+  it('stored: overriding choices to widen them throws (the store sanitizes against the definition\'s)', () => {
+    quietRenderErrors();
+    const store = memoryStore();
+    expect(() => wrap(<ArgStoreProvider store={store}><Field stored definition={ROOMS} choices={[{ value: 'a' }, { value: 'b' }, { value: 'c' }, { value: 'x' }]} /></ArgStoreProvider>))
+      .toThrow(STORE_READ_MESSAGE('choices'));
+    expect(store.snapshot()).toEqual({});
+  });
+
+  it('stored: overriding choices to narrow them throws (a stored value they drop would still show)', () => {
+    quietRenderErrors();
+    const store = memoryStore({ room: 'c' });
+    expect(() => wrap(<ArgStoreProvider store={store}><Field stored definition={ROOMS} choices={[{ value: 'a' }, { value: 'b' }]} /></ArgStoreProvider>))
+      .toThrow(STORE_READ_MESSAGE('choices'));
+  });
+
+  it.each([
+    ['nodes', { kind: 'tree', id: 'room', nodes: NODES } as FieldDefinition, { nodes: [{ value: 'geo' }] }],
+    ['selection', { kind: 'tree', id: 'room', nodes: NODES } as FieldDefinition, { selection: 'all' }],
+    ['min', { kind: 'numeric', id: 'room', min: 1, max: 10 } as FieldDefinition, { min: 2 }],
+    ['max', { kind: 'range', id: 'room', min: 1, max: 10 } as FieldDefinition, { max: 5 }],
+    ['integer', { kind: 'numeric', id: 'room' } as FieldDefinition, { integer: true }],
+  ])('stored: overriding %s throws', (key, definition, override) => {
+    quietRenderErrors();
+    expect(() => wrap(<ArgStoreProvider store={memoryStore()}><Field stored definition={definition} {...(override as object)} /></ArgStoreProvider>))
+      .toThrow(STORE_READ_MESSAGE(key));
+  });
+
+  it('stored: overriding a value the store does not read works (label, placeholder, enabled)', () => {
+    const store = memoryStore({ room: 'b' });
+    wrap(<ArgStoreProvider store={store}><Field stored definition={ROOMS} label="Lab" enabled={denyWithReason('Booked')} /></ArgStoreProvider>);
+    expect(document.querySelector('[data-field-id="room"]')).toHaveAttribute('aria-label', 'Lab');
+    expect(document.querySelector('[data-field-id="room"]')).toHaveAttribute('data-value', 'b');
+  });
+
+  it('without stored, the same overrides work: widened choices can be chosen', () => {
+    wrap(<Field definition={ROOMS} choices={[{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }, { value: 'c', label: 'C' }, { value: 'x', label: 'X' }]} />);
+    fireEvent.click(screen.getByText('X'));
+    expect(document.querySelector('[data-field-id="room"]')).toHaveAttribute('data-value', 'x');
+  });
+
+  it('without stored, the same overrides work: narrowed choices', () => {
+    wrap(<Field definition={ROOMS} choices={[{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }]} />);
+    expect(screen.getByText('A')).toBeInTheDocument();
+    expect(screen.queryByText('C')).toBeNull();
+  });
+
   it('registry goes to the kind\'s hook as its second argument', () => {
     const registry: ErrorRoutesRegistry<string> = { print: { 409: { i18nKey: 'print.busy' } } };
     wrap(<Field definition={DEFINITIONS.boolean} registry={registry} />);

@@ -20,15 +20,23 @@ type DefinitionOf<K extends FieldKind> = Extract<FieldDefinition, { kind: K }>;
 export type DefinitionOverridesOf<K extends FieldKind> = Merged<K extends FieldKind ? Omit<DefinitionOf<K>, 'kind' | 'id' | 'widget'> : never>;
 
 /**
+ * The values the store layer reads from the definition itself (useStoredField and
+ * useStoredFields resolve the default and sanitize the stored value against them): with
+ * `stored`, they come from the definition only, so a render site cannot override them.
+ */
+const STORE_KEYS = ['initialValue', 'choices', 'nodes', 'selection', 'min', 'max', 'integer'] as const;
+type StoreKey = (typeof STORE_KEYS)[number];
+
+/**
  * `<Field>`'s props for a definition `D`, typed by its kind (by every kind, for a definition
  * typed as the FieldDefinition union): the value and its setters, the widget names and the
- * display props of the kind's widgets, and the definition's values as overrides.
+ * display props of the kind's widgets, and the definition's values as overrides (with
+ * `stored`, all but the ones the store reads: `initialValue`, `choices`, `nodes`, `selection`,
+ * `min`, `max`, `integer`).
  */
 export type FieldProps<D extends FieldDefinition = FieldDefinition> = {
   /** The field as data; its `kind` picks the hook and, with its `widget` hint, the widget. */
   definition: D;
-  /** Keep the value in the nearest ArgStore (the URL, localStorage) under the definition's `id` (useStoredField). */
-  stored?: boolean;
   /** The value, when the render site keeps it (with `onChange` or `commit`). */
   value?: FieldValueOf<D['kind']>;
   onChange?: (value: FieldRequestOf<D['kind']>) => void;
@@ -39,7 +47,13 @@ export type FieldProps<D extends FieldDefinition = FieldDefinition> = {
   widget?: WidgetHintOf<D['kind']>;
   /** In a labelled antd form item (label, description tooltip, the last commit's messages). */
   item?: boolean;
-} & DefinitionOverridesOf<D['kind']> & DisplayPropsOf<D['kind']>;
+} & DisplayPropsOf<D['kind']> & (
+  | ({ stored?: false } & DefinitionOverridesOf<D['kind']>)
+  | ({
+    /** Keep the value in the nearest ArgStore (the URL, localStorage) under the definition's `id` (useStoredField). */
+    stored: true;
+  } & Omit<DefinitionOverridesOf<D['kind']>, StoreKey>)
+);
 
 /** Every value of a definition a render site may override, of every kind; checked against FieldDefinition below. */
 const DEFINITION_KEYS = [
@@ -128,6 +142,13 @@ const SILENT_SINK: MessageSink = () => {};
  * `item` puts the field in a labelled antd form item and keeps its messages there: the
  * MessageSink (a toast under VultusProvider) does not get them. An unknown kind or widget name
  * throws. A definition of another kind or id, or turning `stored` on or off, remounts the field.
+ * With `stored`, the values the store reads (`initialValue`, `choices`, `nodes`, `selection`,
+ * `min`, `max`, `integer`) come from the definition: overriding one throws (a context function
+ * in the definition covers data that changes).
+ *
+ * The props are typed by the definition's kind. In a component generic over
+ * `<D extends FieldDefinition>`, they cannot resolve for the generic `D`: render
+ * `<Field<FieldDefinition> definition={d} …>` there.
  */
 export function Field<D extends FieldDefinition>(props: FieldProps<D>) {
   const { definition, stored = false, value, onChange, commit, registry, ...rest } = props as FieldProps & Record<string, unknown>;
@@ -147,6 +168,10 @@ export function Field<D extends FieldDefinition>(props: FieldProps<D>) {
   if (overrides.initialValue !== undefined && (stored || outsideStorage)) {
     const where = stored ? 'stored' : commit ? 'commit' : onChange ? 'onChange' : 'value';
     throw new Error(`Field '${id}': an "initialValue" override is for a value inside the field; with "${where}" it lives outside`);
+  }
+  const storeKey = stored ? STORE_KEYS.find((key) => overrides[key] !== undefined) : undefined;
+  if (storeKey) {
+    throw new Error(`Field '${id}': with "stored", "${storeKey}" comes from the definition, which the store reads; give it there (a context function covers data that changes)`);
   }
   const { Plain, Stored } = KIND_FIELDS[kind];
   const Inner = stored ? Stored : Plain;
@@ -177,7 +202,21 @@ function fieldPropsAreTyped(
   tree: DefinitionOf<'tree'>, mixed: DefinitionOf<'mixed-boolean'>,
 ) {
   const takesString = (typed: string) => typed;
+  function Wrapper<W extends FieldDefinition>({ definition, flag }: { definition: W; flag: boolean }) {
+    return [
+      <Field<FieldDefinition> definition={definition} label="Rounds" vertical />,
+      <Field<FieldDefinition> definition={definition} stored={flag} label="Rounds" />,
+      // @ts-expect-error -- for a generic definition type the kind-keyed props cannot resolve: pass <Field<FieldDefinition>>.
+      <Field definition={definition} label="Rounds" />,
+    ];
+  }
   return [
+    Wrapper,
+    <Field definition={oneOf} stored label="Paper" widget="segmented" />,
+    // @ts-expect-error -- with stored, choices come from the definition (the store sanitizes against them).
+    <Field definition={oneOf} stored choices={[{ value: 'a' }]} />,
+    // @ts-expect-error -- with stored, so do the bounds.
+    <Field definition={range} stored min={2000} />,
     <Field definition={wide} widget="search" onEnter={(typed) => takesString(typed)} />,
     <Field definition={wide} vertical style={{ width: 200 }} label="Rounds" />,
     <Field definition={oneOf} widget={{ name: 'segmented', iconOnly: true }} choices={[{ value: 'a' }]} />,

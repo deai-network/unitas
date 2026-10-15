@@ -163,7 +163,8 @@ export type FieldWidgetProps<C extends FieldControls<any, any> = FieldControls<a
  * With `item`, the last commit's messages show under the control. The action layer also sends
  * them to the MessageSink (an antd message under VultusProvider), so they would show twice:
  * `<Field item>` silences the sink for its field, and a caller of `<FieldWidget item>` does the
- * same above its hook, `<MessageSinkContext.Provider value={() => {}}>` (a stable function).
+ * same above its hook: `<MessageSinkContext.Provider value={SILENT}>` with a module-level no-op,
+ * `const SILENT = () => {}` (a new function on every render would re-create the field's setter).
  */
 export function FieldWidget<C extends FieldControls<any, any>>({ field, widget, item, ...props }: FieldWidgetProps<C>) {
   const { name, Widget, options } = pickWidget(field.id, field.type, widget as WidgetHint | undefined, field.widget, props);
