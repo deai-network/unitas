@@ -145,6 +145,11 @@ const { hrefFor } = useArg(roundsArg);
 <a href={hrefFor(['final'])}>Finals only</a>; // '#/modules/7?rounds=final' under a hash router
 ```
 
+A link computed at render is as fresh as that render: another key or the path
+can change without re-rendering a component that reads only its own key. Put
+such links in a component that re-renders on location changes, or compute the
+href when the link is used (vultus-antd's OneOfTreeList does the latter).
+
 ## Distribution
 
 This package ships compiled ESM (`dist/`) with TypeScript declarations to
