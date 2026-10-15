@@ -1,6 +1,6 @@
 {
   "name": "vultus-react-router",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "Apache-2.0",
   "description": "A vultus ArgStore over react-router's location (7 and 8): argument values live in the URL query (antd-free)",
   "repository": { "type": "git", "url": "git+https://github.com/deai-network/unitas.git", "directory": "packages/vultus-react-router" },
