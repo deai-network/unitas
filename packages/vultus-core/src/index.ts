@@ -27,6 +27,11 @@ export {
   useManyOfField, manyOfInitialValue,
   type ManyOfFieldControls, type ManyOfFieldOptions, type ManyOfOwnOptions, type ManyOfChoiceControls,
 } from './useManyOfField.js';
+export { clamp, resolveNumeric, type NumericBounds, type ResolvedNumeric } from './numeric.js';
+export {
+  useNumericField, numericInitialValue,
+  type NumericFieldControls, type NumericFieldOptions, type NumericOwnOptions,
+} from './useNumericField.js';
 export { InternalLinkContext, useInternalLink, type InternalLinkComponent } from './LinkContext.js';
 export { MessageSinkContext, useMessageSink, type MessageSink } from './MessageSink.js';
 export {
