@@ -724,8 +724,8 @@ describe('ReactRouterArgStore: a stored field links its values', () => {
     disposers.push(() => router.dispose());
     render(<RouterProvider router={router} />);
 
-    expect(field.hrefFor('a3')).toMatch(/\/print\?paper=a3$/);
-    expect(field.hrefFor('a4')).not.toMatch(/paper=/);
+    expect(field.hrefFor?.('a3')).toMatch(/\/print\?paper=a3$/);
+    expect(field.hrefFor?.('a4')).not.toMatch(/paper=/);
   });
 });
 

@@ -164,7 +164,7 @@ function TableOfContentsPanel() {
       <FieldWidget field={field} widget="list" />
       <Space style={{ marginTop: 12 }}>
         <Button
-          href={field.previous && field.hrefFor(field.previous.value)}
+          href={field.previous && field.hrefFor?.(field.previous.value)}
           disabled={!field.previous}
           onClick={(e) => {
             if (!field.previous || isModifiedClick(e)) return;
@@ -175,7 +175,7 @@ function TableOfContentsPanel() {
           ‹ previous
         </Button>
         <Button
-          href={field.next && field.hrefFor(field.next.value)}
+          href={field.next && field.hrefFor?.(field.next.value)}
           disabled={!field.next}
           onClick={(e) => {
             if (!field.next || isModifiedClick(e)) return;

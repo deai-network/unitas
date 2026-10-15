@@ -2,10 +2,11 @@
 // not shipped (src/**/__tests__ is outside the build and the package's files): tsconfig.typecheck.json
 // type-checks it — `pnpm typecheck` in this package, beside `tsc -p tsconfig.json`.
 import type {
-  FieldControls, FieldDefinition, OneOfFieldControls, TextFieldControls, ManyOfTreeFieldControls, OneOfTreeFieldControls,
+  BoolFieldControls, FieldControls, FieldDefinition, OneOfFieldControls, TextFieldControls, ManyOfTreeFieldControls,
+  OneOfTreeFieldControls,
 } from 'vultus-core';
 import {
-  ChoiceLabel, Field, FieldWidget,
+  BoolSwitch, ChoiceLabel, Field, FieldWidget,
   type ManyOfCheckboxesProps, type ManyOfSelectProps, type ManyOfSwitchesProps, type NumericInputProps,
   type NumericSliderProps, type RangeSliderProps, type RequestableField, type SearchInputProps, type TextInputProps,
   type ManyOfTreeChecklistProps, type ManyOfTreePickerProps, type OneOfTreePickerProps, type OneOfTreeListProps,
@@ -138,6 +139,20 @@ function choiceLabelTakesAChoiceWithoutDimmed() {
   ];
 }
 
+/**
+ * A compile-time check: controls built by hand need no `hrefFor` (it came in vultus-core 0.5.3;
+ * a widget calls it as `field.hrefFor?.(…)`), so controls written against 0.5.2 still type-check.
+ */
+function controlsBuiltByHandNeedNoHrefFor() {
+  const field: BoolFieldControls = {
+    type: 'boolean', id: 'duplex', label: 'Both sides', description: undefined, placeholder: undefined,
+    valueDescription: undefined, visible: true, enabled: true, whyDisabled: undefined, value: false,
+    setValue: () => {}, toggle: () => {}, pending: false, commits: false, messages: [],
+    confirmationFor: () => undefined, widget: undefined,
+  };
+  return [<BoolSwitch field={field} />, <FieldWidget field={field} />];
+}
+
 /** A compile-time check: every new widget's props type is exported, and so is the request hooks' field shape. */
 type WidgetPropsAreExported = [
   ManyOfCheckboxesProps<string>, ManyOfSwitchesProps<string>, ManyOfSelectProps<string>, NumericInputProps,
@@ -146,5 +161,5 @@ type WidgetPropsAreExported = [
 ];
 
 export {
-  choiceLabelTakesAChoiceWithoutDimmed, fieldPropsAreTyped, fieldWidgetPropsAreTyped, type WidgetPropsAreExported,
+  choiceLabelTakesAChoiceWithoutDimmed, controlsBuiltByHandNeedNoHrefFor, fieldPropsAreTyped, fieldWidgetPropsAreTyped, type WidgetPropsAreExported,
 };

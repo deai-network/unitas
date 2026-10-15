@@ -117,8 +117,13 @@ export interface FieldControls<TValue, TRequest = TValue> {
   messages: Message[];
   /** The confirmation a widget must obtain before requesting `next`, if any. */
   confirmationFor(next: TRequest): ConfirmationSpec | undefined;
-  /** The link that requesting `value` amounts to, where whoever keeps the value gave one (a URL store does); `undefined` otherwise. */
-  hrefFor(value: TRequest): string | undefined;
+  /**
+   * The link that requesting `value` amounts to, where whoever keeps the value gave one (a URL
+   * store does); `undefined` otherwise, and always inside the field. Every kind's hook provides
+   * it; optional here so that controls built by hand (as before vultus-core 0.5.3) need none, so
+   * a widget calls it as `field.hrefFor?.(value)`.
+   */
+  hrefFor?(value: TRequest): string | undefined;
   widget: WidgetHint | undefined;
 }
 

@@ -429,6 +429,21 @@ describe('OneOfTreeList: links', () => {
     expect(document.querySelector('a')).toBeNull();
   });
 
+  it('controls with no hrefFor member (built by hand, as before vultus-core 0.5.3): no links, a click still requests', async () => {
+    function HandMade() {
+      const [value, setValue] = useState<Geo | ''>('alg');
+      const { hrefFor: _hrefFor, ...field } = useOneOfTreeField<Geo>({
+        id: 'cat', label: 'Category', nodes: GEO, expand: 'all', value, onChange: setValue,
+      });
+      return <><OneOfTreeList field={field} /><output>{field.value}</output></>;
+    }
+    wrap(<HandMade />);
+    expect(row('Kör')).toBeInTheDocument();
+    expect(document.querySelector('a')).toBeNull();
+    fireEvent.click(label('Kör'));
+    await waitFor(() => expect(shown()).toBe('kor'));
+  });
+
   it('a disabled field: no links, and a click requests nothing', () => {
     const onChange = vi.fn();
     wrap(<Linked onChange={onChange} enabled={denyWithReason('Read-only here')} />);

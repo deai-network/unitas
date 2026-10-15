@@ -433,12 +433,14 @@ definitions), `changedCount`, and `resetAll(method)` (one write for every
 field). Being a summary, it never warns — only `useStoredField` on the
 field itself does.
 
-**Links.** Every field's controls carry `hrefFor(value)`: the link that requesting `value`
+**Links.** Every kind's hook gives its controls `hrefFor(value)`: the link that requesting `value`
 amounts to, or `undefined` where nothing gives one. With `value` + `onChange` or `value` +
-`commit`, the caller passes it; inside the field it is always `undefined`. `useStoredField`
-wires its own from the store (`useArg`'s `hrefFor`, itself from the store's), so a field stored
-over a URL store (vultus-react-router's) links each value it could be set to, e.g.
-`field.hrefFor(field.choices[0].value)` next to the field's own widget. A link built from
+`commit`, the caller passes it; inside the field it is always `undefined` (an `hrefFor` passed
+anyway is ignored). `FieldControls` has it optional (`hrefFor?(value)`), so controls built by
+hand need none; a widget calls `field.hrefFor?.(value)`. `useStoredField` wires its own from the
+store (`useArg`'s `hrefFor`, itself from the store's), so a field stored over a URL store
+(vultus-react-router's) links each value it could be set to, e.g.
+`field.hrefFor?.(field.choices[0].value)` next to the field's own widget. A link built from
 `hrefFor` is as fresh as the render that built it: a URL that changes without re-rendering its
 component (another key of the query, the path) leaves it stale. Render an app's own links (a
 previous / next pair) in a component that re-renders on location changes (with react-router,
