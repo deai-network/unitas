@@ -4,6 +4,7 @@ import { render, waitFor } from '@testing-library/react';
 import { ConfigProvider } from 'antd';
 import { useMessageSink, useVultusComponents, type SpinnerProps } from 'vultus-core';
 import { VultusProvider } from '../VultusProvider.js';
+import { defaultVultusTexts, useVultusTexts } from '../texts.js';
 
 function Fire({ text, severity }: { text: string; severity?: 'info' | 'warning' | 'error' }) {
   const sink = useMessageSink();
@@ -132,6 +133,67 @@ describe('VultusProvider', () => {
     // A different Spinner: the context value must change and the consumer must re-render.
     rerender(
       <VultusProvider components={{ Spinner: SpinnerB }}>
+        <CountingProbe />
+      </VultusProvider>,
+    );
+    expect(renderCount).toBe(2);
+  });
+});
+
+function TextsProbe() {
+  const texts = useVultusTexts();
+  return <div data-testid="textsProbe">{texts.currentState}|{texts.switchTo}|{texts.done}|{texts.search}|{texts.joiningWords.join(',')}</div>;
+}
+
+describe('VultusProvider texts', () => {
+  it('merges every VultusTexts key, not just currentState/switchTo', () => {
+    const { getByTestId } = render(
+      <VultusProvider texts={{ done: 'Kész', search: 'Keresés', joiningWords: ['és', 'a', 'az'] }}>
+        <TextsProbe />
+      </VultusProvider>,
+    );
+    expect(getByTestId('textsProbe').textContent).toBe(
+      `${defaultVultusTexts.currentState}|${defaultVultusTexts.switchTo}|Kész|Keresés|és,a,az`,
+    );
+  });
+
+  it('an omitted key keeps its default', () => {
+    const { getByTestId } = render(
+      <VultusProvider texts={{ done: 'Kész' }}>
+        <TextsProbe />
+      </VultusProvider>,
+    );
+    expect(getByTestId('textsProbe').textContent).toBe(
+      `${defaultVultusTexts.currentState}|${defaultVultusTexts.switchTo}|Kész|${defaultVultusTexts.search}|${defaultVultusTexts.joiningWords.join(',')}`,
+    );
+  });
+
+  it('a fresh inline texts object with the same joiningWords content keeps the merged texts referentially stable', () => {
+    let renderCount = 0;
+    const CountingProbe = memo(function CountingProbe() {
+      renderCount += 1;
+      useVultusTexts();
+      return null;
+    });
+    const { rerender } = render(
+      <VultusProvider texts={{ joiningWords: ['and', 'of', 'the'] }}>
+        <CountingProbe />
+      </VultusProvider>,
+    );
+    expect(renderCount).toBe(1);
+
+    // A new object literal every time, as the natural inline call site produces, but the
+    // same content: the merged context value must stay referentially stable.
+    rerender(
+      <VultusProvider texts={{ joiningWords: ['and', 'of', 'the'] }}>
+        <CountingProbe />
+      </VultusProvider>,
+    );
+    expect(renderCount).toBe(1);
+
+    // Different content: the context value must change and the consumer must re-render.
+    rerender(
+      <VultusProvider texts={{ joiningWords: ['and', 'of', 'the', 'plus'] }}>
         <CountingProbe />
       </VultusProvider>,
     );

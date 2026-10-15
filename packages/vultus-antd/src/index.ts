@@ -13,3 +13,6 @@ export { Markdown, type MarkdownProps } from './Markdown.js';
 export { OneOfSelect } from './OneOfSelect.js';
 export { OneOfSegmented } from './OneOfSegmented.js';
 export { OneOfSlider } from './OneOfSlider.js';
+export { ChoiceLabel } from './ChoiceLabel.js';
+export { ChoiceNote } from './ChoiceNote.js';
+export { useManyOfRequest } from './useManyOfRequest.js';

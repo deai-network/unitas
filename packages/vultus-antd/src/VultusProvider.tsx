@@ -60,16 +60,26 @@ export function VultusProvider({
     }),
     [messageSink, messageApi],
   );
-  const currentState = texts?.currentState;
-  const switchTo = texts?.switchTo;
-  const mergedTexts = useMemo<VultusTexts>(
-    () => ({
-      ...defaultVultusTexts,
-      ...(currentState !== undefined ? { currentState } : {}),
-      ...(switchTo !== undefined ? { switchTo } : {}),
-    }),
-    [currentState, switchTo],
-  );
+  // Every VultusTexts key, not a hard-coded pair: a key `texts` doesn't set keeps its default.
+  // Memoized on the values, not on `texts`'s own identity (a fresh object literal at the call
+  // site, as `texts={{ ... }}` naturally produces, must not re-render every consumer below) — an
+  // array value (joiningWords) compares by its joined content, like a string or number value.
+  const textsKeys = Object.keys(defaultVultusTexts) as (keyof VultusTexts)[];
+  const textsValuesKey = textsKeys
+    .map((key) => {
+      const value = texts?.[key];
+      if (value === undefined) return '';
+      return Array.isArray(value) ? value.join('\u0000') : String(value);
+    })
+    .join('\u0001');
+  const mergedTexts = useMemo<VultusTexts>(() => {
+    const merged = { ...defaultVultusTexts };
+    for (const key of textsKeys) {
+      const value = texts?.[key];
+      if (value !== undefined) (merged as Record<keyof VultusTexts, unknown>)[key] = value;
+    }
+    return merged;
+  }, [textsValuesKey]);
   const wired = (
     <VultusTextsContext.Provider value={mergedTexts}>
       <MessageSinkContext.Provider value={sink}>

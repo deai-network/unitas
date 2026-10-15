@@ -12,11 +12,20 @@ export interface VultusTexts {
   currentState: string;
   /** Leads another choice's description on its segment or mark (what a click does): "Switch to: Off". */
   switchTo: string;
+  /** Closes a many-of field's open list of choices. */
+  done: string;
+  /** A many-of field's search box placeholder, filtering its choices. */
+  search: string;
+  /** Joins the chosen choices' labels in a many-of field's summary, e.g. "A, B and C"; also filtered out of a free-text search. */
+  joiningWords: string[];
 }
 
 export const defaultVultusTexts: VultusTexts = {
   currentState: 'Current state:',
   switchTo: 'Switch to:',
+  done: 'Done',
+  search: 'Search',
+  joiningWords: ['and', 'of', 'the'],
 };
 
 export const VultusTextsContext = createContext<VultusTexts>(defaultVultusTexts);

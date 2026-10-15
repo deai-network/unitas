@@ -2,6 +2,7 @@ import { Select, theme, type SelectProps } from 'antd';
 import { useState, type CSSProperties } from 'react';
 import { useSpinnerKey, useVultusComponents, type OneOfChoiceControls, type OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
+import { ChoiceNote } from './ChoiceNote.js';
 import { choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
@@ -48,6 +49,16 @@ function InlineChoice<T extends string>({ choice }: { choice: OneOfChoiceControl
   );
 }
 
+/** A choice's label and note in the closed-off list, the note right-aligned (OneOfSelect's plain rows). */
+function ChoiceRow<T extends string>({ choice }: { choice: OneOfChoiceControls<T> }) {
+  return (
+    <span style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+      <ChoiceLabel choice={choice} />
+      <ChoiceNote note={choice.note} />
+    </span>
+  );
+}
+
 /**
  * A one-of field (useOneOfField) as antd's Select. Closed, its tooltip follows
  * fieldTooltip (what the field is, then "Current state:" and the current
@@ -55,7 +66,10 @@ function InlineChoice<T extends string>({ choice }: { choice: OneOfChoiceControl
  * list is open. In the list each choice shows its description on hover, a
  * disabled one its reason first (choiceTooltip). Primary and danger choices
  * are styled as CombinedActionButton styles its rows (ChoiceLabel), the closed
- * select mirroring the current one. Choices with a `group` are listed after
+ * select mirroring the current one. Each choice's note (if any) is shown
+ * right-aligned after its label, in secondary colour (ChoiceNote); a dimmed
+ * choice's label is in that same secondary colour (ChoiceLabel), still
+ * selectable. Choices with a `group` are listed after
  * the others, under their group's heading (antd option groups, in the order
  * the groups first appear). The field's label is the
  * accessible name; a pending commit shows a loading select; the field's
@@ -104,7 +118,7 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
         if (!choice) return option.label;
         return inlineDescriptions
           ? withTooltip(choiceTooltip(choice, false, false), !choice.enabled, <InlineChoice choice={choice} />, { placement: 'right', block: true })
-          : withTooltip(choiceTooltip(choice), !choice.enabled, <ChoiceLabel choice={choice} />, { placement: 'right', block: true });
+          : withTooltip(choiceTooltip(choice), !choice.enabled, <ChoiceRow choice={choice} />, { placement: 'right', block: true });
       }}
       // Closed, the current choice mirrors its variant (as the combined
       // button's opener mirrors the selected action), unless the field is
