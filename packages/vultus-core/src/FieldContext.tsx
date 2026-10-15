@@ -19,9 +19,17 @@ const FieldContext = createContext<Provided | undefined>(undefined);
 
 /**
  * Keys that libraries read to find out what an object is (a thenable, JSON, a test matcher, a
- * React element, a DOM node). Reading them on the context is a probe, not a mistake.
+ * React element, a DOM node or element, a mock function), and the `@@`-prefixed sentinels
+ * (Immutable's) that printers such as pretty-format test for. Reading them on the context is a
+ * probe, not a mistake.
  */
-const PROBED_KEYS = new Set(['then', 'toJSON', 'asymmetricMatch', '$$typeof', 'nodeType']);
+const PROBED_KEYS = new Set([
+  'then', 'toJSON', 'asymmetricMatch', '$$typeof', 'nodeType', 'tagName', 'hasAttribute', '_isMockFunction',
+]);
+
+function isProbe(key: string): boolean {
+  return PROBED_KEYS.has(key) || key.startsWith('@@');
+}
 
 /**
  * The context value as the definitions' functions receive it: reading a key that no provider
@@ -31,7 +39,7 @@ const PROBED_KEYS = new Set(['then', 'toJSON', 'asymmetricMatch', '$$typeof', 'n
 function guard(raw: object): object {
   return new Proxy(raw, {
     get(target, key, receiver) {
-      if (typeof key === 'string' && !PROBED_KEYS.has(key) && !(key in target)) {
+      if (typeof key === 'string' && !isProbe(key) && !(key in target)) {
         throw new Error(`Field context: '${key}' was never provided (provided: ${Object.keys(target).join(', ')})`);
       }
       return Reflect.get(target, key, receiver);
@@ -46,7 +54,8 @@ function guard(raw: object): object {
  */
 export function FieldContextProvider({ value, children }: { value: object; children?: ReactNode }) {
   const outer = useContext(FieldContext);
-  // Memoized so the fields below see the same context object while neither value changes.
+  // Memoized on the outer context and `value`: a caller passing a fresh object literal gets a
+  // new context every render anyway; a stable `value` keeps the fields below from re-rendering.
   const provided = useMemo(() => {
     const raw = { ...outer?.raw, ...value };
     return { raw, guarded: guard(raw) };

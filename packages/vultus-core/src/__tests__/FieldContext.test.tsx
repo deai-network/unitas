@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { FieldContextProvider, createFieldContext } from '../FieldContext.js';
+import { FieldContextProvider, createFieldContext, useFieldContext } from '../FieldContext.js';
 import { useBoolField } from '../useBoolField.js';
 import { useOneOfField } from '../useOneOfField.js';
 
@@ -73,6 +73,17 @@ describe('field context: functions in the options', () => {
       label: (ctx) => [ctx.then, ctx.toJSON, ctx.asymmetricMatch, ctx.$$typeof, ctx[Symbol.iterator]].map(String).join(),
     }), { wrapper: providing({ t: (k: string) => k }) });
     expect(result.current.label).toBe('undefined,undefined,undefined,undefined,undefined');
+  });
+
+  it('vitest can print the context', () => {
+    const { result } = renderHook(() => useFieldContext(), { wrapper: providing({ lang: 'hu' }) });
+    // The snapshot prints with pretty-format and its plugins; a failed toBe words its message with loupe.
+    expect(result.current).toMatchInlineSnapshot(`
+      {
+        "lang": "hu",
+      }
+    `);
+    expect(() => expect(result.current).toBe('other')).toThrow(/expected \{ lang: 'hu' \} to be 'other'/);
   });
 
   it('initialValue may be a context function', () => {
