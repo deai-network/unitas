@@ -288,6 +288,18 @@ describe('sanitizeStored', () => {
       expect(warn).not.toHaveBeenCalled();
     });
 
+    it('follows antd for disabled nodes, as the hook does: a parent stands for its enabled children only', () => {
+      const geometria: TreeNode[] = [
+        { value: 'geometria', children: [{ value: 'sikgeometria' }, { value: 'tergeometria', disabled: true }] },
+      ];
+      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: geometria }, ['sikgeometria'], NO_FIELD_CONTEXT)).toEqual(['geometria']);
+      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: geometria, selection: 'all' }, ['geometria'], NO_FIELD_CONTEXT))
+        .toEqual(['geometria', 'sikgeometria']);
+      expect(initialValueOf({ kind: 'tree', id: 'topics', nodes: geometria, selection: 'all', initialValue: ['geometria'] }, NO_FIELD_CONTEXT))
+        .toEqual(['geometria', 'sikgeometria']);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
     it('drops values not among the nodes, then normalizes, with a warning naming the field and them', () => {
       expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: NODES }, ['A1', 'A2', 'gone'], NO_FIELD_CONTEXT)).toEqual(['A']);
       expect(warn).toHaveBeenCalledTimes(1);

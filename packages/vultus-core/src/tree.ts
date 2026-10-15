@@ -1,4 +1,5 @@
 import type { OneOfChoice, OneOfChoiceControls } from './choices.js';
+import { getVerdict } from './decision.js';
 import { normalizeText } from './normalizeText.js';
 
 /** A node of a tree field (Praeceptor's categories): a choice with children. */
@@ -16,8 +17,9 @@ export interface TreeNodeControls<T extends string = string> extends OneOfChoice
 /**
  * What a tree field's value lists, as antd TreeSelect's `showCheckedStrategy` and
  * `checkStrictly` do. In the three cascading selections a node stands for its subtree, and
- * a node all of whose children are covered is covered too; they differ only in which of the
- * covered nodes the value names:
+ * a node all of whose children are covered is covered too — disabled nodes aside, as antd
+ * conducts its checks (see `cascade`); they differ only in which of the covered nodes the
+ * value names:
  * - `'topmost'` (`SHOW_PARENT`, the default): the covered nodes whose parent is not covered;
  * - `'all'` (`SHOW_ALL`): every covered node;
  * - `'leaves'` (`SHOW_CHILD`): the covered leaves.
@@ -58,14 +60,33 @@ function unknownValues<T extends string>(order: TreeNode<T>[], value: T[]): T[] 
   return [...new Set(value.filter((v) => !known.has(v)))];
 }
 
-/** The nodes a value covers in the cascading selections: the value's nodes, their descendants, and every node all of whose children are covered. */
+/**
+ * Whether a node can be checked: its `enabled` / `disabled` resolved as resolveChoice does (a
+ * Decision takes no context, so this needs none). Works on a definition's nodes (TreeNode,
+ * Decisions) and on the widgets' node controls (TreeNodeControls, `enabled: boolean`) alike.
+ */
+function nodeEnabled(node: Pick<TreeNode, 'enabled' | 'disabled'>): boolean {
+  if (node.enabled !== undefined) return getVerdict(node.enabled, true);
+  return !getVerdict(node.disabled, false);
+}
+
+/**
+ * The nodes a value covers in the cascading selections, by antd's check conduction (rc-tree's
+ * conductCheck), so the hook and the widgets agree: the value's nodes; the enabled children of
+ * a covered enabled node, and so on down (a disabled node is never covered through a checked
+ * ancestor, nor is its subtree through it); and an enabled node all of whose enabled children
+ * are covered, if it has any (a parent whose children are all disabled, or a disabled parent,
+ * is never covered through its children). A disabled node in the value covers itself only.
+ */
 function cascade<T extends string>(nodes: TreeNode<T>[], value: T[]): Set<T> {
   const listed = new Set(value);
   const covered = new Set<T>();
   const walk = (node: TreeNode<T>, inherited: boolean): boolean => {
-    const self = inherited || listed.has(node.value);
-    const children = (node.children ?? []).map((child) => walk(child, self));
-    const isCovered = self || (children.length > 0 && children.every(Boolean));
+    const enabled = nodeEnabled(node);
+    const self = listed.has(node.value) || (inherited && enabled);
+    const children = (node.children ?? []).map((child) => ({ enabled: nodeEnabled(child), covered: walk(child, self && enabled) }));
+    const counted = children.filter((child) => child.enabled);
+    const isCovered = self || (enabled && counted.length > 0 && counted.every((child) => child.covered));
     if (isCovered) covered.add(node.value);
     return isCovered;
   };
@@ -105,19 +126,23 @@ export function normalizeTreeValue<T extends string>(nodes: TreeNode<T>[], value
 /**
  * Every node a tree field's value stands for, in pre-order (what an item filed under some
  * node matches against): in the cascading selections the covered nodes (the value's nodes,
- * their descendants, and every node all of whose children are covered); with
- * `'independent'` the value's nodes themselves. Values that name no node follow, as in
- * normalizeTreeValue.
+ * their enabled descendants, and every enabled node all of whose enabled children are
+ * covered; see `cascade`); with `'independent'` the value's nodes themselves. Values that
+ * name no node follow, as in normalizeTreeValue. A node disabled when the value was stored
+ * and enabled now is covered from then on (with `'topmost'`, a stored parent covers it).
  */
 export function coveredNodes<T extends string>(nodes: TreeNode<T>[], value: T[], selection: TreeSelection = 'topmost'): T[] {
   return normalizeTreeValue(nodes, value, selection === 'independent' ? 'independent' : 'all');
 }
 
 /**
- * The value after flipping `node`, normalized. In the cascading selections a covered node
- * is removed with its descendants and its ancestors (they no longer have all their
- * children), and an uncovered one is added with its descendants; with `'independent'` the
- * node alone is added or removed. A `node` that is not one of the nodes changes nothing.
+ * The value after flipping `node`, normalized, as antd's Tree flips a checkbox. In the
+ * cascading selections a covered node is removed with the descendants it covers through
+ * enabled nodes and with its enabled ancestors up to the first disabled one (they no longer
+ * have all their enabled children); an uncovered one is added, covering its subtree as
+ * `cascade` says. With `'independent'` the node alone is added or removed. A `node` that is
+ * not one of the nodes changes nothing. Whether `node` itself may be flipped is the caller's
+ * to decide (useTreeField refuses a disabled one).
  */
 export function toggleTreeValue<T extends string>(nodes: TreeNode<T>[], value: T[], node: T, selection: TreeSelection): T[] {
   const { order, parent } = indexTree(nodes);
@@ -127,12 +152,16 @@ export function toggleTreeValue<T extends string>(nodes: TreeNode<T>[], value: T
     return normalizeTreeValue(nodes, value.includes(node) ? value.filter((v) => v !== node) : [...value, node], selection);
   }
   const covered = cascade(nodes, value);
-  const subtree = indexTree([target]).order.map((n) => n.value);
   if (covered.has(node)) {
-    for (const v of subtree) covered.delete(v);
-    for (let up = parent.get(node); up !== undefined; up = parent.get(up)) covered.delete(up);
+    const uncover = (n: TreeNode<T>) => {
+      covered.delete(n.value);
+      for (const child of n.children ?? []) if (nodeEnabled(child)) uncover(child);
+    };
+    uncover(target);
+    const byValue = new Map(order.map((n) => [n.value, n]));
+    for (let up = parent.get(node); up !== undefined && nodeEnabled(byValue.get(up)!); up = parent.get(up)) covered.delete(up);
   } else {
-    for (const v of subtree) covered.add(v);
+    covered.add(node);
   }
   return normalizeTreeValue(nodes, [...covered, ...unknownValues(order, value)], selection);
 }

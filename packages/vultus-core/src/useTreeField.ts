@@ -47,8 +47,9 @@ function sameList<T>(a: T[], b: T[]): boolean {
 
 /**
  * A field whose value is a set of tree nodes (Praeceptor's category filter), with antd
- * TreeSelect's semantics: in the cascading selections a checked node stands for its subtree,
- * and `selection` says which nodes the value lists (see TreeSelection). The value is shown
+ * TreeSelect's semantics: in the cascading selections a checked node stands for its subtree
+ * (its enabled part: disabled nodes follow antd's check conduction, so the widgets show what
+ * the value covers), and `selection` says which nodes the value lists (see TreeSelection). The value is shown
  * and requested normalized (normalizeTreeValue): in tree pre-order, values that name no
  * node (a stored value naming a removed node) kept at the end. `setValue` does not police
  * disabled nodes (the widgets disable them); `toggle` refuses a disabled or unknown node with

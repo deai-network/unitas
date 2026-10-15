@@ -103,6 +103,20 @@ describe('useTreeField: disabled and unknown nodes', () => {
     warn.mockRestore();
   });
 
+  it('a checked parent does not check its disabled child; checking its only enabled child checks the parent (as antd)', () => {
+    const { result } = renderHook(() => useTreeField({
+      id: 'topics',
+      nodes: [{ value: 'geometria', children: [{ value: 'sikgeometria' }, { value: 'tergeometria', disabled: { verdict: true, reason: 'Later' } }] }],
+    }));
+    act(() => result.current.toggle('sikgeometria'));
+    expect(result.current.value).toEqual(['geometria']);
+    expect(result.current.byValue.get('geometria')?.checked).toBe(true);
+    expect(result.current.byValue.get('sikgeometria')?.checked).toBe(true);
+    expect(result.current.byValue.get('tergeometria')?.checked).toBe(false);
+    act(() => result.current.toggle('geometria'));
+    expect(result.current.value).toEqual([]);
+  });
+
   it('setValue does not police disabled nodes', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { result } = renderHook(() => useTreeField({

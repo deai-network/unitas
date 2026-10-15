@@ -219,8 +219,25 @@ nodes a widget opens at first, controlled by `expand`: `'top'` (default),
 `'none'`, `'selected'`, `'all'`) and `toggle(value)` (refused, with a
 warning, for an unknown or disabled node, as many-of's does).
 `coveredNodes(nodes, value, selection)` expands a value to every node it
-stands for — what a module matches an item's categories against. Search
-over labels is accent- and case-insensitive (`normalizeText`); the matching
+stands for — what a module matches an item's categories against.
+
+Disabled nodes follow antd's check conduction, so the hook and the antd
+widgets agree: a disabled node is never covered through a checked ancestor
+(nor is its subtree, through it), and a parent counts as checked once all
+its *enabled* children are; a parent whose children are all disabled, or a
+disabled parent, is never checked through its children. With nodes
+Geometria (Síkgeometria, Térgeometria — disabled), checking Síkgeometria
+gives `['geometria']` under `'topmost'` and `['geometria', 'sikgeometria']`
+under `'all'`, and `coveredNodes` does not include Térgeometria. A disabled
+node in the value (`setValue` and a stored value do not police them) stays
+there and covers itself only. The same rule sanitizes a stored value. The
+cost: a parent in the value stands for its subtree as it is when read, so
+under `'topmost'` (and `'all'`, which lists the parent too) a child that was
+disabled when the value was stored and is enabled later is covered from
+then on — a stored `['geometria']` then covers Térgeometria too; `'leaves'`
+names only the leaves and does not widen.
+
+Search over labels is accent- and case-insensitive (`normalizeText`); the matching
 `filterTree(nodes, query)` follows antd TreeSelect's rule: a node whose own
 label matches stays with its whole subtree, any other node stays if one of
 its descendants matches (with only the children that stay), and the rest

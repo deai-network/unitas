@@ -69,6 +69,79 @@ describe('toggleTreeValue', () => {
   });
 });
 
+describe('disabled nodes (as antd conducts checks)', () => {
+  // Geometria(Síkgeometria, Térgeometria — disabled), as in the gallery's topics.
+  const GEOMETRIA: TreeNode[] = [
+    {
+      value: 'geometria', label: 'Geometria', children: [
+        { value: 'sikgeometria', label: 'Síkgeometria' },
+        { value: 'tergeometria', label: 'Térgeometria', disabled: { verdict: true, reason: 'No tasks yet' } },
+      ],
+    },
+  ];
+
+  it('topmost: checking Síkgeometria checks Geometria (all its enabled children are covered)', () => {
+    expect(toggleTreeValue(GEOMETRIA, [], 'sikgeometria', 'topmost')).toEqual(['geometria']);
+    expect(normalizeTreeValue(GEOMETRIA, ['sikgeometria'], 'topmost')).toEqual(['geometria']);
+  });
+
+  it('a checked parent does not cover its disabled child', () => {
+    expect(coveredNodes(GEOMETRIA, ['geometria'])).toEqual(['geometria', 'sikgeometria']);
+    expect(coveredNodes(GEOMETRIA, ['sikgeometria'], 'leaves')).toEqual(['geometria', 'sikgeometria']);
+  });
+
+  it('all and leaves: no disabled node enters the value', () => {
+    expect(toggleTreeValue(GEOMETRIA, [], 'geometria', 'all')).toEqual(['geometria', 'sikgeometria']);
+    expect(normalizeTreeValue(GEOMETRIA, ['geometria'], 'all')).toEqual(['geometria', 'sikgeometria']);
+    expect(toggleTreeValue(GEOMETRIA, [], 'geometria', 'leaves')).toEqual(['sikgeometria']);
+  });
+
+  it('unchecking the only enabled child unchecks the parent too', () => {
+    expect(toggleTreeValue(GEOMETRIA, ['geometria'], 'sikgeometria', 'topmost')).toEqual([]);
+  });
+
+  it('a disabled node listed in the value stays, covering itself only; unchecking its parent keeps it', () => {
+    const nodes: TreeNode[] = [
+      { value: 'P', children: [{ value: 'D', disabled: true, children: [{ value: 'D1' }] }, { value: 'E' }] },
+    ];
+    expect(normalizeTreeValue(nodes, ['D'], 'topmost')).toEqual(['D']);
+    expect(coveredNodes(nodes, ['D'])).toEqual(['D']);
+    expect(toggleTreeValue(nodes, ['P', 'D'], 'P', 'topmost')).toEqual(['D']);
+  });
+
+  it('coverage does not pass through a disabled node: its subtree is not covered through a checked ancestor', () => {
+    const nodes: TreeNode[] = [
+      { value: 'P', children: [{ value: 'D', enabled: false, children: [{ value: 'D1' }] }, { value: 'E' }] },
+    ];
+    expect(coveredNodes(nodes, ['P'])).toEqual(['P', 'E']);
+    expect(normalizeTreeValue(nodes, ['P'], 'leaves')).toEqual(['E']);
+  });
+
+  it('a parent whose children are all disabled is never covered through them', () => {
+    const nodes: TreeNode[] = [{ value: 'P', children: [{ value: 'D1', disabled: true }, { value: 'D2', enabled: { verdict: false } }] }];
+    expect(normalizeTreeValue(nodes, ['D1', 'D2'], 'topmost')).toEqual(['D1', 'D2']);
+    expect(coveredNodes(nodes, ['D1', 'D2'])).toEqual(['D1', 'D2']);
+  });
+
+  it('a disabled parent is not covered through its children', () => {
+    const nodes: TreeNode[] = [{ value: 'D', disabled: true, children: [{ value: 'C1' }, { value: 'C2' }] }];
+    expect(normalizeTreeValue(nodes, ['C1', 'C2'], 'topmost')).toEqual(['C1', 'C2']);
+  });
+
+  it('works on the widgets\' node controls too (enabled: boolean)', () => {
+    const controls = [
+      {
+        value: 'geometria', enabled: true, children: [
+          { value: 'sikgeometria', enabled: true, children: undefined },
+          { value: 'tergeometria', enabled: false, children: undefined },
+        ],
+      },
+    ];
+    expect(normalizeTreeValue(controls, ['sikgeometria'], 'topmost')).toEqual(['geometria']);
+    expect(coveredNodes(controls, ['geometria'])).toEqual(['geometria', 'sikgeometria']);
+  });
+});
+
 describe('filterTree', () => {
   type Labelled = { value: string; label?: string; children?: Labelled[] };
   const TOPICS: Labelled[] = [
