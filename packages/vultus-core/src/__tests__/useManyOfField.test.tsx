@@ -88,6 +88,20 @@ describe('useManyOfField: value outside, changed locally', () => {
     act(() => result.current.toggle('b' as Letter));
     expect(onChange).toHaveBeenCalledWith(['a', 'b', 'gone']);
   });
+
+  it('a held value no longer among the choices is dropped when a request leaves it out', () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() => useManyOfField({
+      id: 'letters', value: ['a', 'gone'] as Letter[], onChange,
+      choices: [{ value: 'a' }, { value: 'b' }],
+    }));
+    act(() => result.current.setValue([]));
+    expect(onChange).toHaveBeenLastCalledWith([]);
+    act(() => result.current.setValue(['a']));
+    expect(onChange).toHaveBeenLastCalledWith(['a']);
+    act(() => result.current.setValue(['gone' as Letter, 'b']));
+    expect(onChange).toHaveBeenLastCalledWith(['b', 'gone']);
+  });
 });
 
 describe('useManyOfField: value outside, committed immediately', () => {

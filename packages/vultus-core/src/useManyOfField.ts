@@ -35,12 +35,13 @@ export function manyOfInitialValue<T extends string>(
 /**
  * A field whose value is a set of choices (moxb's ManyOf). A request (to
  * `setValue` or `toggle`) is normalized to the known choices in their order,
- * without duplicates, followed by whatever values the field already holds
- * that are no longer among the choices (kept, in their current order, so a
- * stored value naming a choice that was removed is not silently dropped). A
- * request naming a value that is neither a choice nor already held, or that
- * changes a disabled choice's membership, is ignored with a warning — as
- * useOneOfField refuses a disabled or unknown choice.
+ * without duplicates, followed by the values the field already holds that are
+ * no longer among the choices and that the request keeps (in their current
+ * order: `toggle` keeps them, so a stored value naming a choice that was
+ * removed is not silently dropped, while `setValue([])` clears it). A request
+ * naming a value that is neither a choice nor already held, or that changes a
+ * disabled choice's membership, is ignored with a warning — as useOneOfField
+ * refuses a disabled or unknown choice.
  */
 export function useManyOfField<T extends string = string, RouteId extends string = string, Ctx = any>(
   opts: ManyOfFieldOptions<T, RouteId, Ctx>,
@@ -75,7 +76,7 @@ export function useManyOfField<T extends string = string, RouteId extends string
         return undefined;
       }
     }
-    return [...choiceOrder.filter((v) => requestSet.has(v)), ...heldUnknown];
+    return [...choiceOrder.filter((v) => requestSet.has(v)), ...heldUnknown.filter((v) => requestSet.has(v))];
   };
 
   const setValue = (next: T[]) => {

@@ -141,10 +141,11 @@ visibility, enabling and commits applies to all of them too.
 The value is a list of choices (`OneOfChoice`, as one-of's), kept as a set:
 order and duplicates don't matter to its meaning, and every request (through
 `setValue` or `toggle`) is normalized to choice order without duplicates,
-followed by whatever values the field already holds that are no longer
-among the choices (kept, in their current order, so a stored value naming a
-removed choice isn't silently dropped). Controls add `choices` (each with
-`selected`), `isSelected(value)` and `toggle(value)`. A request naming
+followed by the values the field already holds that are no longer among the
+choices and that the request keeps, in their current order. `toggle` keeps
+them, so a stored value naming a removed choice isn't silently dropped;
+`setValue([])` clears them along with everything else. Controls add
+`choices` (each with `selected`), `isSelected(value)` and `toggle(value)`. A request naming
 an unknown choice, or flipping a disabled one, is refused with a
 `console.warn` — the hook itself polices this, as `useOneOfField` already
 does for its own `setValue`, not just the widget. Implicit initial value
