@@ -139,10 +139,6 @@ importers:
         version: link:../vultus-core
 
   packages/vultus-react-router:
-    dependencies:
-      vultus-core:
-        specifier: workspace:^
-        version: link:../vultus-core
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.9.1
@@ -180,6 +176,9 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/debug@4.1.13)(jsdom@29.1.1)
+      vultus-core:
+        specifier: workspace:*
+        version: link:../vultus-core
 
 packages:
 

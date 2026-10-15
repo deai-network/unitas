@@ -11,9 +11,10 @@ vultus-core it is antd-free: no Ant Design import appears in this package.
 npm install vultus-react-router vultus-core react-router
 ```
 
-With react-router-dom, add `react-router` at the same version as
-react-router-dom, so that both resolve to one copy of it: with two, the
-store's `useLocation` finds no router and throws.
+vultus-core and react-router are peer dependencies, installed by the app
+itself (see below). With react-router-dom, add `react-router` at the same
+version as react-router-dom, so that both resolve to one copy of it: with
+two, the store's `useLocation` finds no router and throws.
 
 ## Peer dependencies
 
@@ -23,9 +24,11 @@ store's `useLocation` finds no router and throws.
   re-exports them). The store reads the router's current location through
   react-router's `UNSAFE_` contexts, checked against 7.0, 7.18 and 8.4; a new
   major is admitted once they are checked again.
-
-vultus-core is a dependency of this package too (installed above as well,
-since the app imports its hooks) and brings its own peer, `react-i18next`.
+- `vultus-core` (`^` the version this package was released with; for 0.x
+  that is the same minor) — a peer, not a dependency: the store's
+  `ArgStoreProvider` has to come from the app's one copy of vultus-core, the
+  one whose hooks read the store (with a second copy, the hooks would find
+  no store). vultus-core brings its own peer, `react-i18next`.
 
 ## Entry points
 
