@@ -36,6 +36,14 @@ export {
   useRangeField, rangeInitialValue,
   type Range, type RangeFieldControls, type RangeFieldOptions, type RangeOwnOptions,
 } from './useRangeField.js';
+export {
+  normalizeTreeValue, coveredNodes, filterTree,
+  type TreeNode, type TreeNodeControls, type TreeSelection, type TreeExpand,
+} from './tree.js';
+export {
+  useTreeField, treeInitialValue,
+  type TreeFieldControls, type TreeFieldOptions, type TreeOwnOptions,
+} from './useTreeField.js';
 export { InternalLinkContext, useInternalLink, type InternalLinkComponent } from './LinkContext.js';
 export { MessageSinkContext, useMessageSink, type MessageSink } from './MessageSink.js';
 export {
