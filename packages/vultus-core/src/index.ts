@@ -49,6 +49,10 @@ export {
   useTextField, textInitialValue,
   type TextFieldControls, type TextFieldOptions, type TextOwnOptions,
 } from './useTextField.js';
+export {
+  booleanType, stringType, stringSetType, numberType, rangeType, type ValueType,
+} from './valueTypes.js';
+export { initialValueOf, valueTypeOf, sanitizeStored, type FieldDefinition } from './kinds.js';
 export { InternalLinkContext, useInternalLink, type InternalLinkComponent } from './LinkContext.js';
 export { MessageSinkContext, useMessageSink, type MessageSink } from './MessageSink.js';
 export {
