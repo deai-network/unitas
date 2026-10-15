@@ -54,10 +54,24 @@ describe('field context: functions in the options', () => {
     expect(result.current.description).toBe('2');
   });
 
-  it('a missing key throws, naming it and the provided keys', () => {
+  it('a function without declared parameters gets the context when a provider is above, and nothing otherwise', () => {
+    const label = (ctx: any = {}) => ctx.t?.('x') ?? 'none';
+    const provided = renderHook(() => useBoolField({ id: 'sec', label }), { wrapper: providing({ t: () => 'T' }) });
+    expect(provided.result.current.label).toBe('T');
+    const alone = renderHook(() => useBoolField({ id: 'sec', label }));
+    expect(alone.result.current.label).toBe('none');
+  });
+
+  it('a missing key throws, naming the field, the option, the key and the provided keys', () => {
     const wrapper = providing({ t: (k: string) => k, lang: 'hu' });
     expect(quietly(() => renderHook(() => useBoolField({ id: 'sec', label: (ctx) => ctx.items }), { wrapper })))
-      .toThrow(/Field context: 'items' was never provided \(provided: t, lang\)/);
+      .toThrow(/^Field 'sec': option 'label': Field context: 'items' was never provided \(provided: t, lang\)$/);
+  });
+
+  it('a missing key read outside a field\'s option throws the bare message', () => {
+    const { result } = renderHook(() => useFieldContext(), { wrapper: providing({ t: (k: string) => k, lang: 'hu' }) });
+    expect(() => (result.current as { items?: unknown }).items)
+      .toThrow(/^Field context: 'items' was never provided \(provided: t, lang\)$/);
   });
 
   it('a key provided as undefined is fine', () => {

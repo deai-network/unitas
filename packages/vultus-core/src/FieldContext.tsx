@@ -31,6 +31,9 @@ function isProbe(key: string): boolean {
   return PROBED_KEYS.has(key) || key.startsWith('@@');
 }
 
+/** What the guard throws for a key no provider gave, so readingContext can tell it from the function's own errors. */
+class MissingKeyError extends Error {}
+
 /**
  * The context value as the definitions' functions receive it: reading a key that no provider
  * gave throws, naming it and the keys present, so a forgotten value fails loudly instead of
@@ -40,11 +43,26 @@ function guard(raw: object): object {
   return new Proxy(raw, {
     get(target, key, receiver) {
       if (typeof key === 'string' && !isProbe(key) && !(key in target)) {
-        throw new Error(`Field context: '${key}' was never provided (provided: ${Object.keys(target).join(', ')})`);
+        throw new MissingKeyError(`Field context: '${key}' was never provided (provided: ${Object.keys(target).join(', ')})`);
       }
       return Reflect.get(target, key, receiver);
     },
   });
+}
+
+/**
+ * Runs `read`, a call of a definition's function with the field context. A key it reads that
+ * no provider gave throws with `where` (`Field '<id>': option '<name>'`) in front of the
+ * guard's message, so the error names the field and the option as well as the key; any other
+ * error passes through unchanged.
+ */
+export function readingContext<T>(where: string, read: () => T): T {
+  try {
+    return read();
+  } catch (error) {
+    if (error instanceof MissingKeyError) throw new Error(`${where}: ${error.message}`, { cause: error });
+    throw error;
+  }
 }
 
 /**

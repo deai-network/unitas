@@ -11,11 +11,15 @@ export interface FormLike {
 
 export type Decision = boolean | { verdict: boolean; reason?: string };
 /**
- * A value, or a function giving it. A field resolves a function that declares a parameter with
- * its field context (the nearest FieldContextProvider's value); a function without parameters,
- * and every function in an action, is called with nothing.
+ * A value, or a function giving it, as a field's options take them. With a FieldContextProvider
+ * above, a field calls every such function with its field context (the provider's value); with
+ * none, a function without parameters is called with nothing and one that declares a parameter
+ * throws.
  */
 export type ValueOrFn<T, Ctx = any> = T | ((ctx: Ctx) => T);
+
+/** A value, or a function of no arguments giving it, as an action's options take them: an action calls its functions with nothing. */
+export type Thunk<T> = T | (() => T);
 
 export type Severity = 'info' | 'warning' | 'error';
 
@@ -58,16 +62,28 @@ export type ConfirmationSpec =
 
 export interface ActionOptions<TArgs = void, TResult = void, RouteId extends string = string> {
   id: string;
-  label: ValueOrFn<string>;
-  icon?: ValueOrFn<React.ReactNode>;
-  variant?: ValueOrFn<'default' | 'primary' | 'danger'>;
-  enabled?: ValueOrFn<Decision>;
-  invisible?: ValueOrFn<boolean>;
-  confirmation?: ValueOrFn<ConfirmationSpec | undefined>;
+  label: Thunk<string>;
+  icon?: Thunk<React.ReactNode>;
+  variant?: Thunk<'default' | 'primary' | 'danger'>;
+  enabled?: Thunk<Decision>;
+  invisible?: Thunk<boolean>;
+  confirmation?: Thunk<ConfirmationSpec | undefined>;
   errorRoute?: RouteId;
   fire: (args: TArgs, ctx: ExecutionContext) => Promise<TResult> | TResult;
   onSuccess?: (result: TResult) => void;
 }
+
+/** Compiles only when `A` is assignable to `B`. */
+type Fits<A extends B, B> = A;
+
+/**
+ * A compile-time check: an action calls its options' functions with nothing, so one that takes
+ * a parameter (the field context, say) must not compile, rather than crash when it is called.
+ */
+type ActionFunctionsTakeNoParameter = [
+  // @ts-expect-error -- a function of a parameter is not a zero-argument thunk.
+  Fits<(ctx: { t(key: string): string }) => string, ActionOptions['label']>,
+];
 
 // Conditional rest-tuple lets call sites omit args entirely when TArgs is
 // void (e.g. plain ActionButton click) and requires the value otherwise

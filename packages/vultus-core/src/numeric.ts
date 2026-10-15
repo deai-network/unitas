@@ -1,4 +1,4 @@
-import { NO_FIELD_CONTEXT, type FieldCtx } from './FieldContext.js';
+import { NO_FIELD_CONTEXT, readingContext, type FieldCtx } from './FieldContext.js';
 import { resolveIn } from './resolve.js';
 import type { ValueOrFn } from './types.js';
 
@@ -38,10 +38,11 @@ export function clamp(n: number, min?: number, max?: number): number {
 
 /**
  * Resolves a numeric field's bounds and formatter with the field context. `format` goes by its
- * own rule, not resolveIn's: it is checked by its declared parameter count the same way, but it
- * always receives the number, so a provider is only required when it also declares the context
- * parameter (`format.length >= 2`). With no provider above it, that throws the same message
- * shape resolveIn uses, naming the field and the option `'format'`.
+ * own rule, not resolveIn's, as it always receives the number first; otherwise it is treated
+ * the same way. With a provider above, it receives the context as its second argument, and a
+ * key it reads that no provider gave throws naming the field and the option `'format'`. With
+ * none, a `format` that declares the context parameter (`format.length >= 2`) throws the same
+ * message shape resolveIn uses, and one that does not is called with the number alone.
  */
 export function resolveNumeric(id: string, opts: NumericBounds, ctx: FieldCtx): ResolvedNumeric {
   const where = (name: string) => `Field '${id}': option '${name}'`;
@@ -55,12 +56,12 @@ export function resolveNumeric(id: string, opts: NumericBounds, ctx: FieldCtx): 
   let resolvedFormat: (n: number) => string;
   if (format === undefined) {
     resolvedFormat = (n) => `${n}${unit ?? ''}`;
+  } else if (ctx !== NO_FIELD_CONTEXT) {
+    resolvedFormat = (n) => readingContext(where('format'), () => format(n, ctx as never));
   } else if (format.length < 2) {
     resolvedFormat = (n) => format(n, undefined as never);
-  } else if (ctx === NO_FIELD_CONTEXT) {
-    throw new Error(`${where('format')} is a function of the field context, but no FieldContextProvider is above it`);
   } else {
-    resolvedFormat = (n) => format(n, ctx as never);
+    throw new Error(`${where('format')} is a function of the field context, but no FieldContextProvider is above it`);
   }
 
   return { min, max, step, integer, unit, format: resolvedFormat };

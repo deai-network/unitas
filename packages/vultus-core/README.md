@@ -92,25 +92,31 @@ read the nearest one. Nested providers merge, the inner value winning, so an
 app can provide `t` near the root and `items` further down the tree.
 
 Every option that takes a `ValueOrFn<T, Ctx>` (`T | ((ctx: Ctx) => T)`) may be
-a plain value or a function of the context. A function with no declared
-parameter (`() => ...`) runs without needing a provider at all; one that
-declares a parameter (`(ctx) => ...`) is resolved against the nearest
-provider's value — this goes by the function's declared parameter count, so a
-default parameter (`(ctx = {}) => ...`) escapes the check and runs unresolved.
-A missing provider under a context-taking function is a loud failure: an
-error naming the field, the option, and that no `FieldContextProvider` is
-above it. A function that returns `undefined` counts as an absent option
-too, and falls back to the option's own default exactly as leaving it out
-would (useful for a lookup that misses, e.g. `(ctx) => ctx.items[id]`).
+a plain value or a function of the context. With a provider above, every
+function receives the nearest provider's value, whatever parameters it
+declares — `(ctx = {}) => ...` gets it too. With none, a function with no
+declared parameter (`() => ...`) is called with nothing, so it runs without
+needing a provider at all, while one that declares a parameter (`(ctx) =>
+...`) is a loud failure: an error naming the field, the option, and that no
+`FieldContextProvider` is above it. This goes by the function's declared
+parameter count, so a default parameter (`(ctx = {}) => ...`) escapes that
+check and, with no provider, runs with its default. A function that returns
+`undefined` counts as an absent option too, and falls back to the option's
+own default exactly as leaving it out would (useful for a lookup that
+misses, e.g. `(ctx) => ctx.items[id]`). Numeric's `format(n, ctx)` follows
+the same rule for its second parameter.
 
 The provided value is wrapped so that reading a key no provider gave throws,
-naming the key and the keys that are present — a forgotten value fails
-loudly instead of silently becoming `undefined`. A key explicitly provided
-as `undefined` is fine. The wrapper lets test tooling and printers probe the
-object without tripping the guard (`then`, `toJSON`, `asymmetricMatch`,
-`$$typeof`, `nodeType`, `tagName`, `hasAttribute`, `_isMockFunction`, any key
-starting with `@@`, and all symbol keys), so a context value can be logged,
-pattern-matched or passed around during tests without the guard misfiring.
+naming the key and the keys that are present, and, when an option's
+function reads it, the field and the option in front (`Field 'sec': option
+'label': Field context: 'items' was never provided (provided: t, lang)`) — a
+forgotten value fails loudly instead of silently becoming `undefined`. A key
+explicitly provided as `undefined` is fine. The wrapper lets test tooling and
+printers probe the object without tripping the guard (`then`, `toJSON`,
+`asymmetricMatch`, `$$typeof`, `nodeType`, `tagName`, `hasAttribute`,
+`_isMockFunction`, any key starting with `@@`, and all symbol keys), so a
+context value can be logged, pattern-matched or passed around during tests
+without the guard misfiring.
 
 ```tsx
 const { Provider: ModuleContext } = createFieldContext<{ items: Item[] }>();

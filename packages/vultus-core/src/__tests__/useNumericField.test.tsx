@@ -39,6 +39,25 @@ describe('useNumericField: valueText', () => {
     expect(result.current.valueText).toBe('hu50');
   });
 
+  it('a format whose context parameter has a default gets the context when a provider is above, and nothing otherwise', () => {
+    const format = (n: number, ctx: any = {}) => (ctx.lang ?? '') + n;
+    const provided = renderHook(() => useNumericField({ id: 'n', initialValue: 50, format }), { wrapper: providing({ lang: 'hu' }) });
+    expect(provided.result.current.valueText).toBe('hu50');
+    const alone = renderHook(() => useNumericField({ id: 'n', initialValue: 50, format }));
+    expect(alone.result.current.valueText).toBe('50');
+  });
+
+  it('a missing key read by format throws, naming the field and the option', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(() => renderHook(() => useNumericField({
+        id: 'n', initialValue: 50, format: (n, ctx: { lang: string }) => ctx.lang + n,
+      }), { wrapper: providing({ t: (k: string) => k }) })).toThrow(/^Field 'n': option 'format': Field context: 'lang' was never provided \(provided: t\)$/);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it('a format declaring two parameters with no provider throws', () => {
     expect(() => renderHook(() => useNumericField({
       id: 'n', initialValue: 50, format: (n, ctx: { lang: string }) => ctx.lang + n,
