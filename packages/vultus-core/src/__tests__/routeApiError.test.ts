@@ -57,6 +57,16 @@ describe('routeApiError', () => {
     expect(setInlineError).toHaveBeenCalledWith('oops');
   });
 
+  it('a thrown Error with no API body: its own message', () => {
+    const setInlineError = vi.fn();
+    routeApiError(
+      new Error('Printer offline'),
+      { route: 'dataspaces.create', setInlineError, t: (k) => `T:${k}` },
+      registry,
+    );
+    expect(setInlineError).toHaveBeenCalledWith('Printer offline');
+  });
+
   it('falls back to common.error key when nothing parseable', () => {
     const setInlineError = vi.fn();
     routeApiError(

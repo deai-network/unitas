@@ -66,6 +66,15 @@ describe('useBoolField: value outside, committed immediately', () => {
     expect(result.current.value).toBe(true);
   });
 
+  it('a commit that throws an Error shows its message as the field\'s error', async () => {
+    const { result } = renderHook(() => useBoolField({
+      id: 'duplex', value: false,
+      commit: { fire: () => { throw new Error('Printer offline'); } },
+    }));
+    await act(async () => { result.current.setValue(true); });
+    expect(result.current.messages).toEqual([{ text: 'Printer offline', severity: 'error' }]);
+  });
+
   it('the commit\'s messages become the field\'s', async () => {
     const { result } = renderHook(() => useBoolField({
       id: 'autopilot', value: false,

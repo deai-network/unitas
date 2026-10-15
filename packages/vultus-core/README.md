@@ -46,7 +46,12 @@ An action's `fire(args, ctx)` receives an `ExecutionContext` next to its argumen
 `ctx.info(text)`, `ctx.warn(text)` and `ctx.error(text)` report messages while it runs.
 They land on the action's status as `messages` (with their `severity`) and go to the
 `MessageSink` (`(text, severity?)`). A thrown error still fails the action and ends the
-run's messages; `errors` lists the error texts among them.
+run's messages; `errors` lists the error texts among them. What a thrown error shows
+(`parseApiError`): an API error's body message (ts-rest's `{ status, body: { message, reason } }`);
+without one, a thrown `Error`'s own message (`throw new Error('Printer offline')` shows "Printer
+offline", a failed fetch its TypeError's); with neither, "Action failed" (a routed action
+(`errorRoute`): the registry's entry for the body's `reason`, else the message, else
+`t('common.error')`). A field's commit is an action, so the same holds for the field's messages.
 
 ## Fields
 

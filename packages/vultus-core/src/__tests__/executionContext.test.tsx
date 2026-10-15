@@ -67,6 +67,27 @@ describe('ExecutionContext', () => {
     expect(result.current.errors).toEqual(['Conflict: renamed meanwhile.']);
   });
 
+  it('a thrown Error with no API body shows its own message, on the status and in the sink', async () => {
+    const sink = vi.fn();
+    const { result } = renderHook(() => useAction({
+      id: 'print', label: 'Print',
+      fire: async () => { throw new Error('Printer offline'); },
+    }), { wrapper: withSink(sink) });
+    await act(async () => { await result.current.firePromise(); });
+    expect(result.current.messages).toEqual([{ text: 'Printer offline', severity: 'error' }]);
+    expect(result.current.errors).toEqual(['Printer offline']);
+    expect(sink).toHaveBeenCalledWith('Printer offline', 'error');
+  });
+
+  it('a thrown value with no message at all still shows "Action failed"', async () => {
+    const { result } = renderHook(() => useAction({
+      id: 'odd', label: 'Go',
+      fire: async () => { throw 'nope'; },
+    }));
+    await act(async () => { await result.current.firePromise(); });
+    expect(result.current.errors).toEqual(['Action failed']);
+  });
+
   it('a routed action leaves the thrown error to routeApiError: shown once, in the routed place', async () => {
     const sink = vi.fn();
     const registry = { 'items.update': { 'name-taken': { i18nKey: 'items.nameTaken' } } };
