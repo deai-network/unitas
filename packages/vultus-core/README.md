@@ -206,9 +206,11 @@ warning, for an unknown or disabled node, as many-of's does).
 `coveredNodes(nodes, value, selection)` expands a value to every node it
 stands for — what a module matches an item's categories against. Search
 over labels is accent- and case-insensitive (`normalizeText`); the matching
-`filterTree(nodes, query)` keeps a node if its own label matches or one of
-its descendants does, trimming the rest and leaving the nodes given
-unchanged. Implicit initial value: the empty list.
+`filterTree(nodes, query)` follows antd TreeSelect's rule: a node whose own
+label matches stays with its whole subtree, any other node stays if one of
+its descendants matches (with only the children that stay), and the rest
+is trimmed, leaving the nodes given unchanged. Implicit initial value: the
+empty list.
 
 ```ts
 const field = useTreeField({

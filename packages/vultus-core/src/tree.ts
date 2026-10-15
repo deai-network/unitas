@@ -151,19 +151,25 @@ export function expandedTreeKeys<T extends string>(nodes: TreeNode<T>[], value: 
 }
 
 /**
- * The nodes matching a search (Taskmaster's category search): a node stays if its label
- * (else its value) contains the query, ignoring accents, case and the query's surrounding
- * spaces, or if one of its descendants stays; a node that stays keeps only the children
- * that stay. Generic over the node's shape, so the widgets can filter resolved node
- * controls; the nodes given are not changed. An empty query returns them as they are.
+ * The nodes matching a search (Taskmaster's category search), by antd TreeSelect's rule, so a
+ * dropdown and a drawer over the same nodes agree: a node matches if its label (else its
+ * value) contains the query, ignoring accents, case and the query's surrounding spaces. A
+ * matching node stays with its whole subtree; any other node stays if one of its descendants
+ * matches, keeping only the children that stay. A node that stays with no children has
+ * `children` undefined, not an empty list. Generic over the node's shape, so the widgets can
+ * filter resolved node controls; the nodes given are not changed. An empty query returns
+ * them as they are.
  */
 export function filterTree<N extends { label?: string; value: string; children?: N[] }>(nodes: N[], query: string): N[] {
   const q = normalizeText(query.trim());
   if (!q) return nodes;
-  const keep = (list: N[]): N[] => list.flatMap((node) => {
-    const children = node.children ? keep(node.children) : undefined;
-    if (!normalizeText(node.label ?? node.value).includes(q) && !children?.length) return [];
-    return [node.children ? { ...node, children } : node];
+  /** The nodes of `list` that stay; `all` when an ancestor matched, so every node does. */
+  const keep = (list: N[], all: boolean): N[] => list.flatMap((node) => {
+    const matches = all || normalizeText(node.label ?? node.value).includes(q);
+    const children = keep(node.children ?? [], matches);
+    if (!matches && children.length === 0) return [];
+    if (node.children === undefined) return [node];
+    return [{ ...node, children: children.length > 0 ? children : undefined }];
   });
-  return keep(nodes);
+  return keep(nodes, false);
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { coveredNodes, filterTree, normalizeTreeValue, type TreeNode } from '../tree.js';
+import { coveredNodes, filterTree, normalizeTreeValue, toggleTreeValue, type TreeNode } from '../tree.js';
 
 type Id = 'A' | 'A1' | 'A2' | 'A2a' | 'A2b' | 'B' | 'B1';
 
@@ -62,6 +62,13 @@ describe('coveredNodes', () => {
   });
 });
 
+describe('toggleTreeValue', () => {
+  it('all: removing a node removes it and its ancestors, keeping its covered siblings and theirs', () => {
+    // Covered before: A, A1, A2, A2a, A2b. A2a goes, and with it A2 and A (no longer all children covered).
+    expect(toggleTreeValue(NODES, ['A', 'A1', 'A2', 'A2a', 'A2b'], 'A2a', 'all')).toEqual(['A1', 'A2b']);
+  });
+});
+
 describe('filterTree', () => {
   type Labelled = { value: string; label?: string; children?: Labelled[] };
   const TOPICS: Labelled[] = [
@@ -79,6 +86,36 @@ describe('filterTree', () => {
     expect(filterTree(TOPICS, 'kombinatorika')).toEqual([
       { value: 'math', label: 'Matek', children: [{ value: 'comb', label: 'Kombinatorika' }] },
     ]);
+  });
+
+  it('a matching node keeps its whole subtree, as antd TreeSelect does', () => {
+    expect(filterTree(TOPICS, 'Matek')).toEqual([TOPICS[0]]);
+  });
+
+  it('a matching node deeper down keeps its ancestors, with only the path to it, and its whole subtree', () => {
+    const sciences: Labelled[] = [
+      {
+        value: 'sci', label: 'Science', children: [
+          { value: 'phys', label: 'Physics', children: [{ value: 'mech', label: 'Mechanics' }, { value: 'opt', label: 'Optics' }] },
+          { value: 'chem', label: 'Chemistry' },
+        ],
+      },
+    ];
+    expect(filterTree(sciences, 'physics')).toEqual([
+      {
+        value: 'sci', label: 'Science', children: [
+          { value: 'phys', label: 'Physics', children: [{ value: 'mech', label: 'Mechanics' }, { value: 'opt', label: 'Optics' }] },
+        ],
+      },
+    ]);
+  });
+
+  it('a kept node with no kept children has no children list, not an empty one', () => {
+    const [kept] = filterTree([{ value: 'x', label: 'X', children: [] }], 'x');
+    expect(kept.value).toBe('x');
+    expect(kept.children).toBeUndefined();
+    const [math] = filterTree(TOPICS, 'kombinatorika');
+    expect(math.children![0].children).toBeUndefined();
   });
 
   it('an empty query returns the nodes unchanged', () => {

@@ -135,6 +135,11 @@ export interface StoredFields {
   resetAll(method?: UpdateMethod): void;
 }
 
+/** A compile-time check: useStoredFields takes a `readonly` list of definitions (an `as const` module constant). */
+function takesReadonlyDefinitions(definitions: readonly FieldDefinition[]): Parameters<typeof useStoredFields>[0] {
+  return definitions;
+}
+
 /** One field's answer in useStoredFields, with what it was computed from. */
 interface FieldReading {
   definition: FieldDefinition;
@@ -157,7 +162,7 @@ function readsAsDefault(definition: FieldDefinition, raw: string | null, ctx: Fi
  * Each field is re-read only when its raw value, its definition or the field context changes,
  * so typing into one field does not re-read its siblings.
  */
-export function useStoredFields(definitions: FieldDefinition[]): StoredFields {
+export function useStoredFields(definitions: readonly FieldDefinition[]): StoredFields {
   const store = useArgStore();
   const ctx = useFieldContext();
   // Called on the store, not passed detached: a store written as a class uses `this`.
