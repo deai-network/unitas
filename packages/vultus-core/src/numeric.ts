@@ -37,6 +37,16 @@ export function clamp(n: number, min?: number, max?: number): number {
 }
 
 /**
+ * `n` clamped into [min, max], then rounded when `integer` is true: the rule a numeric or range
+ * field's shown value and requests are fit by (useNumericField, useRangeField), and the one
+ * `sanitizeStored` fits a stored value by.
+ */
+export function fit(n: number, min: number | undefined, max: number | undefined, integer: boolean): number {
+  const clamped = clamp(n, min, max);
+  return integer ? Math.round(clamped) : clamped;
+}
+
+/**
  * Resolves a numeric field's bounds and formatter with the field context. `format` goes by its
  * own rule, not resolveIn's, as it always receives the number first; otherwise it is treated
  * the same way. With a provider above, it receives the context as its second argument, and a

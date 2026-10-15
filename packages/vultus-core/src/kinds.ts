@@ -1,10 +1,10 @@
 import { resolveChoice, type OneOfChoice, type OneOfChoiceControls } from './choices.js';
 import type { FieldBaseOptions, FieldKind } from './field.js';
 import type { FieldCtx } from './FieldContext.js';
-import { clamp, resolveNumeric } from './numeric.js';
+import { fit, resolveNumeric } from './numeric.js';
 import { resolveIn } from './resolve.js';
 import { normalizeTreeValue, type TreeNode } from './tree.js';
-import type { ValueOrFn } from './types.js';
+import type { Fits, ValueOrFn } from './types.js';
 import { boolInitialValue, type useBoolField } from './useBoolField.js';
 import { manyOfInitialValue, type ManyOfOwnOptions, type useManyOfField } from './useManyOfField.js';
 import { mixedBoolInitialValue, type MixedBool, type useMixedBoolField } from './useMixedBoolField.js';
@@ -38,8 +38,6 @@ export type FieldDefinition<Ctx = any> =
   | Definition<'tree', string[], TreeOwnOptions<string, Ctx>, Ctx>
   | Definition<'text', string, TextOwnOptions, Ctx>;
 
-/** Compiles only when `A` is assignable to `B`. */
-type Fits<A extends B, B> = A;
 type DefinitionOf<K extends FieldKind> = Extract<FieldDefinition, { kind: K }>;
 type HookOptions<H extends (...args: any[]) => unknown> = Parameters<H>[0];
 
@@ -135,11 +133,13 @@ function warnDropped(id: string, among: 'choices' | 'nodes', dropped: string[], 
  * A stored value (already parsed by the kind's value type) made fit for the definition as it is
  * now: choices, nodes and bounds follow the data, and an old URL may not. A one-of value that is
  * not a choice becomes the initial value; many-of and tree values that are not choices or nodes
- * are dropped; numbers and ranges are clamped into the bounds. Each such change warns, naming
- * the field: the value came from outside, so it is not an error. Reordering is silent: lists
- * come back in choice order or normalized under the tree's selection (a store keeps them
- * sorted, so a warning would come on every read), and a range's ends in order. The warnings go
- * to `warn`, console.warn unless a caller that only summarizes (useStoredFields) silences them.
+ * are dropped; numbers and ranges are clamped into the bounds, then rounded when the field is
+ * `integer` (so a stored `2.5` reads `3`), with one combined warning when either or both change
+ * the value. Each such change warns, naming the field: the value came from outside, so it is not
+ * an error. Reordering is silent: lists come back in choice order or normalized under the tree's
+ * selection (a store keeps them sorted, so a warning would come on every read), and a range's
+ * ends in order. The warnings go to `warn`, console.warn unless a caller that only summarizes
+ * (useStoredFields) silences them.
  */
 export function sanitizeStored(
   definition: FieldDefinition,
@@ -176,16 +176,16 @@ export function sanitizeStored(
     }
     case 'numeric': {
       const stored = value as number;
-      const { min, max } = resolveNumeric(id, definition, ctx);
-      const clamped = clamp(stored, min, max);
-      if (clamped !== stored) warn(`Field '${id}': stored value ${stored} is outside its bounds, using ${clamped}`);
-      return clamped;
+      const { min, max, integer } = resolveNumeric(id, definition, ctx);
+      const fitted = fit(stored, min, max, integer);
+      if (fitted !== stored) warn(`Field '${id}': stored value ${stored} is outside its bounds, using ${fitted}`);
+      return fitted;
     }
     case 'range': {
       const stored = value as NumberRange;
-      const { min, max } = resolveNumeric(id, definition, ctx);
-      const from = clamp(stored[0], min, max);
-      const to = clamp(stored[1], min, max);
+      const { min, max, integer } = resolveNumeric(id, definition, ctx);
+      const from = fit(stored[0], min, max, integer);
+      const to = fit(stored[1], min, max, integer);
       const sanitized: NumberRange = [Math.min(from, to), Math.max(from, to)];
       if (from !== stored[0] || to !== stored[1]) {
         warn(`Field '${id}': stored range ${rangeType.format(stored)} is outside its bounds, using ${rangeType.format(sanitized)}`);

@@ -118,6 +118,12 @@ printers probe the object without tripping the guard (`then`, `toJSON`,
 context value can be logged, pattern-matched or passed around during tests
 without the guard misfiring.
 
+Caution: the parameter-count rule above only decides what a function gets
+with no provider. With a provider, a function whose declared parameter
+count is zero — a default parameter (`(ctx = {}) => ...`), a rest parameter
+(`(...args) => ...`), or a bound `t` — still receives the guarded context,
+and reading a key it was not given still throws.
+
 ```tsx
 const { Provider: ModuleContext } = createFieldContext<{ items: Item[] }>();
 

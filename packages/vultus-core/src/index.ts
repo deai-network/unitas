@@ -1,4 +1,8 @@
-export * from './types.js';
+// Fits is deliberately left out here: it is an internal compile-time check (see types.ts), not public API.
+export type {
+  FormLike, Decision, ValueOrFn, Thunk, Severity, Message, ExecutionContext, ConfirmationSpec,
+  ActionOptions, ActionStatus, ParsedApiError, RegistryEntry, ErrorRoutesRegistry, ApiErrorContext, ActionErrorCtx,
+} from './types.js';
 export * from './decision.js';
 export * from './resolve.js';
 export * from './parseApiError.js';

@@ -1,7 +1,7 @@
 import { useFieldCore, type FieldControls, type FieldOptions } from './field.js';
 import { useFieldContext, type FieldCtx } from './FieldContext.js';
 import { resolveIn } from './resolve.js';
-import { clamp, resolveNumeric, type NumericBounds, type ResolvedNumeric } from './numeric.js';
+import { clamp, fit as fitNumber, resolveNumeric, type NumericBounds, type ResolvedNumeric } from './numeric.js';
 import type { ErrorRoutesRegistry } from './types.js';
 
 export type NumericOwnOptions<Ctx = any> = NumericBounds<Ctx>;
@@ -45,10 +45,7 @@ export function useNumericField<RouteId extends string = string, Ctx = any>(
   const field = useFieldCore<number, number, RouteId, Ctx>('numeric', inside ? { ...opts, initialValue } : opts, registry);
 
   /** A number clamped into the bounds, then rounded when `integer`. */
-  const fit = (n: number) => {
-    const clamped = clamp(n, resolved.min, resolved.max);
-    return resolved.integer ? Math.round(clamped) : clamped;
-  };
+  const fit = (n: number) => fitNumber(n, resolved.min, resolved.max, resolved.integer);
   const value = fit(field.value);
 
   const setValue = (next: number) => {

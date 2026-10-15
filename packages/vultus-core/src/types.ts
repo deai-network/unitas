@@ -73,8 +73,8 @@ export interface ActionOptions<TArgs = void, TResult = void, RouteId extends str
   onSuccess?: (result: TResult) => void;
 }
 
-/** Compiles only when `A` is assignable to `B`. */
-type Fits<A extends B, B> = A;
+/** Compiles only when `A` is assignable to `B`. Not part of the package's public API: kept here as the one definition, imported directly by the files that use it (kinds.ts), and left out of index.ts's re-export of this module. */
+export type Fits<A extends B, B> = A;
 
 /**
  * A compile-time check: an action calls its options' functions with nothing, so one that takes

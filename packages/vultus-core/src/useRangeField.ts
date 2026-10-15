@@ -1,7 +1,7 @@
 import { useFieldCore, type FieldControls, type FieldOptions } from './field.js';
 import { useFieldContext, type FieldCtx } from './FieldContext.js';
 import { resolveIn } from './resolve.js';
-import { clamp, resolveNumeric, type NumericBounds, type ResolvedNumeric } from './numeric.js';
+import { fit as fitNumber, resolveNumeric, type NumericBounds, type ResolvedNumeric } from './numeric.js';
 import type { ErrorRoutesRegistry, ValueOrFn } from './types.js';
 
 /** A `[from, to]` pair, `from <= to`. Not named `Range`, which would shadow the DOM's global type. */
@@ -59,10 +59,7 @@ export function useRangeField<RouteId extends string = string, Ctx = any>(
   const field = useFieldCore<NumberRange, NumberRange, RouteId, Ctx>('range', inside ? { ...opts, initialValue } : opts, registry);
 
   /** An end clamped into the bounds, then rounded when `integer`. */
-  const fit = (n: number) => {
-    const clamped = clamp(n, min, max);
-    return resolved.integer ? Math.round(clamped) : clamped;
-  };
+  const fit = (n: number) => fitNumber(n, min, max, resolved.integer);
   const value = order([fit(field.value[0]), fit(field.value[1])]);
 
   const setValue = (next: NumberRange) => {
