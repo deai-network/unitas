@@ -114,6 +114,6 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
       : action.label;
     return wrap(withTooltip(title, action.disabled, button, { open: asking ? false : undefined, block }));
   }
-  // A block button's wrapper (always there, see withTooltip) is a block too, so the button fills the row.
+  // A block button's wrapper, when there is one (a reason, or iconOnly's label), is a block too, so the button still fills the row.
   return wrap(withReason(action.reason, action.disabled, button, { block }));
 }

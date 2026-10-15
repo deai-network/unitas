@@ -63,6 +63,26 @@ describe('a control whose tooltip comes and goes with its value keeps its identi
     expect(document.activeElement).toBe(control);
   });
 
+  // The checkbox shows its own label, so its item has no info sign and keeps the description in the
+  // tooltip: a field without a description is the one whose tooltip comes and goes, in an item too.
+  it.each([
+    ['in an item', true],
+    ['outside an item', false],
+  ])('a checkbox with a value description for one value only, toggled on and off (%s)', async (_, item) => {
+    wrap(<Field item={item} definition={{ ...(DUPLEX_UNDESCRIBED as FieldDefinition), widget: 'checkbox' }} />);
+    const control = screen.getByRole('checkbox');
+    expect(control.closest('.vultus-tooltip-anchor')).not.toBeNull();
+    act(() => control.focus());
+    fireEvent.click(control);
+    await waitFor(() => expect(control).toBeChecked());
+    expect(screen.getByRole('checkbox')).toBe(control);
+    expect(document.activeElement).toBe(control);
+    fireEvent.click(control);
+    await waitFor(() => expect(control).not.toBeChecked());
+    expect(screen.getByRole('checkbox')).toBe(control);
+    expect(document.activeElement).toBe(control);
+  });
+
   it('with no title the wrapper is there but no tooltip opens', async () => {
     wrap(<Field definition={DUPLEX_UNDESCRIBED as FieldDefinition} />);
     fireEvent.mouseEnter(screen.getByRole('switch').closest('span[style]')!);
