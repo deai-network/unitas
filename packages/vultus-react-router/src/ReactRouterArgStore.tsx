@@ -137,12 +137,15 @@ class RouterArgStore implements ArgStore {
     const state = push ? undefined : base.state;
     const to: Path = { pathname: base.pathname, search, hash: base.hash };
     this.navigated = { from: now.at, to: { ...to, state } };
-    // Only the query changes, so on top of the rendered location or the store's own navigation the
-    // page stays where it was scrolled (<ScrollRestoration> would scroll to the top otherwise). On
-    // top of a navigation from outside that has not rendered yet, the two render as one and
-    // <ScrollRestoration> sees only this navigation's flag, so it carries the router's choice for
-    // that navigation over (a new page still opens at the top).
-    const preventScrollReset = onOwn || now.rendered || now.preventScrollReset;
+    // Only the query changes, so on top of the rendered location the page stays where it was
+    // scrolled (<ScrollRestoration> would scroll to the top otherwise). On top of a location that
+    // has not rendered yet, the navigations since the last render render as one and
+    // <ScrollRestoration> sees only the last one's flag, so this one carries over the router's
+    // choice for the navigation that brought it there: a navigation from outside keeps its scroll
+    // to the top (a new page still opens at the top), the store's own already passed `true`. That
+    // holds on top of the store's own navigation still loading too: the router has not moved
+    // since it was made, so its location and flag are still the ones that navigation built on.
+    const preventScrollReset = now.rendered || now.preventScrollReset;
     void this.navigate(to, { replace: !push, state, preventScrollReset });
   }
 }

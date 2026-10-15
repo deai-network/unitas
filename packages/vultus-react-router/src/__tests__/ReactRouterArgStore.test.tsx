@@ -465,6 +465,39 @@ describe('ReactRouterArgStore under <ScrollRestoration>', () => {
       scrollTo.mockRestore();
     }
   });
+
+  it('a second write on top of that one while it is loading: the new page still opens scrolled to the top', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    try {
+      const other = gate();
+      const { seen, router, url } = setup(['/m?q=x'], {
+        scrollRestoration: true,
+        routes: [{ path: '/other', loader: other.loader, element: null }],
+      });
+      // The second write comes while the store's navigation to /other?q=y is loading, before
+      // React has rendered /other: it builds on the store's own navigation.
+      let fired = false;
+      router.subscribe((state) => {
+        if (fired || state.navigation.state !== 'loading' || state.navigation.location.search !== '?q=y') return;
+        fired = true;
+        seen.store.write([{ key: 'extra', raw: 'e' }], 'replace');
+      });
+      scrollTo.mockClear();
+      await act(async () => {
+        seen.q.set('y');
+        void router.navigate('/other');
+      });
+      await act(async () => {
+        other.open();
+      });
+      await act(() => vi.waitFor(() => expect(router.state.navigation.state).toBe('idle')));
+      expect(fired).toBe(true);
+      expect(url()).toBe('/other?q=y&extra=e');
+      expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    } finally {
+      scrollTo.mockRestore();
+    }
+  });
 });
 
 describe('ReactRouterArgStore: hrefFor', () => {
