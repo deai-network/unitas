@@ -224,7 +224,7 @@ back to the default, or is dropped from a list, with a console warning, not an e
 | manyOf | `ManyOfCheckboxes` (`checkboxes`, default), `ManyOfSelect` (`select`), `ManyOfSwitches` (`switches`) |
 | numeric | `NumericInput` (`input`, default), `NumericSlider` (`slider`) |
 | range | `RangeSlider` (`slider`, default) |
-| tree | `ManyOfTreePicker` (`picker`, default), `ManyOfTreeChecklist` (`checklist`) |
+| manyOfTree | `ManyOfTreePicker` (`picker`, default), `ManyOfTreeChecklist` (`checklist`) |
 | text | `TextInput` (`input`, default), `SearchInput` (`search`) |
 
 - **Common behaviour**: the conventions of today's field widgets (tooltips in markdown, a
