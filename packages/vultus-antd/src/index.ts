@@ -22,3 +22,4 @@ export { ManyOfSelect } from './ManyOfSelect.js';
 export { NumericInput } from './NumericInput.js';
 export { NumericSlider } from './NumericSlider.js';
 export { useNumericRequest } from './useNumericRequest.js';
+export { RangeSlider } from './RangeSlider.js';
