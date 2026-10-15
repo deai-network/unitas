@@ -30,6 +30,7 @@ const NODES: TreeNode[] = [
   { value: 'B' },
 ];
 const TOPICS: DefinitionOf<'tree'> = { kind: 'tree', id: 'topics', nodes: NODES };
+const TAGS: DefinitionOf<'manyOf'> = { kind: 'manyOf', id: 'tags', choices: [{ value: 'a' }, { value: 'b' }] };
 const ALL_DONE: DefinitionOf<'mixed-boolean'> = { kind: 'mixed-boolean', id: 'allDone' };
 
 function providing(store: ArgStore, fieldContext?: object) {
@@ -138,6 +139,62 @@ describe('useStoredField', () => {
     warn.mockRestore();
   });
 
+  it('warns once per stored value, not again when only the definition or the field context is a new object', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const store = memoryStore({ level: 'insane' });
+    const wrapper = ({ children }: { children?: ReactNode }) => (
+      <FieldContextProvider value={{ fresh: true }}>
+        <ArgStoreProvider store={store}>{children}</ArgStoreProvider>
+      </FieldContextProvider>
+    );
+    const { result, rerender } = renderHook(() => useStoredField({ ...LEVEL }), { wrapper });
+    rerender();
+    rerender();
+    expect(result.current.options.value).toBe('medium');
+    expect(warn).toHaveBeenCalledTimes(1);
+
+    act(() => store.write([{ key: 'level', raw: 'mad' }], 'replace'));
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenLastCalledWith(`Field 'level': stored value 'mad' is not one of its choices, using 'medium'`);
+    warn.mockRestore();
+  });
+
+  it('an absent key shows the default sanitized silently: it is the definer\'s, not stored input', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const store = memoryStore();
+    const definition: DefinitionOf<'manyOf'> = { ...ROUNDS, initialValue: ['regional', 'gone'] };
+    const { result } = renderHook(() => useStoredField(definition), { wrapper: providing(store) });
+    expect(result.current.options.value).toEqual(['regional']);
+    expect(result.current.isDefault).toBe(true);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('tree: re-selecting the default state leaves the key absent, the default being normalized', () => {
+    const store = memoryStore();
+    const definition: DefinitionOf<'tree'> = { ...TOPICS, initialValue: ['A1', 'A2'] };
+    const { result } = renderHook(() => {
+      const stored = useStoredField(definition);
+      return { stored, field: useTreeField(stored.options) };
+    }, { wrapper: providing(store) });
+    expect(result.current.field.value).toEqual(['A']);
+    expect(result.current.stored.isDefault).toBe(true);
+    act(() => result.current.field.toggle('B'));
+    expect(store.snapshot()).toEqual({ topics: 'A,B' });
+    act(() => result.current.field.toggle('B'));
+    expect(store.snapshot()).toEqual({});
+    expect(result.current.stored.isDefault).toBe(true);
+  });
+
+  it('a definition typed as the FieldDefinition union gives options that narrow by kind', () => {
+    const store = memoryStore();
+    const definition = ROUNDS as FieldDefinition; // an annotation would narrow it to the many-of member by assignment
+    const { result } = renderHook(() => useStoredField(definition), { wrapper: providing(store) });
+    const { options } = result.current;
+    if (options.kind !== 'manyOf') throw new Error('expected many-of options');
+    expect(options.choices).toBe(ROUNDS.choices);
+  });
+
   it('a stored range clamped to the bounds shows them, and counts as the default when they are the default', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const store = memoryStore({ years: '2005..2030' });
@@ -184,6 +241,19 @@ describe('useStoredField: value identity', () => {
     rerender();
     expect(result.current.stored.options.value).toBe(first);
     expect(result.current.field.value).toBe(first);
+  });
+
+  it('options and onChange keep their identity across a re-render, for a many-of and a tree without initialValue', () => {
+    const store = memoryStore();
+    const { result, rerender } = renderHook(() => ({ tags: useStoredField(TAGS), topics: useStoredField(TOPICS) }), {
+      wrapper: providing(store),
+    });
+    const { tags, topics } = result.current;
+    rerender();
+    expect(result.current.tags.options).toBe(tags.options);
+    expect(result.current.tags.options.onChange).toBe(tags.options.onChange);
+    expect(result.current.topics.options).toBe(topics.options);
+    expect(result.current.topics.options.onChange).toBe(topics.options.onChange);
   });
 
   it('keeps its identity when the field context is a fresh object on every render', () => {
@@ -253,12 +323,13 @@ describe('useStoredFields', () => {
     expect(result.current.changedCount).toBe(0);
   });
 
-  it('a stored value that fits only as the default counts as the default, as useStoredField says', () => {
+  it('a stored value that fits only as the default counts as the default, as useStoredField says, without warning', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const store = memoryStore({ level: 'insane', years: '2000..2030' });
-    const { result } = renderHook(() => useStoredFields([LEVEL, YEARS]), { wrapper: providing(store) });
-    expect(result.current.changedCount).toBe(0);
-    expect(warn).toHaveBeenCalledTimes(2);
+    const store = memoryStore({ level: 'insane', years: '2000..2030', rounds: 'final,gone' });
+    const { result } = renderHook(() => useStoredFields([LEVEL, YEARS, ROUNDS]), { wrapper: providing(store) });
+    expect(result.current.changedCount).toBe(1);
+    expect(result.current.isDefault('rounds')).toBe(false);
+    expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
 
@@ -276,14 +347,21 @@ describe('useStoredFields', () => {
     expect(subscribe).toHaveBeenCalledTimes(1);
   });
 
-  it('does not re-read (nor re-warn) on a re-render with a fresh array of the same definitions', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const store = memoryStore({ level: 'insane' });
-    const { result, rerender } = renderHook(() => useStoredFields([LEVEL, ROUNDS]), { wrapper: providing(store) });
+  it('re-reads only the fields whose raw value changed, also with a fresh array of the same definitions', () => {
+    const choices = vi.fn(() => [{ value: 'easy' }, { value: 'hard' }]);
+    const level: DefinitionOf<'oneOf'> = { kind: 'oneOf', id: 'level', choices };
+    const store = memoryStore({ level: 'hard' });
+    const { result, rerender } = renderHook(() => useStoredFields([level, QUERY]), { wrapper: providing(store) });
+    const reads = choices.mock.calls.length;
     rerender();
-    expect(result.current.changedCount).toBe(0);
-    expect(warn).toHaveBeenCalledTimes(1);
-    warn.mockRestore();
+    act(() => store.write([{ key: 'q', raw: 'x' }], 'replace'));
+    act(() => store.write([{ key: 'q', raw: 'xy' }], 'replace'));
+    expect(choices).toHaveBeenCalledTimes(reads);
+    expect(result.current.changedCount).toBe(2);
+
+    act(() => store.write([{ key: 'level', raw: 'easy' }], 'replace'));
+    expect(choices.mock.calls.length).toBeGreaterThan(reads);
+    expect(result.current.changedCount).toBe(1);
   });
 
   it('an id that is not among its fields throws, naming it', () => {

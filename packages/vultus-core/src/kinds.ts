@@ -81,11 +81,18 @@ function nodeValues(nodes: TreeNode[], into = new Set<string>()): Set<string> {
   return into;
 }
 
+/** A tree definition's nodes, resolved as useTreeField resolves them. */
+function nodesOf(definition: { id: string; nodes: ValueOrFn<TreeNode[]> }, ctx: FieldCtx): TreeNode[] {
+  return resolveIn<TreeNode[]>(definition.nodes, [], ctx, `Field '${definition.id}': option 'nodes'`);
+}
+
 /**
  * A definition's default: `initialValue` resolved with the field context, else its kind's
  * implicit initial value (false; the first enabled choice; the empty list; `min`, or 0, clamped
- * into the bounds; `[min, max]`; the empty string). It is what a store falls back to, what a
- * reset restores, and what "is it set?" compares against; the kind's hook starts at the same value.
+ * into the bounds; `[min, max]`; the empty string). A tree's comes normalized under its
+ * selection, as the hook shows it, so a value equal to what the field shows by default is equal
+ * to the default too. It is what a store falls back to, what a reset restores, and what "is it
+ * set?" compares against; the kind's hook starts at the same value.
  */
 export function initialValueOf(definition: FieldDefinition, ctx: FieldCtx): unknown {
   const { id } = definition;
@@ -96,7 +103,8 @@ export function initialValueOf(definition: FieldDefinition, ctx: FieldCtx): unkn
     case 'manyOf': return manyOfInitialValue(definition, ctx, id);
     case 'numeric': return numericInitialValue(definition, ctx, id);
     case 'range': return rangeInitialValue(definition, ctx, id);
-    case 'tree': return treeInitialValue(definition, ctx, id);
+    case 'tree':
+      return normalizeTreeValue(nodesOf(definition, ctx), treeInitialValue(definition, ctx, id), definition.selection ?? 'topmost');
     case 'text': return textInitialValue(definition, ctx, id);
     default: return unknownKind(definition);
   }
@@ -117,10 +125,10 @@ export function valueTypeOf(kind: FieldKind): ValueType<any> {
   }
 }
 
-function warnDropped(id: string, among: 'choices' | 'nodes', dropped: string[]): void {
+function warnDropped(id: string, among: 'choices' | 'nodes', dropped: string[], warn: (message: string) => void): void {
   if (dropped.length === 0) return;
   const listed = [...new Set(dropped)].map((v) => `'${v}'`).join(', ');
-  console.warn(`Field '${id}': dropping stored values that are not among its ${among}: ${listed}`);
+  warn(`Field '${id}': dropping stored values that are not among its ${among}: ${listed}`);
 }
 
 /**
@@ -130,9 +138,15 @@ function warnDropped(id: string, among: 'choices' | 'nodes', dropped: string[]):
  * are dropped; numbers and ranges are clamped into the bounds. Each such change warns, naming
  * the field: the value came from outside, so it is not an error. Reordering is silent: lists
  * come back in choice order or normalized under the tree's selection (a store keeps them
- * sorted, so a warning would come on every read), and a range's ends in order.
+ * sorted, so a warning would come on every read), and a range's ends in order. The warnings go
+ * to `warn`, console.warn unless a caller that only summarizes (useStoredFields) silences them.
  */
-export function sanitizeStored(definition: FieldDefinition, value: unknown, ctx: FieldCtx): unknown {
+export function sanitizeStored(
+  definition: FieldDefinition,
+  value: unknown,
+  ctx: FieldCtx,
+  warn: (message: string) => void = (message) => console.warn(message),
+): unknown {
   const { id } = definition;
   switch (definition.kind) {
     case 'boolean':
@@ -144,27 +158,27 @@ export function sanitizeStored(definition: FieldDefinition, value: unknown, ctx:
       const choices = choicesOf(definition, ctx);
       if (choices.some((c) => c.value === value)) return value;
       const fallback = oneOfInitialValue(definition, ctx, id, choices);
-      if (fallback !== value) console.warn(`Field '${id}': stored value '${value}' is not one of its choices, using '${fallback}'`);
+      if (fallback !== value) warn(`Field '${id}': stored value '${value}' is not one of its choices, using '${fallback}'`);
       return fallback;
     }
     case 'manyOf': {
       const stored = value as string[];
       const known = choicesOf(definition, ctx).map((c) => c.value);
-      warnDropped(id, 'choices', stored.filter((v) => !known.includes(v)));
+      warnDropped(id, 'choices', stored.filter((v) => !known.includes(v)), warn);
       return known.filter((v) => stored.includes(v));
     }
     case 'tree': {
       const stored = value as string[];
-      const nodes = resolveIn<TreeNode[]>(definition.nodes, [], ctx, `Field '${id}': option 'nodes'`);
+      const nodes = nodesOf(definition, ctx);
       const known = nodeValues(nodes);
-      warnDropped(id, 'nodes', stored.filter((v) => !known.has(v)));
+      warnDropped(id, 'nodes', stored.filter((v) => !known.has(v)), warn);
       return normalizeTreeValue(nodes, stored.filter((v) => known.has(v)), definition.selection ?? 'topmost');
     }
     case 'numeric': {
       const stored = value as number;
       const { min, max } = resolveNumeric(id, definition, ctx);
       const clamped = clamp(stored, min, max);
-      if (clamped !== stored) console.warn(`Field '${id}': stored value ${stored} is outside its bounds, using ${clamped}`);
+      if (clamped !== stored) warn(`Field '${id}': stored value ${stored} is outside its bounds, using ${clamped}`);
       return clamped;
     }
     case 'range': {
@@ -174,7 +188,7 @@ export function sanitizeStored(definition: FieldDefinition, value: unknown, ctx:
       const to = clamp(stored[1], min, max);
       const sanitized: Range = [Math.min(from, to), Math.max(from, to)];
       if (from !== stored[0] || to !== stored[1]) {
-        console.warn(`Field '${id}': stored range ${rangeType.format(stored)} is outside its bounds, using ${rangeType.format(sanitized)}`);
+        warn(`Field '${id}': stored range ${rangeType.format(stored)} is outside its bounds, using ${rangeType.format(sanitized)}`);
       }
       return sanitized;
     }

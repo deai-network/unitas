@@ -119,6 +119,12 @@ describe('initialValueOf', () => {
     expect(initialValueOf({ kind: 'tree', id: 'topics', nodes: NODES, initialValue: ['A'] }, NO_FIELD_CONTEXT)).toEqual(['A']);
   });
 
+  it('tree: the initial value comes normalized under the selection, as the hook shows it', () => {
+    expect(initialValueOf({ kind: 'tree', id: 'topics', nodes: NODES, initialValue: ['A1', 'A2'] }, NO_FIELD_CONTEXT)).toEqual(['A']);
+    expect(initialValueOf({ kind: 'tree', id: 'topics', nodes: NODES, selection: 'leaves', initialValue: ['A'] }, NO_FIELD_CONTEXT))
+      .toEqual(['A1', 'A2']);
+  });
+
   it('text: initialValue, else the empty string', () => {
     expect(initialValueOf({ kind: 'text', id: 'q' }, NO_FIELD_CONTEXT)).toBe('');
     expect(initialValueOf({ kind: 'text', id: 'q', initialValue: 'abc' }, NO_FIELD_CONTEXT)).toBe('abc');
@@ -191,6 +197,14 @@ describe('sanitizeStored', () => {
   it('boolean and text: unchanged', () => {
     expect(sanitizeStored({ kind: 'boolean', id: 'done' }, true, NO_FIELD_CONTEXT)).toBe(true);
     expect(sanitizeStored({ kind: 'text', id: 'q' }, 'abc', NO_FIELD_CONTEXT)).toBe('abc');
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('sends its warnings to a warn function, when given one, instead of console.warn', () => {
+    const messages: string[] = [];
+    const tags: FieldDefinition = { kind: 'manyOf', id: 'tags', choices: [{ value: 'a' }] };
+    expect(sanitizeStored(tags, ['a', 'gone'], NO_FIELD_CONTEXT, (message) => messages.push(message))).toEqual(['a']);
+    expect(messages).toEqual(["Field 'tags': dropping stored values that are not among its choices: 'gone'"]);
     expect(warn).not.toHaveBeenCalled();
   });
 

@@ -23,6 +23,12 @@ export function argOf(definition: FieldDefinition, ctx: FieldCtx): ArgDefinition
   return { key: id, valueType, default: initialValueOf(definition, ctx) };
 }
 
+function silently(_message: string): void {}
+
+function warnOnConsole(message: string): void {
+  console.warn(message);
+}
+
 /**
  * The same value element by element: a list in the same order, a range with the same ends, a
  * scalar. Stricter than the value types' `isEqual` (lists as sets), because the order a field
@@ -43,13 +49,22 @@ function showsDefault(arg: ArgDefinition<any>, stored: unknown, shown: () => unk
   return arg.valueType.isEqual(stored, arg.default) || arg.valueType.isEqual(shown(), arg.default);
 }
 
-/** A field kept in the nearest ArgStore: its options for the kind's hook, and whether it shows its default. */
+/**
+ * A field kept in the nearest ArgStore: its options for the kind's hook, and whether it shows
+ * its default. `options` follows `D` member by member, so options of a definition typed as the
+ * FieldDefinition union still narrow by `kind`.
+ */
 export interface StoredField<D extends FieldDefinition = FieldDefinition> {
   /** The definition in its outside form, for the kind's hook (`useManyOfField(stored.options)`). */
-  options: Omit<D, 'initialValue'> & { value: any; onChange(value: any): void };
+  options: D extends any ? Omit<D, 'initialValue'> & { value: any; onChange(value: any): void } : never;
   isDefault: boolean;
   /** Removes the field's key from the store, so it shows its default again. */
   reset(method?: UpdateMethod): void;
+}
+
+/** A compile-time check: options of a FieldDefinition-typed definition narrow by `kind` (the Omit distributes over the union). */
+function optionsNarrowByKind(stored: StoredField<FieldDefinition>): unknown {
+  return stored.options.kind === 'manyOf' ? stored.options.choices : undefined;
 }
 
 /**
@@ -58,18 +73,40 @@ export interface StoredField<D extends FieldDefinition = FieldDefinition> {
  * fit for the definition as it is now (sanitizeStored: choices, nodes and bounds follow the
  * data); `onChange` writes with `'replace'`.
  *
+ * A stored value that does not fit warns once per field and raw value: not again when only the
+ * definition or the field context is a new object (a provider given `value={{...}}` makes one
+ * on every render). With the key absent the default is the definer's, not stored input, and is
+ * sanitized silently.
+ *
  * `options.value` keeps its identity while it stays the same element by element, so a list
- * does not become a new array on every render (effects keyed on it would re-run) even when the
- * field context is a fresh object each time. Sanitizing runs again, and warns again about a
- * stored value that does not fit, only when the stored value, the definition or the field
- * context changes: a definition is data, best kept stable.
+ * does not become a new array on every render (effects keyed on it would re-run), even when
+ * the field context is a new object each time. The default keeps its identity while it is
+ * `isEqual` to the freshly resolved one, so `onChange` and `options` keep theirs too.
  */
 export function useStoredField<D extends FieldDefinition>(definition: D): StoredField<D> {
+  const store = useArgStore();
   const ctx = useFieldContext();
-  const arg = argOf(definition, ctx);
-  const { value: stored, set, reset } = useArg(arg);
 
-  const sanitized = useMemo(() => sanitizeStored(definition, stored, ctx), [definition, stored, ctx]);
+  const fresh = argOf(definition, ctx);
+  const argRef = useRef<ArgDefinition<any> | undefined>(undefined);
+  const previousArg = argRef.current;
+  const arg = previousArg !== undefined && previousArg.key === fresh.key && previousArg.valueType === fresh.valueType
+    && fresh.valueType.isEqual(previousArg.default, fresh.default)
+    ? previousArg
+    : fresh;
+  argRef.current = arg;
+
+  const { value: stored, set, reset } = useArg(arg);
+  const raw = useSyncExternalStore(store.subscribe, () => store.read(definition.id));
+
+  const warnedRef = useRef<string | undefined>(undefined);
+  const sanitized = useMemo(() => {
+    const input = raw === undefined ? undefined : JSON.stringify([definition.id, raw]);
+    const warn = input !== undefined && input !== warnedRef.current ? warnOnConsole : silently;
+    warnedRef.current = input;
+    return sanitizeStored(definition, stored, ctx, warn);
+  }, [definition, stored, ctx, raw]);
+
   const previousRef = useRef<{ value: unknown } | undefined>(undefined);
   const value = previousRef.current !== undefined && sameValue(previousRef.current.value, sanitized)
     ? previousRef.current.value
@@ -79,7 +116,7 @@ export function useStoredField<D extends FieldDefinition>(definition: D): Stored
   const onChange = useCallback((next: unknown) => set(next, 'replace'), [set]);
   const options = useMemo(() => {
     const { initialValue: _inside, ...rest } = definition;
-    return { ...rest, value, onChange };
+    return { ...rest, value, onChange } as StoredField<D>['options'];
   }, [definition, value, onChange]);
 
   return { options, isDefault: showsDefault(arg, stored, () => value), reset };
@@ -95,46 +132,62 @@ export interface StoredFields {
   resetAll(method?: UpdateMethod): void;
 }
 
+/** One field's answer in useStoredFields, with what it was computed from. */
+interface FieldReading {
+  definition: FieldDefinition;
+  raw: string | null;
+  ctx: FieldCtx;
+  isDefault: boolean;
+}
+
+/** Whether a field with this raw value shows its default, by useStoredField's rule; silent, as a summary does not warn. */
+function readsAsDefault(definition: FieldDefinition, raw: string | null, ctx: FieldCtx): boolean {
+  const arg = argOf(definition, ctx);
+  const stored = (raw === null ? undefined : arg.valueType.parse(raw)) ?? arg.default;
+  return showsDefault(arg, stored, () => sanitizeStored(definition, stored, ctx, silently));
+}
+
 /**
  * Whether stored fields show their defaults, by the same rule as useStoredField, with one store
  * subscription for all of them: its snapshot is their raw values joined into one string, which
- * changes exactly when one of them does. A fresh array of the same definitions (one built in
- * render) counts as unchanged, so it does not re-read every render.
+ * changes exactly when one of them does. It is a summary, so it never warns (the fields do).
+ * Each field is re-read only when its raw value, its definition or the field context changes,
+ * so typing into one field does not re-read its siblings.
  */
 export function useStoredFields(definitions: FieldDefinition[]): StoredFields {
   const store = useArgStore();
   const ctx = useFieldContext();
+  const snapshot = useSyncExternalStore(store.subscribe, () => JSON.stringify(definitions.map((d) => store.read(d.id) ?? null)));
 
-  const definitionsRef = useRef(definitions);
-  if (!sameValue(definitionsRef.current, definitions)) definitionsRef.current = definitions;
-  const stable = definitionsRef.current;
-
-  const snapshot = useSyncExternalStore(store.subscribe, () => JSON.stringify(stable.map((d) => store.read(d.id) ?? null)));
-
+  const readingsRef = useRef(new Map<string, FieldReading>());
   const changed = useMemo(() => {
     const raws = JSON.parse(snapshot) as (string | null)[];
-    const ids = new Set<string>();
-    stable.forEach((definition, i) => {
-      const arg = argOf(definition, ctx);
+    const previous = readingsRef.current;
+    const readings = new Map<string, FieldReading>();
+    definitions.forEach((definition, i) => {
       const raw = raws[i];
-      const stored = (raw === null ? undefined : arg.valueType.parse(raw)) ?? arg.default;
-      if (!showsDefault(arg, stored, () => sanitizeStored(definition, stored, ctx))) ids.add(definition.id);
+      const before = previous.get(definition.id);
+      const reading: FieldReading = before !== undefined && before.definition === definition && before.raw === raw && before.ctx === ctx
+        ? before
+        : { definition, raw, ctx, isDefault: readsAsDefault(definition, raw, ctx) };
+      readings.set(definition.id, reading);
     });
-    return ids;
-  }, [snapshot, stable, ctx]);
+    readingsRef.current = readings;
+    return new Set([...readings.values()].filter((r) => !r.isDefault).map((r) => r.definition.id));
+  }, [snapshot, definitions, ctx]);
 
   const isDefault = useCallback(
     (id: string) => {
-      if (!stable.some((d) => d.id === id)) throw new Error(`Field '${id}': not among the fields given to useStoredFields`);
+      if (!definitions.some((d) => d.id === id)) throw new Error(`Field '${id}': not among the fields given to useStoredFields`);
       return !changed.has(id);
     },
-    [stable, changed],
+    [definitions, changed],
   );
   const resetAll = useCallback(
     (method: UpdateMethod = 'replace') => {
-      store.write(stable.map((d) => ({ key: d.id, raw: undefined })), method);
+      store.write(definitions.map((d) => ({ key: d.id, raw: undefined })), method);
     },
-    [store, stable],
+    [store, definitions],
   );
 
   return { isDefault, changedCount: changed.size, resetAll };
