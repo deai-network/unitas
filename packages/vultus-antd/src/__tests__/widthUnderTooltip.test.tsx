@@ -10,6 +10,7 @@ import { Field } from '../Field.js';
 const description = 'What the field does';
 const CASES: [string, FieldDefinition, string][] = [
   ['TextInput', { kind: 'text', id: 'f', label: 'F', description }, 'input'],
+  ['TextInput (textarea)', { kind: 'text', id: 'f', label: 'F', description, control: 'textarea' }, 'input'],
   ['SearchInput', { kind: 'text', id: 'f', label: 'F', description }, 'search'],
   ['ManyOfSelect', { kind: 'manyOf', id: 'f', label: 'F', description, choices: [{ value: 'a' }] }, 'select'],
   ['NumericInput', { kind: 'numeric', id: 'f', label: 'F', description, min: 0, max: 10 }, 'input'],
@@ -28,6 +29,20 @@ describe.each(CASES)('%s with style.width under a tooltip', (name, definition, w
     render(<AntApp><Field<FieldDefinition> definition={definition} widget={widget as never} style={{ width: '100%' }} /></AntApp>);
     expect(outermost().tagName).toBe('SPAN');
     expect(outermost().style.width).toBe('100%');
+  });
+
+  it('a percentage applies once: the span takes it, the control fills the span', () => {
+    render(<AntApp><Field<FieldDefinition> definition={definition} widget={widget as never} style={{ width: '50%' }} /></AntApp>);
+    expect(outermost().style.width).toBe('50%');
+    const control = outermost().firstElementChild as HTMLElement;
+    expect(outermost().children).toHaveLength(1);
+    expect(control.style.width).toBe('100%');
+  });
+
+  it('without a tooltip the control takes the width itself', () => {
+    const plain = { ...definition, description: undefined } as FieldDefinition;
+    render(<AntApp><Field<FieldDefinition> definition={plain} widget={widget as never} style={{ width: '50%' }} /></AntApp>);
+    expect(outermost().style.width).toBe('50%');
   });
 
   if (name.endsWith('Slider')) {

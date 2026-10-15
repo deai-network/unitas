@@ -1,12 +1,13 @@
 import { Tooltip, type TooltipProps } from 'antd';
-import type { CSSProperties, ReactElement, ReactNode } from 'react';
+import { cloneElement, Fragment, type CSSProperties, type ReactElement, type ReactNode } from 'react';
 
 /**
  * Optional tooltip settings: where it opens, `open: false` to hold it back,
  * `block` to anchor it on the whole width (e.g. a list row) rather than on
  * the control alone, `width` for a control given a width (the widget's
- * `style.width`, e.g. `'100%'`: the span takes it, so the control can fill
- * it, and the tooltip stays anchored on the control), and `flex` for a
+ * `style.width`, e.g. `'100%'`: the span takes it and the control fills the
+ * span — its own `style.width` becomes `'100%'`, so a percentage applies
+ * once — and the tooltip stays anchored on the control), and `flex` for a
  * control that is itself a flex box (a row of a switch and its label): the
  * span is one too, so the row sits as an unwrapped one does, without the
  * line box an inline-block span adds under it.
@@ -31,6 +32,11 @@ export function withTooltip(
   title: ReactNode | undefined, disabled: boolean, control: ReactElement, options?: TooltipOptions,
 ): ReactElement {
   if (!title) return control;
+  const filling = options?.width !== undefined && control.type !== Fragment
+    ? cloneElement(control as ReactElement<{ style?: CSSProperties }>, {
+      style: { ...(control.props as { style?: CSSProperties }).style, width: '100%' },
+    })
+    : control;
   return (
     <Tooltip title={title} placement={options?.placement} open={options?.open}>
       <span
@@ -40,7 +46,7 @@ export function withTooltip(
           cursor: disabled ? 'not-allowed' : undefined,
         }}
       >
-        {control}
+        {filling}
       </span>
     </Tooltip>
   );

@@ -51,12 +51,14 @@ export function TextInput({ field, style }: TextInputProps) {
     'data-field-id': field.id,
     'data-value': field.value,
   };
+  // The textarea and its spinner in one element, which a given width (and the tooltip's span) can size: the textarea grows in it.
+  const { width, ...rest } = style ?? {};
   const control: ReactElement = field.control === 'textarea'
     ? (
-      <>
-        <Input.TextArea {...sharedProps} style={{ minWidth: 220, ...style }} />
-        {spinner && <span style={{ marginInlineStart: 8 }}>{spinner}</span>}
-      </>
+      <span style={{ display: width === undefined ? 'inline-flex' : 'flex', alignItems: 'flex-start', gap: 8, width }}>
+        <Input.TextArea {...sharedProps} style={width === undefined ? { minWidth: 220, ...rest } : { minWidth: 220, ...rest, flex: 1 }} />
+        {spinner}
+      </span>
     )
     : (
       <Input
