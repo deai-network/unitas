@@ -53,6 +53,13 @@ export {
   booleanType, stringType, stringSetType, numberType, rangeType, type ValueType,
 } from './valueTypes.js';
 export { initialValueOf, valueTypeOf, sanitizeStored, type FieldDefinition } from './kinds.js';
+export { memoryStore, type ArgStore, type RawChange, type UpdateMethod } from './argStore.js';
+export { localStorageStore } from './localStorageStore.js';
+export { ArgStoreProvider, useArgStore } from './ArgStoreContext.js';
+export {
+  useArg, useArgWriter, setArg, resetArg,
+  type ArgDefinition, type ArgControls, type ArgChange,
+} from './useArg.js';
 export { InternalLinkContext, useInternalLink, type InternalLinkComponent } from './LinkContext.js';
 export { MessageSinkContext, useMessageSink, type MessageSink } from './MessageSink.js';
 export {
