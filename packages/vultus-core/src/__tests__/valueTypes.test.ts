@@ -76,6 +76,11 @@ describe('stringSetType', () => {
     expect(() => stringSetType.format(['a,b'])).toThrow(/contains ','/);
   });
 
+  it('refuses to store an empty item, which would read back as no item', () => {
+    expect(() => stringSetType.format([''])).toThrow("'' is empty and cannot be stored in a list");
+    expect(() => stringSetType.format(['a', ''])).toThrow(/is empty/);
+  });
+
   it('compares as sets', () => {
     expect(stringSetType.isEqual(['a', 'b'], ['b', 'a'])).toBe(true);
     expect(stringSetType.isEqual([], [])).toBe(true);

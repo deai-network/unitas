@@ -287,13 +287,18 @@ describe('sanitizeStored', () => {
       expect(sanitizeStored(years, [1990, 2040], NO_FIELD_CONTEXT)).toEqual([2000, 2030]);
       expect(sanitizeStored(years, [2035, 2040], NO_FIELD_CONTEXT)).toEqual([2030, 2030]);
       expect(warn).toHaveBeenCalledTimes(2);
-      expect(warn).toHaveBeenNthCalledWith(1, "Field 'years': stored range 1990..2040 is outside its bounds or out of order, using 2000..2030");
+      expect(warn).toHaveBeenNthCalledWith(1, "Field 'years': stored range 1990..2040 is outside its bounds, using 2000..2030");
     });
 
-    it('orders the ends, with a warning naming the field', () => {
+    it('orders the ends, silently', () => {
       expect(sanitizeStored(years, [2020, 2010], NO_FIELD_CONTEXT)).toEqual([2010, 2020]);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('clamps and orders, warning for the clamping', () => {
+      expect(sanitizeStored(years, [2040, 1990], NO_FIELD_CONTEXT)).toEqual([2000, 2030]);
       expect(warn).toHaveBeenCalledTimes(1);
-      expect(warn).toHaveBeenCalledWith("Field 'years': stored range 2020..2010 is outside its bounds or out of order, using 2010..2020");
+      expect(warn).toHaveBeenCalledWith("Field 'years': stored range 2040..1990 is outside its bounds, using 2000..2030");
     });
   });
 });

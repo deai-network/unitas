@@ -5,14 +5,14 @@ import { clamp, resolveNumeric } from './numeric.js';
 import { resolveIn } from './resolve.js';
 import { normalizeTreeValue, type TreeNode } from './tree.js';
 import type { ValueOrFn } from './types.js';
-import { boolInitialValue } from './useBoolField.js';
-import { manyOfInitialValue, type ManyOfOwnOptions } from './useManyOfField.js';
-import { mixedBoolInitialValue, type MixedBool } from './useMixedBoolField.js';
-import { numericInitialValue, type NumericOwnOptions } from './useNumericField.js';
-import { oneOfInitialValue, type OneOfOwnOptions } from './useOneOfField.js';
-import { rangeInitialValue, type Range, type RangeOwnOptions } from './useRangeField.js';
-import { textInitialValue, type TextOwnOptions } from './useTextField.js';
-import { treeInitialValue, type TreeOwnOptions } from './useTreeField.js';
+import { boolInitialValue, type useBoolField } from './useBoolField.js';
+import { manyOfInitialValue, type ManyOfOwnOptions, type useManyOfField } from './useManyOfField.js';
+import { mixedBoolInitialValue, type MixedBool, type useMixedBoolField } from './useMixedBoolField.js';
+import { numericInitialValue, type NumericOwnOptions, type useNumericField } from './useNumericField.js';
+import { oneOfInitialValue, type OneOfOwnOptions, type useOneOfField } from './useOneOfField.js';
+import { rangeInitialValue, type Range, type RangeOwnOptions, type useRangeField } from './useRangeField.js';
+import { textInitialValue, type TextOwnOptions, type useTextField } from './useTextField.js';
+import { treeInitialValue, type TreeOwnOptions, type useTreeField } from './useTreeField.js';
 import { booleanType, numberType, rangeType, stringSetType, stringType, type ValueType } from './valueTypes.js';
 
 /**
@@ -37,6 +37,26 @@ export type FieldDefinition<Ctx = any> =
   | Definition<'range', Range, RangeOwnOptions<Ctx>, Ctx>
   | Definition<'tree', string[], TreeOwnOptions<string, Ctx>, Ctx>
   | Definition<'text', string, TextOwnOptions, Ctx>;
+
+/** Compiles only when `A` is assignable to `B`. */
+type Fits<A extends B, B> = A;
+type DefinitionOf<K extends FieldKind> = Extract<FieldDefinition, { kind: K }>;
+type HookOptions<H extends (...args: any[]) => unknown> = Parameters<H>[0];
+
+/**
+ * A compile-time check, the gate for "a definition is its kind's hook options as they are": if a
+ * hook's options and the definition drift apart, `tsc` fails here.
+ */
+type DefinitionsFitTheirHooks = [
+  Fits<DefinitionOf<'boolean'>, HookOptions<typeof useBoolField>>,
+  Fits<DefinitionOf<'mixed-boolean'>, HookOptions<typeof useMixedBoolField>>,
+  Fits<DefinitionOf<'oneOf'>, HookOptions<typeof useOneOfField>>,
+  Fits<DefinitionOf<'manyOf'>, HookOptions<typeof useManyOfField>>,
+  Fits<DefinitionOf<'numeric'>, HookOptions<typeof useNumericField>>,
+  Fits<DefinitionOf<'range'>, HookOptions<typeof useRangeField>>,
+  Fits<DefinitionOf<'tree'>, HookOptions<typeof useTreeField>>,
+  Fits<DefinitionOf<'text'>, HookOptions<typeof useTextField>>,
+];
 
 const NOT_STORABLE = 'a mixed-boolean field is an aggregate of other data and cannot be stored';
 
@@ -107,10 +127,10 @@ function warnDropped(id: string, among: 'choices' | 'nodes', dropped: string[]):
  * A stored value (already parsed by the kind's value type) made fit for the definition as it is
  * now: choices, nodes and bounds follow the data, and an old URL may not. A one-of value that is
  * not a choice becomes the initial value; many-of and tree values that are not choices or nodes
- * are dropped; numbers and ranges are clamped into the bounds, a range ordered. Each change of
- * that sort warns, naming the field: the value came from outside, so it is not an error. Lists
- * come back in choice order or normalized under the tree's selection; since a store keeps them
- * sorted, that reordering is silent.
+ * are dropped; numbers and ranges are clamped into the bounds. Each such change warns, naming
+ * the field: the value came from outside, so it is not an error. Reordering is silent: lists
+ * come back in choice order or normalized under the tree's selection (a store keeps them
+ * sorted, so a warning would come on every read), and a range's ends in order.
  */
 export function sanitizeStored(definition: FieldDefinition, value: unknown, ctx: FieldCtx): unknown {
   const { id } = definition;
@@ -121,8 +141,9 @@ export function sanitizeStored(definition: FieldDefinition, value: unknown, ctx:
     case 'mixed-boolean':
       throw new Error(`Field '${id}': ${NOT_STORABLE}`);
     case 'oneOf': {
-      if (choicesOf(definition, ctx).some((c) => c.value === value)) return value;
-      const fallback = initialValueOf(definition, ctx);
+      const choices = choicesOf(definition, ctx);
+      if (choices.some((c) => c.value === value)) return value;
+      const fallback = oneOfInitialValue(definition, ctx, id, choices);
       if (fallback !== value) console.warn(`Field '${id}': stored value '${value}' is not one of its choices, using '${fallback}'`);
       return fallback;
     }
@@ -152,8 +173,8 @@ export function sanitizeStored(definition: FieldDefinition, value: unknown, ctx:
       const from = clamp(stored[0], min, max);
       const to = clamp(stored[1], min, max);
       const sanitized: Range = [Math.min(from, to), Math.max(from, to)];
-      if (!rangeType.isEqual(sanitized, stored)) {
-        console.warn(`Field '${id}': stored range ${rangeType.format(stored)} is outside its bounds or out of order, using ${rangeType.format(sanitized)}`);
+      if (from !== stored[0] || to !== stored[1]) {
+        console.warn(`Field '${id}': stored range ${rangeType.format(stored)} is outside its bounds, using ${rangeType.format(sanitized)}`);
       }
       return sanitized;
     }

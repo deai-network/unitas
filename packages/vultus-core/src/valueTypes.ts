@@ -33,11 +33,13 @@ function canonicalSet(items: string[]): string[] {
 /**
  * A set of strings as a sorted comma list; the empty string is the empty list (so a list
  * present but empty differs from an absent one). Reading drops empty items. An item containing
- * `,` cannot be stored and throws: that is the definer's mistake, not outside input.
+ * `,`, or an empty one (it would read back as no item), cannot be stored and throws: that is the
+ * definer's mistake, not outside input.
  */
 export const stringSetType: ValueType<string[]> = {
   parse: (raw) => canonicalSet(raw.split(',').filter((item) => item !== '')),
   format: (value) => {
+    if (value.includes('')) throw new Error(`'' is empty and cannot be stored in a list`);
     const bad = value.find((item) => item.includes(','));
     if (bad !== undefined) throw new Error(`'${bad}' contains ',' and cannot be stored in a list`);
     return canonicalSet(value).join(',');
