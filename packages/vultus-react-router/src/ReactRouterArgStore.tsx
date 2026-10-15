@@ -1,7 +1,7 @@
 import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from 'react';
-// The UNSAFE_ contexts (read only for the router's current location, see `now` below) carry no
-// semver promise; their shape was checked against react-router 7.0, 7.18 and 8.4, hence the
-// peer range `>=7 <9`.
+// The UNSAFE_ contexts (read only for the router's current location and a data router's
+// navigation in flight, see `now` below) carry no semver promise; their shape was checked against
+// react-router 7.0, 7.18 and 8.4, hence the peer range `>=7 <9`.
 import {
   UNSAFE_DataRouterContext, UNSAFE_NavigationContext, useHref, useLocation, useNavigate,
   type Location, type NavigateFunction, type Path,
@@ -19,10 +19,19 @@ type Place = Path & { state: unknown };
  * every access, so there `at` never matches an earlier one — which is right for them: their
  * navigations are synchronous (no loaders), so the location read now already includes the store's
  * own last navigation.
+ *
+ * `loading` is a data router's navigation in flight (loading or submitting; the router's location
+ * stays where it was until it completes): where it goes (`to`, `undefined` outside the basename),
+ * and `settled(then)`, which calls `then` once, when the router is idle again.
  */
 interface RouterNow {
   at: object;
   path: Place;
+  loading?: { to: Path | undefined; settled(then: () => void): void };
+}
+
+function samePath(a: Path, b: Path): boolean {
+  return a.pathname === b.pathname && a.search === b.search && a.hash === b.hash;
 }
 
 /** `pathname` without the router's basename, as `<Router>` strips it for `useLocation`; `undefined` when it lies outside the basename. */
@@ -58,7 +67,11 @@ class RouterArgStore implements ArgStore {
     return this.parsed.query.get(key);
   }
 
-  /** Collects the changes of the current tick; a microtask applies them as one navigation, a push if any write asked for one. */
+  /**
+   * Collects the changes of the current tick; a microtask applies them as one navigation, a push if
+   * any write asked for one. While the batch waits for a navigation from outside (see `flush`),
+   * later writes join it.
+   */
   write(changes: RawChange[], method: UpdateMethod): void {
     if (this.batch === undefined) {
       this.batch = { changes: [], push: false };
@@ -91,11 +104,24 @@ class RouterArgStore implements ArgStore {
    * own location, or this store's last navigation while the router has not moved since (a
    * navigation still loading). The path, the hash and every other parameter are kept, and a
    * replace keeps the entry's history state.
+   *
+   * While a navigation that is not this store's own is loading, applying the batch would cancel
+   * it (a navigation interrupts the one in flight), and the router's location does not show it
+   * yet. So the batch waits, collecting the writes made meanwhile, until the router is idle, and
+   * is then applied where the router settled: that navigation's target, wherever a redirect took
+   * it, or where the router stayed if it was cancelled. The flush after it goes in a microtask,
+   * not inside the router's notification, which is still completing the navigation.
    */
   private flush(): void {
+    const now = this.now();
+    const { loading } = now;
+    const own = loading?.to !== undefined && this.navigated !== undefined && samePath(loading.to, this.navigated.to);
+    if (loading !== undefined && !own) {
+      loading.settled(() => queueMicrotask(() => this.flush()));
+      return;
+    }
     const { changes, push } = this.batch!;
     this.batch = undefined;
-    const now = this.now();
     const base = this.navigated !== undefined && this.navigated.from === now.at ? this.navigated.to : now.path;
     const search = applyChanges(base.search, changes);
     if (search === writeQuery(new URLSearchParams(base.search))) return;
@@ -103,7 +129,9 @@ class RouterArgStore implements ArgStore {
     const state = push ? undefined : base.state;
     const to: Path = { pathname: base.pathname, search, hash: base.hash };
     this.navigated = { from: now.at, to: { ...to, state } };
-    void this.navigate(to, { replace: !push, state });
+    // Only the query changes, so the page stays where it was scrolled (<ScrollRestoration> would
+    // scroll to the top otherwise).
+    void this.navigate(to, { replace: !push, state, preventScrollReset: true });
   }
 }
 
@@ -119,7 +147,8 @@ export function ReactRouterArgStore({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
   const pathHref = useHref({ pathname: location.pathname });
   // The router's current location: a data router's state, or the history a <MemoryRouter>,
-  // <BrowserRouter> or <HashRouter> navigates through. Read only when a batch is applied.
+  // <BrowserRouter> or <HashRouter> navigates through; and a data router's navigation in flight.
+  // Read only when a batch is applied.
   const dataRouter = useContext(UNSAFE_DataRouterContext);
   const { navigator, basename } = useContext(UNSAFE_NavigationContext);
   const [store] = useState(() => new RouterArgStore());
@@ -130,9 +159,26 @@ export function ReactRouterArgStore({ children }: { children?: ReactNode }) {
   store.now = () => {
     const at = dataRouter?.router.state.location ?? (navigator as { location?: Location }).location;
     const pathname = at === undefined ? undefined : stripBasename(at.pathname, basename);
-    return at !== undefined && pathname !== undefined
+    const now: RouterNow = at !== undefined && pathname !== undefined
       ? { at, path: { pathname, search: at.search, hash: at.hash, state: at.state } }
       : { at: location, path: location };
+    const router = dataRouter?.router;
+    const navigation = router?.state.navigation;
+    if (router !== undefined && navigation !== undefined && navigation.state !== 'idle') {
+      const target = navigation.location;
+      const targetPathname = stripBasename(target.pathname, basename);
+      now.loading = {
+        to: targetPathname === undefined ? undefined : { pathname: targetPathname, search: target.search, hash: target.hash },
+        settled(then) {
+          const unsubscribe = router.subscribe((state) => {
+            if (state.navigation.state !== 'idle') return;
+            unsubscribe();
+            then();
+          });
+        },
+      };
+    }
+    return now;
   };
 
   useLayoutEffect(() => store.rendered(), [store, location]);

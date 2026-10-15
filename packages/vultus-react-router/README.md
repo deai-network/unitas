@@ -75,15 +75,30 @@ replace. Without this, several writes in one tick would each navigate from
 the same rendered location and all but the last would be lost. A batch is
 applied on top of the router's latest location, not the rendered one, which
 lags while the router's update renders (react-router renders it in a
-transition): a navigation from outside in the same tick is kept, and while
-the store's own previous navigation is still loading, the next batch builds
-on it. A write that changes nothing does not navigate.
+transition), and while the store's own previous navigation is still
+loading, the next batch builds on that navigation's target. A write that
+changes nothing does not navigate.
 
-**Writes next to a navigation.** A batch lands wherever the router is when
-it is applied. So a write made in the same tick as a navigation to another
-path — a handler that sets an argument and then navigates, in either order —
-lands in the new path's query (`/other?rounds=final`), not on the page it was
-made on.
+**Writes next to a navigation.** A batch lands on top of a navigation from
+outside instead of cutting it short. A classic router
+(`<BrowserRouter>`, `<HashRouter>`, ...) navigates at once, so the batch
+simply builds on the new location. A data router (`createBrowserRouter`,
+...) stays where it was while the target's loaders run, and a navigation
+of the store's would cancel the one in flight; so while a navigation that
+is not the store's own is loading or submitting, the batch waits until the
+router is idle again (writes made meanwhile join it) and is then applied
+on the location the router settled on — that navigation's target, wherever
+a redirect took it, or where the router stayed if it was cancelled. So a
+write made in the same tick as a navigation to another path — a handler
+that sets an argument and then navigates, in either order — lands in the
+new path's query (`/other?rounds=final`) once that path has loaded, not on
+the page it was made on.
+
+**Scrolling.** A write changes only the query, so its navigation (push or
+replace) passes `preventScrollReset`: under `<ScrollRestoration>` the page
+stays where it was scrolled instead of jumping to the top. A location with
+a `#hash` still scrolls to that element on every write, as react-router
+scrolls to the hash's element before it looks at `preventScrollReset`.
 
 **A readable query.** Keys and values are percent-encoded, except `,`, `.`
 and `/`, so lists and ranges read as they are: `?rounds=final,regional&years=2010..2025`.

@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import {
-  createHashRouter, createMemoryRouter, createPath, HashRouter, MemoryRouter, Route, RouterProvider, Routes, useNavigate,
-  type InitialEntry, type Location, type NavigateFunction,
+  createHashRouter, createMemoryRouter, createPath, HashRouter, MemoryRouter, redirect, Route, RouterProvider, Routes,
+  ScrollRestoration, useNavigate,
+  type InitialEntry, type LoaderFunction, type Location, type NavigateFunction, type RouteObject,
 } from 'react-router';
 import {
   setArg, stringSetType, stringType, useArg, useArgWriter,
@@ -30,12 +31,38 @@ function pathOf(location: Pick<Location, 'pathname' | 'search' | 'hash'>): strin
 }
 
 /**
+ * A loader that holds every call until `open()`, and answers later calls at once. `requests`
+ * lists the Request of every call: an aborted navigation's request has an aborted signal.
+ */
+function gate() {
+  const held: (() => void)[] = [];
+  const requests: Request[] = [];
+  let opened = false;
+  const loader: LoaderFunction = ({ request }) => {
+    requests.push(request);
+    if (opened) return null;
+    return new Promise<null>((resolve) => {
+      held.push(() => resolve(null));
+    });
+  };
+  const open = () => {
+    opened = true;
+    held.splice(0).forEach((release) => release());
+  };
+  return { loader, requests, open };
+}
+
+/**
  * A memory router whose `/m` route renders the store around a probe. The probe is a static
  * element, so a location change re-renders it only through the store's notification.
  * `navigations` lists every location the router moved to, as `'PUSH /m?…'` / `'REPLACE /m?…'`.
- * A `loader` makes every navigation to `/m` wait for it (the first render does not).
+ * A `loader` makes every navigation to `/m` wait for it (the first render does not); `routes`
+ * are added beside `/m` and `/start`; `scrollRestoration` renders a `<ScrollRestoration>` in `/m`.
  */
-function setup(entries: InitialEntry[], { loader }: { loader?: () => Promise<null> } = {}) {
+function setup(
+  entries: InitialEntry[],
+  { loader, routes = [], scrollRestoration = false }: { loader?: LoaderFunction; routes?: RouteObject[]; scrollRestoration?: boolean } = {},
+) {
   const seen = {} as Seen;
   function Probe() {
     seen.rounds = useArg(rounds);
@@ -46,8 +73,19 @@ function setup(entries: InitialEntry[], { loader }: { loader?: () => Promise<nul
   }
   const router = createMemoryRouter(
     [
-      { id: 'm', path: '/m', loader, element: <ReactRouterArgStore><Probe /></ReactRouterArgStore> },
+      {
+        id: 'm',
+        path: '/m',
+        loader,
+        element: (
+          <>
+            {scrollRestoration && <ScrollRestoration />}
+            <ReactRouterArgStore><Probe /></ReactRouterArgStore>
+          </>
+        ),
+      },
       { path: '/start', element: null },
+      ...routes,
     ],
     { initialEntries: entries, initialIndex: entries.length - 1, hydrationData: { loaderData: { m: null } } },
   );
@@ -172,10 +210,7 @@ describe('ReactRouterArgStore: writing', () => {
   });
 
   it('a batch builds on the store\'s own navigation while that navigation is still loading', async () => {
-    let finishLoading = () => {};
-    const loader = () => new Promise<null>((resolve) => {
-      finishLoading = () => resolve(null);
-    });
+    const { loader, requests, open } = gate();
     const { seen, router, url } = setup(['/m?rounds=final,regional&q=x'], { loader });
     await act(async () => {
       seen.q.set('y');
@@ -186,8 +221,11 @@ describe('ReactRouterArgStore: writing', () => {
     await act(async () => {
       seen.rounds.set(['regional']);
     });
+    // The second navigation takes the place of the first, which the router aborts.
+    expect(requests).toHaveLength(2);
+    expect(requests[0].signal.aborted).toBe(true);
     await act(async () => {
-      finishLoading();
+      open();
     });
     expect(url()).toBe('/m?rounds=regional&q=y');
     expect(screen.getByTestId('value').textContent).toBe('regional|y');
@@ -272,6 +310,119 @@ describe('ReactRouterArgStore: writing', () => {
       seen.store.write([], 'push');
     });
     expect(navigations).toEqual([]);
+  });
+});
+
+describe('ReactRouterArgStore: next to a navigation from outside that is loading', () => {
+  it('a write, then a navigation to another path in the same tick: the navigation completes, the batch lands on top', async () => {
+    const other = gate();
+    const { seen, router, navigations, url } = setup(['/m?rounds=final,regional&q=x'], {
+      routes: [{ path: '/other', loader: other.loader, element: null }],
+    });
+    await act(async () => {
+      seen.q.set('y');
+      void router.navigate('/other?k=1');
+    });
+    // The batch waits for the navigation; nothing has cut it short.
+    expect(router.state.navigation.location?.pathname).toBe('/other');
+    expect(other.requests).toHaveLength(1);
+    expect(other.requests[0].signal.aborted).toBe(false);
+    expect(navigations).toEqual([]);
+    await act(async () => {
+      other.open();
+    });
+    await act(() => vi.waitFor(() => expect(router.state.navigation.state).toBe('idle')));
+    expect(navigations).toEqual(['PUSH /other?k=1', 'REPLACE /other?k=1&q=y']);
+    expect(url()).toBe('/other?k=1&q=y');
+  });
+
+  it('a navigation, then a write in the same tick: the navigation completes, the batch lands on top', async () => {
+    const { loader, requests, open } = gate();
+    const { seen, router, navigations, url } = setup(['/m?rounds=final,regional&q=x'], { loader });
+    await act(async () => {
+      void router.navigate('/m?k=1&q=x');
+      seen.rounds.set(['regional']);
+    });
+    expect(router.state.navigation.state).toBe('loading');
+    expect(requests).toHaveLength(1);
+    expect(requests[0].signal.aborted).toBe(false);
+    await act(async () => {
+      open();
+    });
+    await act(() => vi.waitFor(() => expect(router.state.navigation.state).toBe('idle')));
+    expect(navigations).toEqual(['PUSH /m?k=1&q=x', 'REPLACE /m?k=1&q=x&rounds=regional']);
+    expect(url()).toBe('/m?k=1&q=x&rounds=regional');
+    expect(screen.getByTestId('value').textContent).toBe('regional|x');
+  });
+
+  it('writes made while the batch waits join it: one navigation, a push if any asked for one', async () => {
+    const { loader, open } = gate();
+    const { seen, router, navigations, url } = setup(['/m?rounds=final,regional&q=x'], { loader });
+    await act(async () => {
+      seen.q.set('y');
+      void router.navigate('/m?k=1&q=x');
+    });
+    await act(async () => {
+      seen.rounds.set(['regional'], 'push');
+    });
+    expect(navigations).toEqual([]);
+    await act(async () => {
+      open();
+    });
+    await act(() => vi.waitFor(() => expect(router.state.navigation.state).toBe('idle')));
+    expect(navigations).toEqual(['PUSH /m?k=1&q=x', 'PUSH /m?k=1&q=y&rounds=regional']);
+    expect(url()).toBe('/m?k=1&q=y&rounds=regional');
+  });
+
+  it('a navigation that redirects: the batch lands where the router settles', async () => {
+    let release = () => {};
+    const { seen, router, navigations, url } = setup(['/m?q=x'], {
+      routes: [
+        {
+          path: '/old',
+          loader: () => new Promise((resolve) => {
+            release = () => resolve(redirect('/other?from=old'));
+          }),
+          element: null,
+        },
+        { path: '/other', element: null },
+      ],
+    });
+    await act(async () => {
+      void router.navigate('/old');
+      seen.q.set('y');
+    });
+    expect(router.state.navigation.location?.pathname).toBe('/old');
+    await act(async () => {
+      release();
+    });
+    await act(() => vi.waitFor(() => expect(router.state.navigation.state).toBe('idle')));
+    expect(navigations).toEqual(['PUSH /other?from=old', 'REPLACE /other?from=old&q=y']);
+    expect(url()).toBe('/other?from=old&q=y');
+  });
+});
+
+describe('ReactRouterArgStore under <ScrollRestoration>', () => {
+  it('a write, replace or push, keeps the scroll position; a navigation from outside still scrolls to the top', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    try {
+      const { seen, router, url } = setup(['/m?q=x'], { scrollRestoration: true });
+      scrollTo.mockClear();
+      await act(async () => {
+        seen.q.set('y');
+      });
+      await act(async () => {
+        seen.q.set('z', 'push');
+      });
+      expect(url()).toBe('/m?q=z');
+      expect(scrollTo).not.toHaveBeenCalled();
+      await act(async () => {
+        await router.navigate('/m?q=w');
+      });
+      expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    } finally {
+      scrollTo.mockRestore();
+    }
   });
 });
 
