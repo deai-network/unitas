@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { getReason, getVerdict, invertDecision } from './decision.js';
-import { resolve } from './resolve.js';
+import { useFieldContext } from './FieldContext.js';
+import { resolveIn } from './resolve.js';
 import { useAction } from './useAction.js';
 import type {
   ConfirmationSpec,
@@ -32,16 +33,20 @@ export interface FieldCommit<TRequest, RouteId extends string = string> {
 /** The key of a value in `valueDescriptions`: 'true' / 'false' for booleans, the value itself for strings. */
 export type ValueKey<T> = T extends boolean ? `${T}` : T extends string | number ? `${T}` : never;
 
-interface FieldBaseOptions<TValue> {
+/**
+ * What every field has, whatever its storage. `Ctx` is the field context the options' functions
+ * receive (see FieldContextProvider); a function without parameters needs none.
+ */
+export interface FieldBaseOptions<TValue, Ctx = any> {
   id: string;
-  label?: ValueOrFn<string>;
-  description?: ValueOrFn<string | undefined>;
+  label?: ValueOrFn<string, Ctx>;
+  description?: ValueOrFn<string | undefined, Ctx>;
   /** Shown? Default true. Use `visible` or `hidden`, not contradicting each other. */
-  visible?: ValueOrFn<boolean>;
-  hidden?: ValueOrFn<boolean>;
+  visible?: ValueOrFn<boolean, Ctx>;
+  hidden?: ValueOrFn<boolean, Ctx>;
   /** Changeable? Default true, optionally with a reason. Use `enabled` or `disabled`, not contradicting each other. */
-  enabled?: ValueOrFn<Decision>;
-  disabled?: ValueOrFn<Decision>;
+  enabled?: ValueOrFn<Decision, Ctx>;
+  disabled?: ValueOrFn<Decision, Ctx>;
   /**
    * What each value means right now, keyed by value (for booleans `true` / `false`, and `mixed`
    * where the field can show it). Shown with the current value, next to `description`, which
@@ -55,16 +60,16 @@ interface FieldBaseOptions<TValue> {
  * `TValue` and can be asked for a `TRequest`; usually the same type, but an aggregate can show
  * a state that cannot be requested (a boolean field showing 'mixed').
  */
-export type FieldStorage<TValue, TRequest = TValue, RouteId extends string = string> =
-  /** Inside the field: its own state, starting at `initialValue`. */
-  | { initialValue?: TValue; value?: never; onChange?: never; commit?: never }
+export type FieldStorage<TValue, TRequest = TValue, RouteId extends string = string, Ctx = any> =
+  /** Inside the field: its own state, starting at `initialValue` (resolved once, when the field mounts). */
+  | { initialValue?: ValueOrFn<TValue, Ctx>; value?: never; onChange?: never; commit?: never }
   /** Outside, changed locally: the caller owns the value and applies `onChange`. */
   | { value: TValue; onChange: (value: TRequest) => void; initialValue?: never; commit?: never }
   /** Outside, committed immediately: `commit.fire` stores the change (pending, messages, confirmation). */
   | { value: TValue; commit: FieldCommit<TRequest, RouteId>; initialValue?: never; onChange?: never };
 
-export type FieldOptions<TValue, TRequest = TValue, RouteId extends string = string> =
-  FieldBaseOptions<TValue> & FieldStorage<TValue, TRequest, RouteId>;
+export type FieldOptions<TValue, TRequest = TValue, RouteId extends string = string, Ctx = any> =
+  FieldBaseOptions<TValue, Ctx> & FieldStorage<TValue, TRequest, RouteId, Ctx>;
 
 /** What a field widget receives: everything it shows, and the one way to change the value. */
 export interface FieldControls<TValue, TRequest = TValue> {
@@ -122,27 +127,33 @@ export function calculateEnabled(id: string, enabled: Decision | undefined, disa
 /**
  * The shared core of every field hook: label and description, visibility and
  * enabled state (with reason), the storage mode, and in commit mode the setter
- * as an action (its pending state and messages become the field's).
+ * as an action (its pending state and messages become the field's). Functions
+ * among the options are resolved with the field context, on every render;
+ * `initialValue` once, when the field mounts.
  */
-export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId extends string = string>(
+export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId extends string = string, Ctx = any>(
   type: string,
-  opts: FieldOptions<TValue, TRequest, RouteId>,
+  opts: FieldOptions<TValue, TRequest, RouteId, Ctx>,
   registry?: ErrorRoutesRegistry<RouteId>,
 ): FieldControls<TValue, TRequest> {
   const mode = fieldStorageMode(opts.id, opts as FieldStorage<unknown, unknown, string>);
-  const [inner, setInner] = useState<TValue>(opts.initialValue as TValue);
+  const ctx = useFieldContext();
+  const where = (name: string) => `Field '${opts.id}': option '${name}'`;
+  const [inner, setInner] = useState<TValue>(
+    () => resolveIn<TValue | undefined>(opts.initialValue, undefined, ctx, where('initialValue')) as TValue,
+  );
 
-  const label = resolve(opts.label, '');
-  const description = resolve<string | undefined>(opts.description, undefined);
+  const label = resolveIn(opts.label, '', ctx, where('label'));
+  const description = resolveIn<string | undefined>(opts.description, undefined, ctx, where('description'));
   const visible = calculateVisible(
     opts.id,
-    resolve<boolean | undefined>(opts.visible, undefined),
-    resolve<boolean | undefined>(opts.hidden, undefined),
+    resolveIn<boolean | undefined>(opts.visible, undefined, ctx, where('visible')),
+    resolveIn<boolean | undefined>(opts.hidden, undefined, ctx, where('hidden')),
   );
   const enabledDecision = calculateEnabled(
     opts.id,
-    resolve<Decision | undefined>(opts.enabled, undefined),
-    resolve<Decision | undefined>(opts.disabled, undefined),
+    resolveIn<Decision | undefined>(opts.enabled, undefined, ctx, where('enabled')),
+    resolveIn<Decision | undefined>(opts.disabled, undefined, ctx, where('disabled')),
   );
   const enabled = getVerdict(enabledDecision, true);
   const whyDisabled = enabled ? undefined : getReason(enabledDecision);

@@ -4,7 +4,7 @@ import type { ErrorRoutesRegistry } from './types.js';
 /** What a mixed boolean field shows: on, off, or some of its items on and some off. */
 export type MixedBool = boolean | 'mixed';
 
-export type MixedBoolFieldOptions<RouteId extends string = string> = FieldOptions<MixedBool, boolean, RouteId>;
+export type MixedBoolFieldOptions<RouteId extends string = string, Ctx = any> = FieldOptions<MixedBool, boolean, RouteId, Ctx>;
 
 export interface MixedBoolFieldControls extends FieldControls<MixedBool, boolean> {
   /** Request the opposite: off when on, on when off or mixed. Programmatic use, as in BoolFieldControls. */
@@ -18,12 +18,12 @@ export interface MixedBoolFieldControls extends FieldControls<MixedBool, boolean
  * its knob in the middle, BoolCheckbox is indeterminate. Derive the value with
  * `aggregateBool`; with no items at all, disable the field with a reason.
  */
-export function useMixedBoolField<RouteId extends string = string>(
-  opts: MixedBoolFieldOptions<RouteId>,
+export function useMixedBoolField<RouteId extends string = string, Ctx = any>(
+  opts: MixedBoolFieldOptions<RouteId, Ctx>,
   registry?: ErrorRoutesRegistry<RouteId>,
 ): MixedBoolFieldControls {
   const inside = !opts.onChange && !opts.commit;
-  const field = useFieldCore<MixedBool, boolean, RouteId>(
+  const field = useFieldCore<MixedBool, boolean, RouteId, Ctx>(
     'mixed-boolean',
     inside ? { ...opts, initialValue: opts.initialValue ?? false } : opts,
     registry,

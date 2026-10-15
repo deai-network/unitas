@@ -1,7 +1,7 @@
 import { useFieldCore, type FieldControls, type FieldOptions } from './field.js';
 import type { ErrorRoutesRegistry } from './types.js';
 
-export type BoolFieldOptions<RouteId extends string = string> = FieldOptions<boolean, boolean, RouteId>;
+export type BoolFieldOptions<RouteId extends string = string, Ctx = any> = FieldOptions<boolean, boolean, RouteId, Ctx>;
 
 export interface BoolFieldControls extends FieldControls<boolean, boolean> {
   /**
@@ -16,12 +16,12 @@ export interface BoolFieldControls extends FieldControls<boolean, boolean> {
  * vultus-antd's BoolCheckbox and BoolSwitch, which take the same controls.
  * Inside the field the value starts at `initialValue` (default false).
  */
-export function useBoolField<RouteId extends string = string>(
-  opts: BoolFieldOptions<RouteId>,
+export function useBoolField<RouteId extends string = string, Ctx = any>(
+  opts: BoolFieldOptions<RouteId, Ctx>,
   registry?: ErrorRoutesRegistry<RouteId>,
 ): BoolFieldControls {
   const inside = !opts.onChange && !opts.commit;
-  const field = useFieldCore<boolean, boolean, RouteId>(
+  const field = useFieldCore<boolean, boolean, RouteId, Ctx>(
     'boolean',
     inside ? { ...opts, initialValue: opts.initialValue ?? false } : opts,
     registry,

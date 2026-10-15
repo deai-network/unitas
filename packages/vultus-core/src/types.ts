@@ -10,7 +10,12 @@ export interface FormLike {
 }
 
 export type Decision = boolean | { verdict: boolean; reason?: string };
-export type ValueOrFn<T> = T | (() => T);
+/**
+ * A value, or a function giving it. A field resolves a function that declares a parameter with
+ * its field context (the nearest FieldContextProvider's value); a function without parameters,
+ * and every function in an action, is called with nothing.
+ */
+export type ValueOrFn<T, Ctx = any> = T | ((ctx: Ctx) => T);
 
 export type Severity = 'info' | 'warning' | 'error';
 
