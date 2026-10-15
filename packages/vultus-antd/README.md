@@ -186,8 +186,8 @@ names its two handles to assistive tech after the field's label, with `VultusPro
 `useNumericRequest` (exported, for a custom numeric widget) is `useFieldRequest` with `===`
 equality: a request naming the field's current number is a no-op (e.g. a second Enter before the
 first commit lands). No single choice names a number, so its confirmation's OK is labelled with
-the field itself, as a many-of or tree request's is; a one-of request's OK is labelled with the
-chosen choice instead (`useOneOfRequest`).
+the field itself, as a many-of or tree request's is; the one-of widgets label theirs with the
+chosen choice instead.
 
 ## Tree fields
 
@@ -251,7 +251,9 @@ itself, so a value that is stored later than the keystroke — an app's asynchro
 store that renders later — neither moves the caret nor loses a character typed meanwhile. The
 draft follows the field's value whenever it changes other than through the widget's own requests
 (a change from outside, a committed value), not when the value is one of its own live requests
-landing late.
+landing late. So in live mode the input keeps showing what was typed: if the app's own `onChange`
+rejects or filters a change, the rejected text stays visible until the next accepted change (a
+URL or memory store, which keep every change, are unaffected).
 
 `SearchInput` clears on Escape in every mode — resets the draft and requests `''` at once, not
 waiting for a blur or Enter — and, for a committing field, on its clear button too (antd's
@@ -275,9 +277,9 @@ confirmation is open, the widget holds back its own tooltips, which would cover 
 
 A widget that takes `style` (the inputs, selects, sliders and `TreePicker`) keeps a
 `style.width` — `'100%'` to fill a form column — also when its field has a tooltip: the span the
-tooltip sits on takes the width, so the control fills it and the tooltip stays on the control. A
-slider's width goes to its body (with `showValue`, the value and the slider), in which the slider
-grows.
+tooltip sits on takes the width and the control fills the span (so a percentage applies once),
+and the tooltip stays on the control. A slider's width goes to its body (with `showValue`, the
+value and the slider), in which the slider grows; a textarea's likewise, beside its spinner.
 
 `VultusTexts` (`VultusProvider texts`) also carries `done` (TreePicker's drawer, closing it),
 `search` (a tree widget's search box placeholder), `joiningWords` (TreePicker's first-words
