@@ -24,21 +24,25 @@ import { ReasonMarkdown } from './ReasonMarkdown.js';
 /**
  * Puts a tooltip on a control. antd's disabled controls set
  * `pointer-events: none`, which swallows hover, so the control sits in a span
- * that receives it. Without a title the control is returned as is. A function,
- * not a component: a Popconfirm around the result must get the control (or
- * the Tooltip) itself as its child to attach its click.
+ * that receives it. Without a title the Tooltip and the span are there all
+ * the same, the tooltip never opening: a tooltip that comes and goes with the
+ * value (a value with a description and one without) must not change the
+ * element tree around the control, or React would remount it and the
+ * keyboard focus would drop. A function, not a component: a Popconfirm
+ * around the result must get the Tooltip itself as its child to attach its
+ * click.
  */
 export function withTooltip(
   title: ReactNode | undefined, disabled: boolean, control: ReactElement, options?: TooltipOptions,
 ): ReactElement {
-  if (!title) return control;
+  const shown = !!title;
   const filling = options?.width !== undefined && control.type !== Fragment
     ? cloneElement(control as ReactElement<{ style?: CSSProperties }>, {
       style: { ...(control.props as { style?: CSSProperties }).style, width: '100%' },
     })
     : control;
   return (
-    <Tooltip title={title} placement={options?.placement} open={options?.open}>
+    <Tooltip title={shown ? title : undefined} placement={options?.placement} open={shown ? options?.open : false}>
       <span
         style={{
           display: options?.flex ? (options.block ? 'flex' : 'inline-flex') : options?.block ? 'block' : 'inline-block',
@@ -53,6 +57,8 @@ export function withTooltip(
 }
 
 /** A disabled control's reason (markdown) as its tooltip. */
-export function withReason(reason: string | undefined, disabled: boolean, control: ReactElement): ReactElement {
-  return withTooltip(reason ? <ReasonMarkdown>{reason}</ReasonMarkdown> : undefined, disabled, control);
+export function withReason(
+  reason: string | undefined, disabled: boolean, control: ReactElement, options?: TooltipOptions,
+): ReactElement {
+  return withTooltip(reason ? <ReasonMarkdown>{reason}</ReasonMarkdown> : undefined, disabled, control, options);
 }

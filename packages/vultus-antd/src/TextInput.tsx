@@ -52,12 +52,12 @@ export function TextInput({ field, style }: TextInputProps) {
     'data-field-id': field.id,
     'data-value': field.value,
   };
-  // The textarea and its spinner in one element, which a given width (and the tooltip's span) can size: the textarea grows in it.
+  // The textarea and its spinner in one row, which a given width (and the tooltip's span) can size: the textarea grows in it.
   const { width, ...rest } = style ?? {};
   const control: ReactElement = field.control === 'textarea'
     ? (
-      <span style={{ display: width === undefined ? 'inline-flex' : 'flex', alignItems: 'flex-start', gap: 8, width }}>
-        <Input.TextArea {...sharedProps} style={width === undefined ? { minWidth: 220, ...rest } : { minWidth: 220, ...rest, flex: 1 }} />
+      <span style={{ display: 'flex', alignItems: 'flex-start', gap: 8, width }}>
+        <Input.TextArea {...sharedProps} style={{ minWidth: 220, ...rest, flex: 1 }} />
         {spinner}
       </span>
     )
@@ -73,8 +73,10 @@ export function TextInput({ field, style }: TextInputProps) {
         style={{ minWidth: 200, ...style }}
       />
     );
+  // Without a width, antd's Input fills its container: so does the tooltip's span (always there, see withTooltip).
   return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, control, {
     open: asking ? false : undefined,
     width: style?.width,
+    block: style?.width === undefined,
   }));
 }

@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { App as AntApp } from 'antd';
 import { denyWithReason, useBoolField, useMixedBoolField, type MixedBool } from 'vultus-core';
 import { BoolCheckbox } from '../BoolCheckbox.js';
 import { BoolSwitch } from '../BoolSwitch.js';
 import { VultusProvider } from '../VultusProvider.js';
+import { openTooltips } from './helpers/tooltips.js';
 
 const descriptions = {
   true: 'All entities are on autopilot.',
@@ -85,12 +86,15 @@ describe('tooltip', () => {
     expect(tip.textContent).not.toContain('Click to enable all');
   });
 
-  it('a plain boolean field without texts has no tooltip', () => {
+  it('a plain boolean field without texts has no tooltip', async () => {
     function Plain() {
       const field = useBoolField({ id: 'p', label: 'Plain' });
       return <BoolSwitch field={field} />;
     }
     wrap(<Plain />);
-    expect(screen.getByRole('switch').closest('span[style]')).toBeNull();
+    // The tooltip's span is there all the same (see withTooltip); hovering it opens nothing.
+    fireEvent.mouseEnter(screen.getByRole('switch').closest('span[style]')!);
+    await act(() => new Promise((resolve) => { setTimeout(resolve, 300); }));
+    expect(openTooltips()).toHaveLength(0);
   });
 });

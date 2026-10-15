@@ -278,10 +278,14 @@ by an info sign, so the two never read as one text; "Current state:" has no sign
 sign is gray, not the danger colour: a disabled thing is no danger. While a widget's
 confirmation is open, the widget holds back its own tooltips, which would cover it.
 
-A widget that takes `style` (the inputs, selects, sliders and `ManyOfTreePicker`) keeps a
-`style.width` — `'100%'` to fill a form column — also when its field has a tooltip: the span the
-tooltip sits on takes the width and the control fills the span (so a percentage applies once),
-and the tooltip stays on the control. A slider's width goes to its body (with `showValue`, the
+A control sits in its tooltip's span whether or not it has a tooltip right now (one that comes and
+goes with the value — a value with a description and one without — would otherwise remount the
+control, and the keyboard focus would drop); without a title the tooltip never opens. A widget
+that takes `style` (the inputs, selects, sliders and `ManyOfTreePicker`) keeps a `style.width` —
+`'100%'` to fill a form column: the span takes the width and the control fills the span (so a
+percentage applies once), and the tooltip stays on the control. Without a width, `TextInput` and
+`SearchInput` fill their container, as antd's Input does (their span is a block), and a `block`
+`ActionButton`'s span is a block too. A slider's width goes to its body (with `showValue`, the
 value and the slider), in which the slider grows; a textarea's likewise, beside its spinner.
 
 `VultusTexts` (`VultusProvider texts`) also carries `done` (ManyOfTreePicker's drawer, closing it),

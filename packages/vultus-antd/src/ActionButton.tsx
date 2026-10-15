@@ -112,7 +112,8 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
     const title = action.reason
       ? <>{action.label}<div style={{ marginTop: 6 }}><ReasonMarkdown>{action.reason}</ReasonMarkdown></div></>
       : action.label;
-    return wrap(withTooltip(title, action.disabled, button, { open: asking ? false : undefined }));
+    return wrap(withTooltip(title, action.disabled, button, { open: asking ? false : undefined, block }));
   }
-  return wrap(withReason(action.reason, action.disabled, button));
+  // A block button's wrapper (always there, see withTooltip) is a block too, so the button fills the row.
+  return wrap(withReason(action.reason, action.disabled, button, { block }));
 }

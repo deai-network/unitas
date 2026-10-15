@@ -54,6 +54,7 @@ export function SearchInput({ field, onEnter, style }: SearchInputProps) {
   const spinner = field.pending
     ? (Spinner ? <Spinner spinnerKey={spinnerKey} size="small" /> : <Spin size="small" />)
     : null;
+  // Without a width, antd's Input fills its container: so does the tooltip's span (always there, see withTooltip).
   return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, (
     <Input
       value={value}
@@ -76,7 +77,7 @@ export function SearchInput({ field, onEnter, style }: SearchInputProps) {
       data-value={field.value}
       style={{ minWidth: 200, ...style }}
     />
-  ), { open: asking ? false : undefined, width: style?.width }));
+  ), { open: asking ? false : undefined, width: style?.width, block: style?.width === undefined }));
 }
 
 // antd's SearchOutlined, inlined (as InfoCircleIcon/StopIcon in fieldTooltip.tsx) so

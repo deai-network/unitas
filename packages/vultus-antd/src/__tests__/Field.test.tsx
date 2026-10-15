@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { App as AntApp } from 'antd';
 import { useState, type ReactNode } from 'react';
 import {
@@ -556,10 +556,12 @@ describe('item: the description shows once, behind the label\'s info sign', () =
     expect(tip.querySelector('[data-tooltip-part="description"]')).toBeNull();
   });
 
-  it('with nothing else to say, the control has no tooltip of its own', () => {
+  it('with nothing else to say, the control\'s own tooltip does not open', async () => {
     const { valueDescriptions: _states, ...plain } = DUPLEX as FieldDefinition & { valueDescriptions?: unknown };
     wrap(<Field item definition={plain as FieldDefinition} />);
-    expect(screen.getByRole('switch').closest('span[style*="inline-block"]')).toBeNull();
+    fireEvent.mouseEnter(screen.getByRole('switch').closest('span[style]')!);
+    await act(() => new Promise((resolve) => { setTimeout(resolve, 300); }));
+    expect(openTooltips()).toHaveLength(0);
   });
 
   it('a segment\'s tooltip drops the field\'s description and keeps the choice\'s', async () => {

@@ -39,10 +39,12 @@ describe.each(CASES)('%s with style.width under a tooltip', (name, definition, w
     expect(control.style.width).toBe('100%');
   });
 
-  it('without a tooltip the control takes the width itself', () => {
+  it('without a tooltip the same: the span (there all the same, see withTooltip) takes the width, the control fills it', () => {
     const plain = { ...definition, description: undefined } as FieldDefinition;
     render(<AntApp><Field<FieldDefinition> definition={plain} widget={widget as never} style={{ width: '50%' }} /></AntApp>);
+    expect(outermost().tagName).toBe('SPAN');
     expect(outermost().style.width).toBe('50%');
+    expect((outermost().firstElementChild as HTMLElement).style.width).toBe('100%');
   });
 
   if (name.endsWith('Slider')) {
@@ -73,4 +75,24 @@ describe.each(CASES)('%s with style.width under a tooltip', (name, definition, w
       expect(body.style.width).toBe('');
     });
   }
+});
+
+describe('a text widget without a width fills its container, as antd\'s Input does', () => {
+  it.each([
+    ['TextInput', { kind: 'text', id: 'f', label: 'F' }, 'input'],
+    ['TextInput (described)', { kind: 'text', id: 'f', label: 'F', description }, 'input'],
+    ['TextInput (textarea)', { kind: 'text', id: 'f', label: 'F', control: 'textarea' }, 'input'],
+    ['SearchInput', { kind: 'text', id: 'f', label: 'F', description }, 'search'],
+  ] as [string, FieldDefinition, string][])('%s: the tooltip\'s span is a block', (_, definition, widget) => {
+    render(<AntApp><Field<FieldDefinition> definition={definition} widget={widget as never} /></AntApp>);
+    expect(outermost().style.display).toBe('block');
+    expect(outermost().style.width).toBe('');
+  });
+
+  it('the textarea grows in its row beside the spinner', () => {
+    render(<AntApp><Field<FieldDefinition> definition={{ kind: 'text', id: 'f', label: 'F', control: 'textarea' }} /></AntApp>);
+    const row = outermost().firstElementChild as HTMLElement;
+    expect(row.style.display).toBe('flex');
+    expect(row.querySelector<HTMLElement>('textarea')!.style.flexGrow).toBe('1');
+  });
 });
