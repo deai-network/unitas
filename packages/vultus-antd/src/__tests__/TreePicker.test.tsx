@@ -303,6 +303,44 @@ describe('TreePicker: selecting (antd\'s conduction, normalized by the hook)', (
   });
 });
 
+describe('TreePicker: a disabled node in the value (each click toggles the node it was on)', () => {
+  function Picker({ nodes, initialValue, selection }: { nodes: TreeNode[]; initialValue: string[]; selection: TreeSelection }) {
+    const field = useTreeField({ id: 'cats', label: 'Categories', nodes, initialValue, selection });
+    return <><TreePicker field={field} /><output>{field.value.join(',')}</output></>;
+  }
+
+  it('leaves: checking the children of a checked disabled parent one by one keeps the parent', async () => {
+    const nodes: TreeNode[] = [
+      { value: 'D', label: 'Dee', disabled: true, children: [{ value: 'e1', label: 'Eone' }, { value: 'e2', label: 'Etwo' }] },
+      { value: 'X', label: 'Ex' },
+    ];
+    wrap(<Picker nodes={nodes} initialValue={['D']} selection="leaves" />);
+    await pick('Eone');
+    await waitFor(() => expect(shown()).toBe('D,e1'));
+    await pick('Etwo');
+    await waitFor(() => expect(shown()).toBe('D,e1,e2'));
+  });
+
+  it('leaves: checking a parent whose only child is disabled and checked checks the parent', async () => {
+    const nodes: TreeNode[] = [{ value: 'P', label: 'Pee', children: [{ value: 'd', label: 'Dee', disabled: true }] }];
+    wrap(<Picker nodes={nodes} initialValue={['d']} selection="leaves" />);
+    await pick('Pee');
+    await waitFor(() => expect(shown()).toBe('P,d'));
+  });
+
+  it('removing a tag goes the same way: the disabled parent stays', async () => {
+    measureTags();
+    const nodes: TreeNode[] = [
+      { value: 'D', label: 'Dee', disabled: true, children: [{ value: 'e1', label: 'Eone' }, { value: 'e2', label: 'Etwo' }] },
+    ];
+    wrap(<Picker nodes={nodes} initialValue={['D', 'e1', 'e2']} selection="leaves" />);
+    await waitFor(() => expect(tags()).toContain('Eone'));
+    const tag = Array.from(root().querySelectorAll<HTMLElement>('.ant-select-selection-item')).find((t) => t.textContent?.startsWith('Eone'))!;
+    fireEvent.click(tag.querySelector('.ant-select-selection-item-remove')!);
+    await waitFor(() => expect(shown()).toBe('D,e2'));
+  });
+});
+
 describe('TreePicker: search', () => {
   it('accent- and case-insensitive over the labels; keeps a match and its ancestors', async () => {
     wrap(<Inside />);

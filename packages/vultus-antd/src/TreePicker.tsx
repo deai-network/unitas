@@ -1,7 +1,7 @@
 import { Button, Drawer, TreeSelect, type TreeSelectProps } from 'antd';
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
-  normalizeText, normalizeTreeValue, useSpinnerKey, useVultusComponents,
+  normalizeText, normalizeTreeValue, toggleTreeValue, useSpinnerKey, useVultusComponents,
   type TreeFieldControls, type TreeSelection,
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
@@ -82,7 +82,10 @@ function labelMatches(search: string, node: Record<string, unknown>): boolean {
  * labelled values are mapped to and from the field's plain ones). Each change
  * (checking, removing a tag) requests the new list normalized to the field's
  * `selection`, through the field's confirmation (useTreeRequest), so the
- * confirmation sees the list the field would hold. Values naming no node are
+ * confirmation sees the list the field would hold: in the cascading
+ * selections, the field's value with the node clicked (or whose tag was
+ * removed) toggled (toggleTreeValue), not antd's list, which its
+ * showCheckedStrategy cuts (SHOW_CHILD drops a checked disabled parent). Values naming no node are
  * not handed to antd (no tag) and are kept at the end of a request, except
  * clearing's.
  *
@@ -155,10 +158,19 @@ export function TreePicker<T extends string>({
     <TreeSelect
       treeData={data}
       value={strict ? known.map((v) => ({ value: v, label: field.byValue.get(v)!.label })) : known}
-      onChange={(next: (T | { value: T })[]) => {
+      onChange={(next: (T | { value: T })[], _labels, extra) => {
         if (clearing.current) {
           clearing.current = false;
           request([]);
+          return;
+        }
+        // In the cascading selections the click (or a tag's removal) flips the node it was on,
+        // as the hook's toggle does: antd's list is cut by its showCheckedStrategy, which under
+        // SHOW_CHILD drops a checked disabled parent, so it may not cover what the field does.
+        const trigger = extra?.triggerValue as T | { value: T } | undefined;
+        const node = typeof trigger === 'object' && trigger !== null ? trigger.value : trigger;
+        if (!strict && node !== undefined && field.byValue.has(node)) {
+          if (field.byValue.get(node)!.enabled) request(toggleTreeValue(field.nodes, field.value, node, field.selection));
           return;
         }
         const keys = next.map((v) => (typeof v === 'object' ? v.value : v));

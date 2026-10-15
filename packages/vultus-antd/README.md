@@ -212,6 +212,9 @@ first, then its description) while the field is enabled; a disabled field shows 
 the whole control instead. A disabled node cannot be checked. Each change — checking, removing a
 tag, clearing — is requested normalized to the field's `selection` through the field's confirmation
 (`useTreeRequest`, exported for a custom tree widget: set equality, as a many-of field's request).
+`TreePicker` requests, in the cascading selections, the field's value with the clicked node (or the
+removed tag's) toggled (`toggleTreeValue`), not antd's own list, which its `SHOW_CHILD` strategy cuts
+short of a checked disabled parent.
 
 The search box — `TreeChecklist`'s own, always there, and `TreePicker`'s dropdown search, or the
 one in its `panel="drawer"` drawer, which holds a `TreeChecklist` — filters by label, accent- and
