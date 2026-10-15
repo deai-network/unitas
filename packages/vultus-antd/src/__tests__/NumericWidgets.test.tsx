@@ -213,6 +213,41 @@ describe('NumericSlider', () => {
     await waitFor(() => expect(fire).toHaveBeenCalledWith(6));
   });
 
+  it('while the confirmation is asked the handle stays on the requested value; Cancel returns it', async () => {
+    wrap(<SliderCommitted fire={vi.fn()} confirmation={(next) => (next > 5 ? { kind: 'popconfirm', question: 'Go louder?' } : undefined)} />);
+    press('ArrowRight', 39);
+    expect(await screen.findByText('Go louder?')).toBeInTheDocument();
+    expect(handle()).toHaveAttribute('aria-valuenow', '6');
+    expect(shown()).toBe('5');
+    fireEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.includes('Cancel'))!);
+    await waitFor(() => expect(handle()).toHaveAttribute('aria-valuenow', '5'));
+    expect(shown()).toBe('5');
+  });
+
+  it('a committed move: the handle stays on the requested value while the commit runs (no jump back)', async () => {
+    let finish!: () => void;
+    const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    wrap(<SliderCommitted fire={fire} />);
+    press('ArrowRight', 39);
+    await waitFor(() => expect(fire).toHaveBeenCalledWith(6));
+    expect(handle()).toHaveAttribute('aria-valuenow', '6');
+    expect(shown()).toBe('5');
+    await act(async () => { finish(); });
+    expect(handle()).toHaveAttribute('aria-valuenow', '6');
+    expect(shown()).toBe('6');
+  });
+
+  it('a failed commit: the handle returns to the stored value', async () => {
+    let fail!: () => void;
+    const fire = vi.fn(() => new Promise<void>((_resolve, reject) => { fail = () => reject(new Error('refused')); }));
+    wrap(<SliderCommitted fire={fire} />);
+    press('ArrowRight', 39);
+    await waitFor(() => expect(fire).toHaveBeenCalledWith(6));
+    await act(async () => { fail(); });
+    await waitFor(() => expect(handle()).toHaveAttribute('aria-valuenow', '5'));
+    expect(shown()).toBe('5');
+  });
+
   it('disabled: the reason on hover, no change', async () => {
     wrap(<SliderInside enabled={denyWithReason('Muted for this call')} />);
     press('ArrowRight', 39);

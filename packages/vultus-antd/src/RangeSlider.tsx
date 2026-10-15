@@ -3,6 +3,7 @@ import { useState, type CSSProperties, type MouseEvent } from 'react';
 import type { NumberRange, RangeFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
 import { useFieldRequest } from './useFieldRequest.js';
+import { useSliderMove } from './useSliderMove.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
 
@@ -25,30 +26,30 @@ const equalRange = (a: NumberRange, b: NumberRange): boolean => a[0] === b[0] &&
  * end with `field.format`; the rest of the slider (the track) carries the
  * field's own tooltip instead (fieldTooltip, with no "current state": the
  * handles' tooltips already show it), held back while hovering a handle
- * (its own tooltip would double up) or while a confirmation is open.
+ * (its own tooltip would double up) or while a confirmation is open. Per the
+ * owner's slider rule (no jump back to the old value while a request is in
+ * flight — vultus-field-model-design item 26), the moved-to ends stay shown
+ * while the confirmation is open or the commit is pending (useSliderMove,
+ * shared with NumericSlider).
  */
 export function RangeSlider({ field, style, showValue }: Props) {
   const texts = useVultusTexts();
   const { request, wrap, asking } = useFieldRequest<NumberRange>(field, { equal: equalRange });
-  const [moving, setMoving] = useState<NumberRange | null>(null);
+  const move = useSliderMove<NumberRange>({ value: field.value, pending: field.pending, asking, request });
   const [onHandle, setOnHandle] = useState(false);
   if (!field.visible) return null;
-  const settle = (value: NumberRange) => {
-    setMoving(null);
-    request(value);
-  };
   const slider = (
     <Slider
       range
       min={field.min}
       max={field.max}
       step={field.step}
-      value={moving ?? field.value}
+      value={move.value}
       disabled={!field.enabled || field.pending}
-      onChange={(value: number[]) => setMoving(value as NumberRange)}
-      onChangeComplete={(value: number[]) => settle(value as NumberRange)}
+      onChange={(value: number[]) => move.onChange(value as NumberRange)}
+      onChangeComplete={(value: number[]) => move.onChangeComplete(value as NumberRange)}
       tooltip={{ formatter: (value?: number) => (value === undefined ? '' : field.format(value)) }}
-      ariaLabelForHandle={field.label || undefined}
+      ariaLabelForHandle={[`${field.label}, ${texts.from}`, `${field.label}, ${texts.to}`]}
       style={{ minWidth: 160, ...style }}
     />
   );

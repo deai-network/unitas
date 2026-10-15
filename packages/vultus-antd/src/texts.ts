@@ -18,6 +18,10 @@ export interface VultusTexts {
   search: string;
   /** Joins the chosen choices' labels in a many-of field's summary, e.g. "A, B and C"; also filtered out of a free-text search. */
   joiningWords: string[];
+  /** Names a range field's lower-end handle to assistive tech, after its label: "School years, from". */
+  from: string;
+  /** Names a range field's upper-end handle to assistive tech, after its label: "School years, to". */
+  to: string;
 }
 
 export const defaultVultusTexts: VultusTexts = {
@@ -26,6 +30,8 @@ export const defaultVultusTexts: VultusTexts = {
   done: 'Done',
   search: 'Search',
   joiningWords: ['and', 'of', 'the'],
+  from: 'from',
+  to: 'to',
 };
 
 export const VultusTextsContext = createContext<VultusTexts>(defaultVultusTexts);

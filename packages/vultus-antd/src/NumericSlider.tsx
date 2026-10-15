@@ -3,6 +3,7 @@ import { useState, type CSSProperties, type MouseEvent } from 'react';
 import type { NumericFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
 import { useNumericRequest } from './useNumericRequest.js';
+import { useSliderMove } from './useSliderMove.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
 
@@ -24,30 +25,29 @@ interface Props {
  * (fieldTooltip, with no "current state": the handle's tooltip already
  * shows it), held back while hovering the handle (its own tooltip would
  * double up, as a mark's own does on OneOfSlider) or while a confirmation
- * is open.
+ * is open. Per the owner's slider rule (no jump back to the old value while
+ * a request is in flight — vultus-field-model-design item 26), the
+ * moved-to value stays shown while the confirmation is open or the commit
+ * is pending (useSliderMove, shared with RangeSlider).
  */
 export function NumericSlider({ field, style, showValue }: Props) {
   const texts = useVultusTexts();
   const { request, wrap, asking } = useNumericRequest(field);
-  const [moving, setMoving] = useState<number | null>(null);
+  const move = useSliderMove<number>({ value: field.value, pending: field.pending, asking, request });
   const [onHandle, setOnHandle] = useState(false);
   if (field.min === undefined || field.max === undefined) {
     throw new Error(`Field '${field.id}': NumericSlider needs min and max`);
   }
   if (!field.visible) return null;
-  const settle = (value: number) => {
-    setMoving(null);
-    request(value);
-  };
   const slider = (
     <Slider
       min={field.min}
       max={field.max}
       step={field.step}
-      value={moving ?? field.value}
+      value={move.value}
       disabled={!field.enabled || field.pending}
-      onChange={(value: number) => setMoving(value)}
-      onChangeComplete={(value: number) => settle(value)}
+      onChange={move.onChange}
+      onChangeComplete={move.onChangeComplete}
       tooltip={{ formatter: (value?: number) => (value === undefined ? '' : field.format(value)) }}
       ariaLabelForHandle={field.label || undefined}
       style={{ minWidth: 160, ...style }}

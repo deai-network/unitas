@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { App as AntApp } from 'antd';
 import { useState } from 'react';
 import { denyWithReason, useRangeField, type FieldCommit, type NumberRange, type RangeFieldOptions } from 'vultus-core';
@@ -35,12 +35,13 @@ const press = (handle: HTMLElement, key: string, keyCode: number) => {
 };
 
 describe('RangeSlider', () => {
-  it('shows the current value: two handles at the ends', () => {
+  it('shows the current value: two handles at the ends, each with its own accessible name', () => {
     wrap(<Inside />);
     const [from, to] = handles();
     expect(from).toHaveAttribute('aria-valuenow', '2012');
     expect(to).toHaveAttribute('aria-valuenow', '2020');
-    expect(from).toHaveAttribute('aria-label', 'School years');
+    expect(from).toHaveAttribute('aria-label', 'School years, from');
+    expect(to).toHaveAttribute('aria-label', 'School years, to');
   });
 
   it('a completed move (keyup) requests both ends', async () => {
@@ -103,6 +104,45 @@ describe('RangeSlider', () => {
     expect(fire).not.toHaveBeenCalled();
     fireEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.includes('OK'))!);
     await waitFor(() => expect(fire).toHaveBeenCalledWith([2012, 2021]));
+  });
+
+  it('while the confirmation is asked the handle stays on the requested value; Cancel returns it', async () => {
+    wrap(<Committed fire={vi.fn()}
+      confirmation={(next) => (next[1] > 2020 ? { kind: 'popconfirm', question: 'Extend further?' } : undefined)} />);
+    const [, to] = handles();
+    press(to, 'ArrowRight', 39);
+    expect(await screen.findByText('Extend further?')).toBeInTheDocument();
+    expect(to).toHaveAttribute('aria-valuenow', '2021');
+    expect(shown()).toBe('2012,2020');
+    fireEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.includes('Cancel'))!);
+    await waitFor(() => expect(to).toHaveAttribute('aria-valuenow', '2020'));
+    expect(shown()).toBe('2012,2020');
+  });
+
+  it('a committed move: the handles stay on the requested ends while the commit runs (no jump back)', async () => {
+    let finish!: () => void;
+    const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    wrap(<Committed fire={fire} />);
+    const [, to] = handles();
+    press(to, 'ArrowRight', 39);
+    await waitFor(() => expect(fire).toHaveBeenCalledWith([2012, 2021]));
+    expect(to).toHaveAttribute('aria-valuenow', '2021');
+    expect(shown()).toBe('2012,2020');
+    await act(async () => { finish(); });
+    expect(to).toHaveAttribute('aria-valuenow', '2021');
+    expect(shown()).toBe('2012,2021');
+  });
+
+  it('a failed commit: the handle returns to the stored value', async () => {
+    let fail!: () => void;
+    const fire = vi.fn(() => new Promise<void>((_resolve, reject) => { fail = () => reject(new Error('refused')); }));
+    wrap(<Committed fire={fire} />);
+    const [, to] = handles();
+    press(to, 'ArrowRight', 39);
+    await waitFor(() => expect(fire).toHaveBeenCalledWith([2012, 2021]));
+    await act(async () => { fail(); });
+    await waitFor(() => expect(to).toHaveAttribute('aria-valuenow', '2020'));
+    expect(shown()).toBe('2012,2020');
   });
 
   it('disabled: the reason on hover, no change', async () => {
