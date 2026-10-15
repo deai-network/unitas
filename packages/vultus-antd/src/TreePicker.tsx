@@ -209,7 +209,8 @@ export function TreePicker<T extends string>({
         title={field.label || undefined}
         extra={<Button type="primary" onClick={() => setDrawerOpen(false)}>{texts.done}</Button>}
       >
-        <TreeChecklist field={field} />
+        {/* Nested: the select's root alone carries the field's data-field-id and data-value. */}
+        <TreeChecklist field={field} nested />
       </Drawer>
     </>
   );

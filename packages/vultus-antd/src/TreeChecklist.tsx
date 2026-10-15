@@ -14,6 +14,17 @@ export interface TreeChecklistProps<T extends string> {
   field: TreeFieldControls<T>;
 }
 
+/** TreeChecklist's props for vultus-antd's own widgets only: not in TreeChecklistProps, not exported. */
+interface InternalTreeChecklistProps {
+  /**
+   * @internal Leaves `data-field-id` and `data-value` off the root: the
+   * checklist is part of another widget of the same field (TreePicker's
+   * drawer), whose own root carries them, so the field's id stays unique in
+   * the document.
+   */
+  nested?: boolean;
+}
+
 /** The values of `nodes` and their descendants, and of those that have children. */
 function collect<T extends string>(nodes: TreeNodeControls<T>[]): { all: Set<T>; parents: T[] } {
   const all = new Set<T>();
@@ -84,7 +95,7 @@ function openOrder<T extends string>(nodes: TreeNodeControls<T>[], open: Set<T>)
  * field's label is the tree's accessible name; a pending commit disables the
  * tree and shows the lent Spinner (or antd's own) next to the search box.
  */
-export function TreeChecklist<T extends string>({ field }: TreeChecklistProps<T>) {
+export function TreeChecklist<T extends string>({ field, nested = false }: TreeChecklistProps<T> & InternalTreeChecklistProps) {
   const texts = useVultusTexts();
   const { request, wrap, asking } = useTreeRequest(field);
   const { Spinner } = useVultusComponents();
@@ -157,8 +168,8 @@ export function TreeChecklist<T extends string>({ field }: TreeChecklistProps<T>
   const control = field.enabled ? tree : withTooltip(fieldTooltip(field, texts), true, tree, { block: true, open: asking ? false : undefined });
   return wrap(
     <div
-      data-field-id={field.id}
-      data-value={field.value.join(',')}
+      data-field-id={nested ? undefined : field.id}
+      data-value={nested ? undefined : field.value.join(',')}
       onFocusCapture={() => { travel.current = 1; }}
       onKeyDownCapture={(e) => { travel.current = e.key === 'ArrowUp' || e.key === 'End' ? -1 : 1; }}
     >

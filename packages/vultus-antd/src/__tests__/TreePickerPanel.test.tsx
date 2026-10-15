@@ -148,6 +148,19 @@ describe('TreePicker panel="drawer": the drawer', () => {
     expect(within(openDrawer()!).getByPlaceholderText('Search')).toBeInTheDocument();
   });
 
+  it('the field id stays unique: the drawer\'s checklist carries no data-field-id or data-value', async () => {
+    wrap(<Inside panel="drawer" initialValue={['komb']} />);
+    tap(root());
+    await waitFor(() => expect(openDrawer()).not.toBeNull());
+    const carriers = document.querySelectorAll('[data-field-id="cats"]');
+    expect(carriers).toHaveLength(1);
+    expect(carriers[0]).toBe(root());
+    expect(openDrawer()!.querySelector('[data-field-id], [data-value]')).toBeNull();
+    fireEvent.click(within(openDrawer()!).getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(openDrawer()).toBeNull());
+    expect(document.querySelectorAll('[data-field-id="cats"]')).toHaveLength(1);
+  });
+
   it('Done (texts.done, a primary button) closes it', async () => {
     wrap(<Inside panel="drawer" />, { done: 'Kész' });
     tap(root());
