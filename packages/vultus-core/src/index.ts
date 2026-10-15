@@ -43,7 +43,8 @@ export {
 } from './useRangeField.js';
 export {
   normalizeTreeValue, coveredNodes, toggleTreeValue, expandedTreeKeys, filterTree,
-  type TreeNode, type TreeNodeControls, type TreeSelection, type TreeExpand,
+  canChooseNode, choosableValues, treePath,
+  type TreeNode, type TreeNodeControls, type TreeSelection, type TreeExpand, type TreeChoose,
 } from './tree.js';
 export {
   useManyOfTreeField, manyOfTreeInitialValue,

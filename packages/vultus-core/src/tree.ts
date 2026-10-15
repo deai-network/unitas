@@ -5,6 +5,8 @@ import { normalizeText } from './normalizeText.js';
 /** A node of a tree field (Praeceptor's categories): a choice with children. */
 export interface TreeNode<T extends string = string> extends OneOfChoice<T> {
   children?: TreeNode<T>[];
+  /** Whether the one-of tree may choose this node (default true); a folder when false. Ignored by the many-of tree. */
+  choosable?: boolean;
 }
 
 /** A node as the widgets get it: the resolved choice, its children likewise, and whether it shows checked. */
@@ -223,4 +225,36 @@ export function filterTree<N extends { label?: string; value: string; children?:
     return [{ ...node, children: children.length > 0 ? children : undefined }];
   });
   return keep(nodes, false);
+}
+
+/**
+ * Which nodes the one-of tree field may choose: `'any'` node, or only `'leaves'` (a node with
+ * no children).
+ */
+export type TreeChoose = 'any' | 'leaves';
+
+/**
+ * Whether the one-of tree field may choose `node` under `choose` (see TreeChoose): choosable
+ * (its `choosable` is not `false`), enabled (as nodeEnabled resolves it), and, under `'leaves'`,
+ * has no children.
+ */
+export function canChooseNode(node: TreeNode, choose: TreeChoose): boolean {
+  if (node.choosable === false) return false;
+  if (!nodeEnabled(node)) return false;
+  return choose !== 'leaves' || !hasChildren(node);
+}
+
+/** The values canChooseNode accepts, in tree pre-order. */
+export function choosableValues<T extends string>(nodes: TreeNode<T>[], choose: TreeChoose): T[] {
+  const { order } = indexTree(nodes);
+  return order.filter((node) => canChooseNode(node, choose)).map((node) => node.value);
+}
+
+/** The values from the root down to `value` inclusive, in tree order; `[]` when no node has it. */
+export function treePath<T extends string>(nodes: TreeNode<T>[], value: T): T[] {
+  const { order, parent } = indexTree(nodes);
+  if (!order.some((node) => node.value === value)) return [];
+  const path: T[] = [value];
+  for (let up = parent.get(value); up !== undefined; up = parent.get(up)) path.unshift(up);
+  return path;
 }

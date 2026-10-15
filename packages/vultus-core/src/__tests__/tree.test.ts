@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { coveredNodes, filterTree, normalizeTreeValue, toggleTreeValue, type TreeNode } from '../tree.js';
+import {
+  canChooseNode, choosableValues, coveredNodes, filterTree, normalizeTreeValue, toggleTreeValue, treePath, type TreeNode,
+} from '../tree.js';
 
 type Id = 'A' | 'A1' | 'A2' | 'A2a' | 'A2b' | 'B' | 'B1';
 
@@ -267,5 +269,75 @@ describe('filterTree', () => {
   it('does not change the nodes it is given', () => {
     filterTree(TOPICS, 'kombinatorika');
     expect(TOPICS[0].children).toHaveLength(3);
+  });
+});
+
+describe('choosable nodes', () => {
+  // Geometria (folder) > Síkgeometria > Kör, Térgeometria (disabled); Algebra.
+  const geo: TreeNode[] = [
+    {
+      value: 'geo', label: 'Geometria', choosable: false, children: [
+        { value: 'sik', label: 'Síkgeometria', children: [{ value: 'kor', label: 'Kör' }] },
+        { value: 'ter', label: 'Térgeometria', disabled: { verdict: true, reason: 'later' } },
+      ],
+    },
+    { value: 'alg', label: 'Algebra' },
+  ];
+  const byValue = (value: string) => {
+    const find = (nodes: TreeNode[]): TreeNode | undefined => {
+      for (const node of nodes) {
+        if (node.value === value) return node;
+        const found = node.children && find(node.children);
+        if (found) return found;
+      }
+      return undefined;
+    };
+    return find(geo)!;
+  };
+
+  describe('canChooseNode', () => {
+    it('a folder (choosable: false) cannot be chosen, under either choose', () => {
+      expect(canChooseNode(byValue('geo'), 'any')).toBe(false);
+      expect(canChooseNode(byValue('geo'), 'leaves')).toBe(false);
+    });
+
+    it('a node with children can be chosen under \'any\', not under \'leaves\'', () => {
+      expect(canChooseNode(byValue('sik'), 'any')).toBe(true);
+      expect(canChooseNode(byValue('sik'), 'leaves')).toBe(false);
+    });
+
+    it('a disabled node cannot be chosen', () => {
+      expect(canChooseNode(byValue('ter'), 'any')).toBe(false);
+      expect(canChooseNode(byValue('ter'), 'leaves')).toBe(false);
+    });
+
+    it('a leaf can be chosen under either choose', () => {
+      expect(canChooseNode(byValue('kor'), 'any')).toBe(true);
+      expect(canChooseNode(byValue('kor'), 'leaves')).toBe(true);
+    });
+  });
+
+  describe('choosableValues', () => {
+    it('\'any\': every node canChooseNode accepts, in pre-order', () => {
+      expect(choosableValues(geo, 'any')).toEqual(['sik', 'kor', 'alg']);
+    });
+
+    it('\'leaves\': only the leaves, in pre-order', () => {
+      expect(choosableValues(geo, 'leaves')).toEqual(['kor', 'alg']);
+    });
+  });
+
+  describe('treePath', () => {
+    it('a nested value: the values from the root down to it, inclusive', () => {
+      expect(treePath(geo, 'kor')).toEqual(['geo', 'sik', 'kor']);
+    });
+
+    it('a root value: itself alone', () => {
+      expect(treePath(geo, 'alg')).toEqual(['alg']);
+    });
+
+    it('a value naming no node: empty', () => {
+      expect(treePath(geo, 'nope')).toEqual([]);
+    });
   });
 });
