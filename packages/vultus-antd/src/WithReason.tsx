@@ -1,15 +1,22 @@
 import { Tooltip, type TooltipProps } from 'antd';
-import type { ReactElement, ReactNode } from 'react';
+import type { CSSProperties, ReactElement, ReactNode } from 'react';
 
 /**
  * Optional tooltip settings: where it opens, `open: false` to hold it back,
- * and `block` to anchor it on the whole width (e.g. a list row) rather than
- * on the control alone.
+ * `block` to anchor it on the whole width (e.g. a list row) rather than on
+ * the control alone, `width` for a control given a width (the widget's
+ * `style.width`, e.g. `'100%'`: the span takes it, so the control can fill
+ * it, and the tooltip stays anchored on the control), and `flex` for a
+ * control that is itself a flex box (a row of a switch and its label): the
+ * span is one too, so the row sits as an unwrapped one does, without the
+ * line box an inline-block span adds under it.
  */
 export interface TooltipOptions {
   placement?: TooltipProps['placement'];
   open?: boolean;
   block?: boolean;
+  width?: CSSProperties['width'];
+  flex?: boolean;
 }
 import { ReasonMarkdown } from './ReasonMarkdown.js';
 
@@ -26,7 +33,13 @@ export function withTooltip(
   if (!title) return control;
   return (
     <Tooltip title={title} placement={options?.placement} open={options?.open}>
-      <span style={{ display: options?.block ? 'block' : 'inline-block', cursor: disabled ? 'not-allowed' : undefined }}>
+      <span
+        style={{
+          display: options?.flex ? (options.block ? 'flex' : 'inline-flex') : options?.block ? 'block' : 'inline-block',
+          width: options?.width,
+          cursor: disabled ? 'not-allowed' : undefined,
+        }}
+      >
         {control}
       </span>
     </Tooltip>

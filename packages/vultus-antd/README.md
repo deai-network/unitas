@@ -126,7 +126,8 @@ default row; `ManyOfSwitches` also takes `size` (`'small'` | `'middle'`, the swi
 both, an enabled field shows each choice's own tooltip on hover (a disabled choice's reason first,
 then its description — no "Current state:"/"Switch to:" lead, since every choice is already
 shown, selected or not); a disabled field shows its reason for the whole control instead. A
-disabled choice's checkbox or switch (and label) is disabled and requests nothing.
+disabled choice's checkbox or switch (and label, in `token.colorTextDisabled`) is disabled and
+requests nothing.
 
 `ManyOfSelect` shows each selected choice as a tag, collapsing to "+N ..." once they no longer fit
 (`maxTagCount="responsive"`); `allowClear` clears every choice at once. In the open list each

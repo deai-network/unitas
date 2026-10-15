@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
-import { App as AntApp } from 'antd';
+import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
 import {
   denyWithReason, useManyOfField, type FieldCommit, type ManyOfFieldOptions, type OneOfChoice,
@@ -69,10 +69,11 @@ describe.each(['ManyOfCheckboxes', 'ManyOfSwitches'] as Kind[])('%s', (kind) => 
     expect(screen.getByText('Alpha')).toBeInTheDocument();
     expect(screen.getByText('Beta')).toBeInTheDocument();
     expect(screen.getByText('Gamma')).toBeInTheDocument();
-    if (kind === 'ManyOfCheckboxes') {
-      expect(screen.getByText('3')).toBeInTheDocument();
-      expect(screen.getByText('1')).toBeInTheDocument();
-    }
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+    // The note follows its label, in the same row.
+    const row = screen.getByText('Alpha').closest('[data-choice-value], label')!;
+    expect(row.textContent).toBe('Alpha3');
   });
 
   it('click requests the toggled list (added, then removed)', async () => {
@@ -167,6 +168,28 @@ describe.each(['ManyOfCheckboxes', 'ManyOfSwitches'] as Kind[])('%s', (kind) => 
   it('renders nothing when hidden', () => {
     wrap(<Inside kind={kind} hidden />);
     expect(document.querySelector('[data-field-id="tags"]')).toBeNull();
+  });
+});
+
+describe('ManyOfSwitches: disabled choices and rows', () => {
+  function DisabledColorProbe() {
+    const { token } = theme.useToken();
+    return <span data-testid="probe" style={{ color: token.colorTextDisabled }} />;
+  }
+
+  it('a disabled choice\'s label is in the disabled text colour; an enabled one\'s is not', () => {
+    wrap(<><Inside kind="ManyOfSwitches" /><DisabledColorProbe /></>);
+    const disabledColor = screen.getByTestId('probe').style.color;
+    expect(disabledColor).not.toBe('');
+    expect(screen.getByText('Gamma').parentElement!.style.color).toBe(disabledColor);
+    expect(screen.getByText('Alpha').parentElement!.style.color).not.toBe(disabledColor);
+  });
+
+  it('every row is laid out alike, also one wrapped for its tooltip (no baseline gap under a disabled row)', () => {
+    wrap(<Inside kind="ManyOfSwitches" />);
+    const rows = [...root().children] as HTMLElement[];
+    expect(rows).toHaveLength(3);
+    for (const row of rows) expect(row.style.display).toBe('inline-flex');
   });
 });
 

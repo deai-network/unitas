@@ -1,6 +1,7 @@
-import { Spin, Switch } from 'antd';
+import { Spin, Switch, theme } from 'antd';
 import { useSpinnerKey, useVultusComponents, type ManyOfChoiceControls, type ManyOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
+import { ChoiceNote } from './ChoiceNote.js';
 import { choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
 import { useManyOfRequest } from './useManyOfRequest.js';
 import { useVultusTexts } from './texts.js';
@@ -15,11 +16,15 @@ export interface ManyOfSwitchesProps<T extends string> {
 }
 
 /**
- * One choice's switch and its label (ChoiceLabel), both disabled while the
- * choice is and either one toggling it, with its own tooltip (choiceTooltip)
- * while `showTooltip` (the field is enabled). The choice's label is also the
- * switch's accessible name (as BoolSwitch's field label is its own switch's),
- * since the label sits next to it rather than inside it.
+ * One choice's switch, its label (ChoiceLabel) and its note (ChoiceNote), as
+ * ManyOfCheckboxes lays a checkbox's out; the switch and the label are both
+ * disabled while the choice is (the label then in the disabled text colour,
+ * as a disabled checkbox's is) and either one (the label with its note)
+ * toggles it. It has its own
+ * tooltip (choiceTooltip) while `showTooltip` (the field is enabled). The
+ * choice's label is also the switch's accessible name (as BoolSwitch's field
+ * label is its own switch's), since the label sits next to it rather than
+ * inside it.
  */
 function ChoiceSwitch<T extends string>({ choice, size, disabled, showTooltip, asking, onToggle }: {
   choice: ManyOfChoiceControls<T>;
@@ -29,6 +34,7 @@ function ChoiceSwitch<T extends string>({ choice, size, disabled, showTooltip, a
   asking: boolean;
   onToggle: () => void;
 }) {
+  const { token } = theme.useToken();
   return withTooltip(showTooltip ? choiceTooltip(choice) : undefined, !choice.enabled, (
     <span data-choice-value={choice.value} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
       <Switch
@@ -38,11 +44,18 @@ function ChoiceSwitch<T extends string>({ choice, size, disabled, showTooltip, a
         onChange={() => onToggle()}
         aria-label={choice.label}
       />
-      <span onClick={disabled ? undefined : () => onToggle()} style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}>
+      <span
+        onClick={disabled ? undefined : () => onToggle()}
+        style={{
+          display: 'inline-flex', alignItems: 'baseline', gap: 6,
+          cursor: disabled ? 'not-allowed' : 'pointer', color: disabled ? token.colorTextDisabled : undefined,
+        }}
+      >
         <ChoiceLabel choice={choice} />
+        <ChoiceNote note={choice.note} />
       </span>
     </span>
-  ), { open: asking ? false : undefined });
+  ), { open: asking ? false : undefined, flex: true });
 }
 
 /**
