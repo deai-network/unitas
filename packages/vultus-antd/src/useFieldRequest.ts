@@ -23,9 +23,9 @@ export function sameMembers<T>(a: T[], b: T[]): boolean {
 
 /**
  * What requesting a value on a field widget does, shared by useManyOfRequest
- * and useManyOfTreeRequest (set equality) and useNumericRequest (`===`); useOneOfRequest stays apart,
- * since it also tracks the chosen choice's variant for the confirmation's OK
- * button. `equal` decides whether `next` already names the field's current
+ * and useManyOfTreeRequest (set equality), useNumericRequest, useOneOfRequest
+ * and useOneOfTreeRequest (`===`; the one-of hooks label the confirmation's OK
+ * with the chosen choice, `labelsFor`). `equal` decides whether `next` already names the field's current
  * value, in whatever sense that kind of value has (a many-of field's lists
  * are equal regardless of order; a numeric field's numbers by `===`).
  * Nothing while the field is disabled or a commit is pending, while a

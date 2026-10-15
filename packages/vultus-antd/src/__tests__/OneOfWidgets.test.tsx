@@ -115,6 +115,16 @@ describe.each(['OneOfSelect', 'OneOfSegmented'] as Kind[])('%s', (kind) => {
     expect(fire).toHaveBeenCalledWith('plan');
   });
 
+  it("a cascade modal's OK reads the chosen choice's label, from the first request on", async () => {
+    const fire = vi.fn();
+    wrap(<Committed kind={kind} fire={fire} confirmation={() => ({ kind: 'cascade-modal', title: 'Switch the mode?', content: 'Sure?' })} />);
+    await choose(kind, 'Plan');
+    const ok = await screen.findByRole('button', { name: 'Plan' });
+    expect(fire).not.toHaveBeenCalled();
+    await act(async () => { fireEvent.click(ok); });
+    expect(fire).toHaveBeenCalledWith('plan');
+  });
+
   it('while a confirmation is open, the widget holds back its tooltips (they would cover it)', async () => {
     wrap(<Committed kind={kind} fire={vi.fn()}
       confirmation={(next) => (next === 'plan' ? { kind: 'popconfirm', question: 'Switch to Plan?' } : undefined)} />);
@@ -168,12 +178,16 @@ const VARIANT_CHOICES: OneOfChoice<Act>[] = [
 const PRIMARY = { color: 'rgb(22, 119, 255)', fontWeight: '600' };
 const DANGER = { color: 'rgb(255, 77, 79)' };
 
-function Variants({ kind, initial = 'keep', confirmBurn }: { kind: Kind; initial?: Act; confirmBurn?: boolean }) {
+function Variants({ kind, initial = 'keep', confirmBurn, burnModal }: { kind: Kind; initial?: Act; confirmBurn?: boolean; burnModal?: boolean }) {
   const [stored, setStored] = useState<Act>(initial);
   const field = useOneOfField<Act>({
     id: 'act', label: 'Act', choices: VARIANT_CHOICES, value: stored,
     commit: {
-      confirmation: (next) => (confirmBurn && next === 'burn' ? { kind: 'popconfirm', question: 'Burn it?' } : undefined),
+      confirmation: (next) => {
+        if (next !== 'burn') return undefined;
+        if (confirmBurn) return { kind: 'popconfirm', question: 'Burn it?' };
+        return burnModal ? { kind: 'cascade-modal', title: 'Burn it?', content: 'Sure?' } : undefined;
+      },
       fire: (next) => setStored(next),
     },
   });
@@ -209,6 +223,12 @@ describe.each(['OneOfSelect', 'OneOfSegmented'] as Kind[])('%s variants', (kind)
     expect(await screen.findByText('Burn it?')).toBeInTheDocument();
     const ok = screen.getAllByRole('button').find((b) => b.textContent?.includes('OK'))!;
     expect(ok).toHaveClass('ant-btn-dangerous');
+  });
+
+  it("a danger choice's cascade modal: its OK, named after the choice, is a danger button", async () => {
+    wrap(<Variants kind={kind} burnModal />);
+    await choose(kind, 'Burn');
+    expect(await screen.findByRole('button', { name: 'Burn' })).toHaveClass('ant-btn-dangerous');
   });
 });
 
