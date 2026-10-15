@@ -24,7 +24,7 @@ npm install vultus-antd
   - `VultusProvider`, and its texts: `defaultVultusTexts`, `useVultusTexts`,
     `VultusTextsContext` and the `VultusTexts` type;
   - actions: `ActionButton`, `CombinedActionButton`, `FormSubmitButton`, `FormPanel`,
-    `useConfirm` (and the `Confirm` type), `ConfirmTypingModal`;
+    `useConfirm` (and the `Confirm` and `ConfirmLabels` types), `ConfirmTypingModal`;
   - `Markdown` (and the `MarkdownProps` type);
   - field widgets: `BoolSwitch`, `BoolCheckbox`, `OneOfSelect`, `OneOfSegmented`,
     `OneOfSlider`, `ManyOfCheckboxes`, `ManyOfSwitches`, `ManyOfSelect`, `NumericInput`,
@@ -266,9 +266,11 @@ node is chosen (the value empty, or naming no node) it shows `field.placeholder`
 value. `optional` adds a clear button, requesting `''`. `panel="drawer"` is `ManyOfTreePicker`'s
 phone layout for a single choice: the closed field keeps no dropdown of its own; a tap (or Enter
 while focused), except on the clear icon, opens an antd Drawer from the bottom, 88% high, titled
-with the field's label, holding an `OneOfTreeList` of the same field (its search box included);
-choosing a node closes the drawer at once — there is no Done button. `listHeight` and
-`popupMatchSelectWidth` are `ManyOfTreePicker`'s (520, 480).
+with the field's label, holding an `OneOfTreeList` of the same field (its search box included).
+The drawer closes when the field's value changes, whatever changed it: a choice in it closes it
+once the value follows — after a confirmation's OK, once a commit lands (a Cancel keeps it open,
+the value unchanged); choosing the node already current closes it too. There is no Done button.
+`listHeight` and `popupMatchSelectWidth` are `ManyOfTreePicker`'s (520, 480).
 
 `OneOfTreeList` shows the current node selected and its ancestors (`onPath`) in strong text;
 clicking a node that can be chosen requests it and opens it if it has children, while a folder's
