@@ -32,6 +32,10 @@ export {
   useNumericField, numericInitialValue,
   type NumericFieldControls, type NumericFieldOptions, type NumericOwnOptions,
 } from './useNumericField.js';
+export {
+  useRangeField, rangeInitialValue,
+  type Range, type RangeFieldControls, type RangeFieldOptions, type RangeOwnOptions,
+} from './useRangeField.js';
 export { InternalLinkContext, useInternalLink, type InternalLinkComponent } from './LinkContext.js';
 export { MessageSinkContext, useMessageSink, type MessageSink } from './MessageSink.js';
 export {
