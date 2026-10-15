@@ -10,7 +10,7 @@ was re-assessed point by point to arrive here; the brief is not authoritative, t
 Praeceptor's knowledge modules declare their filters and print options as data. The framework
 renders every field with vultus widgets, keeps the filter values in the URL (hash routing with
 react-router 7) and the print options in localStorage. vultus has boolean and one-of fields, as
-hooks. It lacks the other kinds Praeceptor uses (many-of, range, tree, text; numeric comes along),
+hooks. It lacks the other kinds Praeceptor uses (many-of, range, many-of tree, text; numeric comes along),
 a way to hand a list of definitions to one renderer, and storage outside the hook.
 
 ## Prior work, and what is taken from it
@@ -40,7 +40,7 @@ Local copies: superego `~/antd6/prior-work/`.
    chooses the storage. `initialValue` still does not go together with `value` + `onChange` or
    `commit`: when the value lives outside, the storage holds the default (decision 6).
 2. **`kind` takes the values `FieldControls.type` already has** (`'boolean'`, `'mixed-boolean'`,
-   `'oneOf'`) and new ones (`'manyOf'`, `'numeric'`, `'range'`, `'tree'`, `'text'`).
+   `'oneOf'`) and new ones (`'manyOf'`, `'numeric'`, `'range'`, `'manyOfTree'`, `'text'`).
 3. **`initialValue` is the default**: what storage falls back to, what "reset" restores, and
    what "is it set?" compares against. Each kind has an implicit one, exported as
    `initialValueOf(definition, ctx)`.
@@ -77,7 +77,7 @@ type FieldDefinition<Ctx = unknown> =
   | { kind: 'manyOf' } & ManyOfFieldOptions<string, Ctx>
   | { kind: 'numeric' } & NumericFieldOptions<Ctx>
   | { kind: 'range' } & RangeFieldOptions<Ctx>
-  | { kind: 'tree' } & TreeFieldOptions<Ctx>
+  | { kind: 'manyOfTree' } & ManyOfTreeFieldOptions<Ctx>
   | { kind: 'text' } & TextFieldOptions<Ctx>
 ```
 
@@ -129,7 +129,7 @@ module page and `values` and `items` lower down). Loud failures:
 - Implicit initial value: `[min, max]`. A stored value outside the current bounds (bounds follow
   the data, an old URL may not) is shown clamped.
 
-### tree (`useTreeField`, kind `'tree'`)
+### many-of tree (`useManyOfTreeField`, kind `'manyOfTree'`)
 
 - Value: a list of node ids, a set. Nodes are choices with `children`.
 - `selection`: what the value lists:
@@ -167,7 +167,7 @@ kind's meaning, so it is used everywhere a value is compared (moxb's `isDefault`
 |---|---|---|
 | boolean | `1` / `0` | `===` |
 | oneOf, text | the string | `===` |
-| manyOf, tree | sorted comma list; an empty string is the empty list | as sets |
+| manyOf, manyOfTree | sorted comma list; an empty string is the empty list | as sets |
 | numeric | the number | `===` |
 | range | `from..to` | both ends |
 | mixed-boolean | not storable (an aggregate of other data); storing one throws | |
@@ -224,7 +224,7 @@ back to the default, or is dropped from a list, with a console warning, not an e
 | manyOf | `ManyOfCheckboxes` (`checkboxes`, default), `ManyOfSelect` (`select`), `ManyOfSwitches` (`switches`) |
 | numeric | `NumericInput` (`input`, default), `NumericSlider` (`slider`) |
 | range | `RangeSlider` (`slider`, default) |
-| tree | `TreePicker` (`picker`, default), `TreeChecklist` (`checklist`) |
+| tree | `ManyOfTreePicker` (`picker`, default), `ManyOfTreeChecklist` (`checklist`) |
 | text | `TextInput` (`input`, default), `SearchInput` (`search`) |
 
 - **Common behaviour**: the conventions of today's field widgets (tooltips in markdown, a
@@ -239,13 +239,13 @@ back to the default, or is dropped from a list, with a console warning, not an e
   move, when it ends, as `OneOfSlider` does; the shown value follows the drag. Handle tooltips show
   the formatted value; the track shows the field's description. `showValue` puts the formatted
   value next to the slider (moxb's `showNumber`).
-- **TreePicker** (antd TreeSelect): search, as many tags as fit, clear all, notes right-aligned,
+- **ManyOfTreePicker** (antd TreeSelect): search, as many tags as fit, clear all, notes right-aligned,
   a node's description as its tooltip. `panel="drawer"` opens the tree in a panel from the bottom
   instead (search, checkboxes, notes in brackets, Done), the closed field opening the panel on any
   tap but its clear and remove icons. `summary="firstWords"` shows one line of the selections'
   first words ("Osztók, legnagyobb…, Feltételes…") instead of tags. The app decides when (on a
   phone); the joining words trimmed from the end of a first-words cut, "Done" and the drawer's
-  search placeholder are `VultusProvider texts`. **TreeChecklist** is moxb's always-open checkable
+  search placeholder are `VultusProvider texts`. **ManyOfTreeChecklist** is moxb's always-open checkable
   tree, with the same search.
 - **SearchInput**: a search icon, clear button, Esc clears, `onEnter` (a widget prop, not part of
   the definition). **TextInput** renders an Input or a TextArea by `control`.
@@ -298,7 +298,7 @@ actions in field lists).
   1. `ValueOrFn` with the context, `FieldContextProvider`, the loud errors.
   2. `kind`, `FieldDefinition`, `initialValueOf`, `placeholder`, `widget` hint, `note` / `dimmed`,
      `commits`, `normalizeText`.
-  3. The hooks: many-of, numeric, range, tree, text.
+  3. The hooks: many-of, numeric, range, many-of tree, text.
   4. Value types; the argument layer; memory and localStorage stores; `useStoredField(s)`.
 
   Merge, then release vultus-core 0.5.0.
@@ -318,7 +318,7 @@ actions in field lists).
   several changes in one tick making one navigation, other parameters and the path kept; a test
   that it imports no antd.
 - vultus-antd: each widget as today's widget tests do (rendering, tooltips, requests, confirmation,
-  the Spinner slot); `<Field>` precedence and dispatch, unknown names throwing; `TreePicker`'s panel
+  the Spinner slot); `<Field>` precedence and dispatch, unknown names throwing; `ManyOfTreePicker`'s panel
   and summary.
 
 ## Not in this design

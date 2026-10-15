@@ -2,23 +2,23 @@ import { Empty, Input, Spin, Tree } from 'antd';
 import { useMemo, useRef, useState } from 'react';
 import {
   filterTree, normalizeTreeValue, useSpinnerKey, useVultusComponents,
-  type TreeFieldControls, type TreeNodeControls,
+  type ManyOfTreeFieldControls, type TreeNodeControls,
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useVultusTexts } from './texts.js';
 import { treeData, TreeSwitcherIcon } from './treeData.js';
-import { useTreeRequest } from './useTreeRequest.js';
+import { useManyOfTreeRequest } from './useManyOfTreeRequest.js';
 import { withTooltip } from './WithReason.js';
 
-export interface TreeChecklistProps<T extends string> {
-  field: TreeFieldControls<T>;
+export interface ManyOfTreeChecklistProps<T extends string> {
+  field: ManyOfTreeFieldControls<T>;
 }
 
-/** TreeChecklist's props for vultus-antd's own widgets only: not in TreeChecklistProps, not exported. */
-interface InternalTreeChecklistProps {
+/** ManyOfTreeChecklist's props for vultus-antd's own widgets only: not in ManyOfTreeChecklistProps, not exported. */
+interface InternalManyOfTreeChecklistProps {
   /**
    * @internal Leaves `data-field-id` and `data-value` off the root: the
-   * checklist is part of another widget of the same field (TreePicker's
+   * checklist is part of another widget of the same field (ManyOfTreePicker's
    * drawer), whose own root carries them, so the field's id stays unique in
    * the document.
    */
@@ -56,7 +56,7 @@ function openOrder<T extends string>(nodes: TreeNodeControls<T>[], open: Set<T>)
 }
 
 /**
- * A tree field (useTreeField) as moxb's always-open checkable tree: antd's
+ * A many-of tree field (useManyOfTreeField) as moxb's always-open checkable tree: antd's
  * Tree, `checkable`, under a search box. Each node shows its label
  * (ChoiceLabel; dimmed in the description colour) and its note in brackets,
  * "Kombinatorika (4)", with its own tooltip (choiceTooltip: a disabled node's
@@ -91,14 +91,14 @@ function openOrder<T extends string>(nodes: TreeNodeControls<T>[], open: Set<T>)
  *
  * Expansion starts from `field.expandedKeys` (the field's `expand`); the user
  * opens and closes nodes. Every request goes through the field's
- * confirmation (useTreeRequest), during which the tooltips are held back. The
+ * confirmation (useManyOfTreeRequest), during which the tooltips are held back. The
  * field's label is the tree's accessible name; a pending commit disables the
  * tree and shows the lent Spinner (or antd's own) next to the search box.
  */
-export function TreeChecklist<T extends string>({ field, nested = false }: TreeChecklistProps<T> & InternalTreeChecklistProps) {
+export function ManyOfTreeChecklist<T extends string>({ field, nested = false }: ManyOfTreeChecklistProps<T> & InternalManyOfTreeChecklistProps) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
-  const { request, wrap, asking } = useTreeRequest(field);
+  const { request, wrap, asking } = useManyOfTreeRequest(field);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   const [query, setQuery] = useState('');

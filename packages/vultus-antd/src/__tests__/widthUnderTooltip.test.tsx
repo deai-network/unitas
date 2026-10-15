@@ -18,7 +18,7 @@ const CASES: [string, FieldDefinition, string][] = [
   ['RangeSlider', { kind: 'range', id: 'f', label: 'F', description, min: 0, max: 10 }, 'slider'],
   ['OneOfSelect', { kind: 'oneOf', id: 'f', label: 'F', description, choices: [{ value: 'a' }, { value: 'b' }] }, 'select'],
   ['OneOfSlider', { kind: 'oneOf', id: 'f', label: 'F', description, choices: [{ value: 'a' }, { value: 'b' }] }, 'slider'],
-  ['TreePicker', { kind: 'tree', id: 'f', label: 'F', description, nodes: [{ value: 'a' }] }, 'picker'],
+  ['ManyOfTreePicker', { kind: 'manyOfTree', id: 'f', label: 'F', description, nodes: [{ value: 'a' }] }, 'picker'],
 ];
 
 /** The widget's outermost element: with a tooltip, the span the tooltip anchors on. */

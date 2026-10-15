@@ -2,18 +2,18 @@ import { Button, Drawer, TreeSelect, type TreeSelectProps } from 'antd';
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   normalizeText, normalizeTreeValue, toggleTreeValue, useSpinnerKey, useVultusComponents,
-  type TreeFieldControls, type TreeSelection,
+  type ManyOfTreeFieldControls, type TreeSelection,
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { firstWords } from './firstWords.js';
 import { useVultusTexts } from './texts.js';
-import { TreeChecklist } from './TreeChecklist.js';
+import { ManyOfTreeChecklist } from './ManyOfTreeChecklist.js';
 import { treeData, TreeSwitcherIcon } from './treeData.js';
-import { useTreeRequest } from './useTreeRequest.js';
+import { useManyOfTreeRequest } from './useManyOfTreeRequest.js';
 import { withTooltip } from './WithReason.js';
 
-export interface TreePickerProps<T extends string> {
-  field: TreeFieldControls<T>;
+export interface ManyOfTreePickerProps<T extends string> {
+  field: ManyOfTreeFieldControls<T>;
   size?: TreeSelectProps['size'];
   style?: CSSProperties;
   /** How high the open tree grows before it scrolls, in pixels (antd's `listHeight`); default 520, as Taskmaster's. */
@@ -23,7 +23,7 @@ export interface TreePickerProps<T extends string> {
   /**
    * Where the tree opens: `'dropdown'` (default) under the field, with its
    * search; `'drawer'` in a panel from the bottom of the screen instead, for
-   * a phone (Taskmaster's): a TreeChecklist of the field (its search box,
+   * a phone (Taskmaster's): a ManyOfTreeChecklist of the field (its search box,
    * notes in brackets) under the field's label and a Done button
    * (`texts.done`). The app decides when (on a narrow screen).
    */
@@ -62,7 +62,7 @@ function labelMatches(search: string, node: Record<string, unknown>): boolean {
 }
 
 /**
- * A tree field (useTreeField) as antd's TreeSelect, `treeCheckable`: the
+ * A many-of tree field (useManyOfTreeField) as antd's TreeSelect, `treeCheckable`: the
  * desktop form of Taskmaster's category filter. Closed, the field shows the
  * value as tags, by label, as many as fit, the rest collapsing to "+ N ..."
  * (`maxTagCount="responsive"`), or `field.placeholder` while empty;
@@ -81,7 +81,7 @@ function labelMatches(search: string, node: Record<string, unknown>): boolean {
  * SHOW_CHILD); `independent` turns conduction off (`treeCheckStrictly`, whose
  * labelled values are mapped to and from the field's plain ones). Each change
  * (checking, removing a tag) requests the new list normalized to the field's
- * `selection`, through the field's confirmation (useTreeRequest), so the
+ * `selection`, through the field's confirmation (useManyOfTreeRequest), so the
  * confirmation sees the list the field would hold: in the cascading
  * selections, the field's value with the node clicked (or whose tag was
  * removed) toggled (toggleTreeValue), not antd's list, which its
@@ -105,7 +105,7 @@ function labelMatches(search: string, node: Record<string, unknown>): boolean {
  * showing the choice (no dropdown, no search in it); a tap on it (or Enter
  * or Space while it has focus), except on its clear and remove icons, opens
  * an antd Drawer from the bottom, 88% high, titled with the field's
- * label, Done (`texts.done`) closing it, holding a TreeChecklist of the same
+ * label, Done (`texts.done`) closing it, holding a ManyOfTreeChecklist of the same
  * field: its search box, notes in brackets, each check requested at once
  * through the field's confirmation. A disabled or pending field does not open
  * it. `summary="firstWords"` shows no tags but one line: each selected node's
@@ -113,12 +113,12 @@ function labelMatches(search: string, node: Record<string, unknown>): boolean {
  * selected, else 40, never ending on one of `texts.joiningWords`), joined
  * with ", ".
  */
-export function TreePicker<T extends string>({
+export function ManyOfTreePicker<T extends string>({
   field, size, style, listHeight = 520, popupMatchSelectWidth = 480, panel = 'dropdown', summary = 'tags',
-}: TreePickerProps<T>) {
+}: ManyOfTreePickerProps<T>) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
-  const { request, wrap, asking } = useTreeRequest(field);
+  const { request, wrap, asking } = useManyOfTreeRequest(field);
   const [open, setOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { Spinner } = useVultusComponents();
@@ -225,7 +225,7 @@ export function TreePicker<T extends string>({
         extra={<Button type="primary" onClick={() => setDrawerOpen(false)}>{texts.done}</Button>}
       >
         {/* Nested: the select's root alone carries the field's data-field-id and data-value. */}
-        <TreeChecklist field={field} nested />
+        <ManyOfTreeChecklist field={field} nested />
       </Drawer>
     </>
   );

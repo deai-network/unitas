@@ -28,13 +28,13 @@ npm install vultus-antd
   - `Markdown` (and the `MarkdownProps` type);
   - field widgets: `BoolSwitch`, `BoolCheckbox`, `OneOfSelect`, `OneOfSegmented`,
     `OneOfSlider`, `ManyOfCheckboxes`, `ManyOfSwitches`, `ManyOfSelect`, `NumericInput`,
-    `NumericSlider`, `RangeSlider`, `TreeChecklist`, `TreePicker`, `TextInput`, `SearchInput`,
+    `NumericSlider`, `RangeSlider`, `ManyOfTreeChecklist`, `ManyOfTreePicker`, `TextInput`, `SearchInput`,
     and the `ManyOfCheckboxesProps`, `ManyOfSwitchesProps`, `ManyOfSelectProps`,
-    `NumericInputProps`, `NumericSliderProps`, `RangeSliderProps`, `TreeChecklistProps`,
-    `TreePickerProps`, `TextInputProps` and `SearchInputProps` types;
+    `NumericInputProps`, `NumericSliderProps`, `RangeSliderProps`, `ManyOfTreeChecklistProps`,
+    `ManyOfTreePickerProps`, `TextInputProps` and `SearchInputProps` types;
   - for a widget of one's own: `ChoiceLabel`, `ChoiceNote`, and the request hooks
     `useFieldRequest` (with `sameMembers` and the `RequestableField` type),
-    `useManyOfRequest`, `useNumericRequest`, `useTreeRequest`;
+    `useManyOfRequest`, `useNumericRequest`, `useManyOfTreeRequest`;
   - `FieldWidget`, `Field`, and the `FieldWidgetProps`, `WidgetNameOf`, `WidgetHintOf` and
     `FieldProps` types.
 - `./markdown` — `Markdown` and the `MarkdownProps` type, standalone.
@@ -189,10 +189,10 @@ first commit lands). No single choice names a number, so its confirmation's OK i
 the field itself, as a many-of or tree request's is; the one-of widgets label theirs with the
 chosen choice instead.
 
-## Tree fields
+## Many-of tree fields
 
-`<TreePicker field={f} />` (antd TreeSelect) and `<TreeChecklist field={f} />` (moxb's always-open
-checkable tree) render a `useTreeField` field (vultus-core): the desktop filter and the always-open
+`<ManyOfTreePicker field={f} />` (antd TreeSelect) and `<ManyOfTreeChecklist field={f} />` (moxb's always-open
+checkable tree) render a `useManyOfTreeField` field (vultus-core): the desktop filter and the always-open
 list, both over the same checking rules.
 
 Checking uses antd's own conduction: a checked node checks its whole subtree, and a node all of
@@ -200,24 +200,24 @@ whose children are checked shows checked; `selection: 'independent'` turns that 
 (`treeCheckStrictly` / `checkStrictly`), checking every node on its own. antd's conduction does not
 cascade into a disabled node: a checked parent does not show a disabled child as checked, and a
 parent whose *enabled* children are all checked shows checked regardless of a disabled one. The
-hook follows the same rule (vultus-core's `useTreeField`, `normalizeTreeValue` and `coveredNodes`;
+hook follows the same rule (vultus-core's `useManyOfTreeField`, `normalizeTreeValue` and `coveredNodes`;
 see its README), so the widgets and the field's value agree: with Térgeometria disabled, checking
 Síkgeometria checks Geometria, the value is `['geometria']` under `'topmost'`, and `coveredNodes`
 leaves Térgeometria out.
 
 Each node shows its label (ChoiceLabel: in `token.colorTextDescription` while `dimmed`) and its
-note (ChoiceNote: right-aligned across the row in `TreePicker`'s dropdown, in brackets after the
-label in `TreeChecklist` — "Kombinatorika (4)"), with its own tooltip (a disabled node's reason
+note (ChoiceNote: right-aligned across the row in `ManyOfTreePicker`'s dropdown, in brackets after the
+label in `ManyOfTreeChecklist` — "Kombinatorika (4)"), with its own tooltip (a disabled node's reason
 first, then its description) while the field is enabled; a disabled field shows its reason over
 the whole control instead. A disabled node cannot be checked. Each change — checking, removing a
 tag, clearing — is requested normalized to the field's `selection` through the field's confirmation
-(`useTreeRequest`, exported for a custom tree widget: set equality, as a many-of field's request).
-`TreePicker` requests, in the cascading selections, the field's value with the clicked node (or the
+(`useManyOfTreeRequest`, exported for a custom tree widget: set equality, as a many-of field's request).
+`ManyOfTreePicker` requests, in the cascading selections, the field's value with the clicked node (or the
 removed tag's) toggled (`toggleTreeValue`), not antd's own list, which its `SHOW_CHILD` strategy cuts
 short of a checked disabled parent.
 
-The search box — `TreeChecklist`'s own, always there, and `TreePicker`'s dropdown search, or the
-one in its `panel="drawer"` drawer, which holds a `TreeChecklist` — filters by label, accent- and
+The search box — `ManyOfTreeChecklist`'s own, always there, and `ManyOfTreePicker`'s dropdown search, or the
+one in its `panel="drawer"` drawer, which holds a `ManyOfTreeChecklist` — filters by label, accent- and
 case-insensitive (`normalizeText`), keeping a match with its whole subtree and its ancestors, every
 kept node open while searching (the user may still close one; a change to the query opens them all
 again). The other nodes are only hidden, not removed, so checking while searching still conducts
@@ -225,12 +225,12 @@ over the whole tree, and the keyboard skips them. Clearing the search brings bac
 from before. The search box's placeholder is `VultusProvider texts`' `search`; no many-of widget
 has a search box of its own today (`ManyOfSelect`'s is antd's own, unlabelled one).
 
-`TreePicker` closed shows the value as tags, by label, as many as fit, the rest collapsing to
+`ManyOfTreePicker` closed shows the value as tags, by label, as many as fit, the rest collapsing to
 "+N ..." (`maxTagCount="responsive"`), or `field.placeholder` while empty; `allowClear` clears
 everything at once. `panel="drawer"` opens the tree in a panel from the bottom of the screen
 instead, for a phone (Taskmaster's): the closed field keeps no dropdown or search of its own: a tap
 on it (or Enter or Space while it has focus), except on its clear and remove icons, opens an antd
-Drawer, 88% high, titled with the field's label, holding a `TreeChecklist` of the same field (its
+Drawer, 88% high, titled with the field's label, holding a `ManyOfTreeChecklist` of the same field (its
 search box, notes in brackets) and a "Done" button (`VultusProvider texts`' `done`) that closes it.
 The app decides when to switch to it (e.g. on a narrow screen); a disabled or pending field does
 not open it. `summary="firstWords"` shows no tags but one line, each selected node's first words
@@ -278,15 +278,15 @@ by an info sign, so the two never read as one text; "Current state:" has no sign
 sign is gray, not the danger colour: a disabled thing is no danger. While a widget's
 confirmation is open, the widget holds back its own tooltips, which would cover it.
 
-A widget that takes `style` (the inputs, selects, sliders and `TreePicker`) keeps a
+A widget that takes `style` (the inputs, selects, sliders and `ManyOfTreePicker`) keeps a
 `style.width` — `'100%'` to fill a form column — also when its field has a tooltip: the span the
 tooltip sits on takes the width and the control fills the span (so a percentage applies once),
 and the tooltip stays on the control. A slider's width goes to its body (with `showValue`, the
 value and the slider), in which the slider grows; a textarea's likewise, beside its spinner.
 
-`VultusTexts` (`VultusProvider texts`) also carries `done` (TreePicker's drawer, closing it),
-`search` (a tree widget's search box placeholder), `joiningWords` (TreePicker's first-words
-summary), and `from` / `to` (RangeSlider's handle names) — see Tree fields and Numeric and range
+`VultusTexts` (`VultusProvider texts`) also carries `done` (ManyOfTreePicker's drawer, closing it),
+`search` (a tree widget's search box placeholder), `joiningWords` (ManyOfTreePicker's first-words
+summary), and `from` / `to` (RangeSlider's handle names) — see Many-of tree fields and Numeric and range
 fields, above.
 
 ## `<Field>`
@@ -310,7 +310,7 @@ both, rather than leaving the other half's meaning from the definition in force.
 
 **The widget** is picked the same way: the render-site `widget` prop, else the definition's
 `widget` hint, else the kind's default (boolean and mixed-boolean `switch`, oneOf `select`, manyOf
-`checkboxes`, numeric `input`, range `slider`, tree `picker`, text `input`) — each a name, or
+`checkboxes`, numeric `input`, range `slider`, manyOfTree `picker`, text `input`) — each a name, or
 `{ name, ...displayOptions }` (`widget: { name: 'segmented', iconOnly: true }`). Names are general
 UI terms, so vultus-core stays free of antd. An unknown kind or widget name throws.
 

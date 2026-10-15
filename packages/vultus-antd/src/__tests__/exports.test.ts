@@ -6,7 +6,7 @@ describe('vultus-antd exports', () => {
     expect(typeof vultusAntd.useFieldRequest).toBe('function');
     expect(typeof vultusAntd.useManyOfRequest).toBe('function');
     expect(typeof vultusAntd.useNumericRequest).toBe('function');
-    expect(typeof vultusAntd.useTreeRequest).toBe('function');
+    expect(typeof vultusAntd.useManyOfTreeRequest).toBe('function');
     expect(vultusAntd.sameMembers(['a', 'b', 'a'], ['b', 'a'])).toBe(true);
     expect(vultusAntd.sameMembers(['a'], ['a', 'b'])).toBe(false);
   });

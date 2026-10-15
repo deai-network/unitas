@@ -12,7 +12,7 @@ import { numericInitialValue, type NumericOwnOptions, type useNumericField } fro
 import { oneOfInitialValue, type OneOfOwnOptions, type useOneOfField } from './useOneOfField.js';
 import { rangeInitialValue, type NumberRange, type RangeOwnOptions, type useRangeField } from './useRangeField.js';
 import { textInitialValue, type TextOwnOptions, type useTextField } from './useTextField.js';
-import { treeInitialValue, type TreeOwnOptions, type useTreeField } from './useTreeField.js';
+import { manyOfTreeInitialValue, type ManyOfTreeOwnOptions, type useManyOfTreeField } from './useManyOfTreeField.js';
 import { booleanType, numberType, rangeType, stringSetType, stringType, type ValueType } from './valueTypes.js';
 
 /**
@@ -35,7 +35,7 @@ export type FieldDefinition<Ctx = any> =
   | Definition<'manyOf', string[], ManyOfOwnOptions<string, Ctx>, Ctx>
   | Definition<'numeric', number, NumericOwnOptions<Ctx>, Ctx>
   | Definition<'range', NumberRange, RangeOwnOptions<Ctx>, Ctx>
-  | Definition<'tree', string[], TreeOwnOptions<string, Ctx>, Ctx>
+  | Definition<'manyOfTree', string[], ManyOfTreeOwnOptions<string, Ctx>, Ctx>
   | Definition<'text', string, TextOwnOptions, Ctx>;
 
 type DefinitionOf<K extends FieldKind> = Extract<FieldDefinition, { kind: K }>;
@@ -52,7 +52,7 @@ type DefinitionsFitTheirHooks = [
   Fits<DefinitionOf<'manyOf'>, HookOptions<typeof useManyOfField>>,
   Fits<DefinitionOf<'numeric'>, HookOptions<typeof useNumericField>>,
   Fits<DefinitionOf<'range'>, HookOptions<typeof useRangeField>>,
-  Fits<DefinitionOf<'tree'>, HookOptions<typeof useTreeField>>,
+  Fits<DefinitionOf<'manyOfTree'>, HookOptions<typeof useManyOfTreeField>>,
   Fits<DefinitionOf<'text'>, HookOptions<typeof useTextField>>,
 ];
 
@@ -79,7 +79,7 @@ function nodeValues(nodes: TreeNode[], into = new Set<string>()): Set<string> {
   return into;
 }
 
-/** A tree definition's nodes, resolved as useTreeField resolves them. */
+/** A tree definition's nodes, resolved as useManyOfTreeField resolves them. */
 function nodesOf(definition: { id: string; nodes: ValueOrFn<TreeNode[]> }, ctx: FieldCtx): TreeNode[] {
   return resolveIn<TreeNode[]>(definition.nodes, [], ctx, `Field '${definition.id}': option 'nodes'`);
 }
@@ -101,8 +101,8 @@ export function initialValueOf(definition: FieldDefinition, ctx: FieldCtx): unkn
     case 'manyOf': return manyOfInitialValue(definition, ctx, id);
     case 'numeric': return numericInitialValue(definition, ctx, id);
     case 'range': return rangeInitialValue(definition, ctx, id);
-    case 'tree':
-      return normalizeTreeValue(nodesOf(definition, ctx), treeInitialValue(definition, ctx, id), definition.selection ?? 'topmost');
+    case 'manyOfTree':
+      return normalizeTreeValue(nodesOf(definition, ctx), manyOfTreeInitialValue(definition, ctx, id), definition.selection ?? 'topmost');
     case 'text': return textInitialValue(definition, ctx, id);
     default: return unknownKind(definition);
   }
@@ -115,7 +115,7 @@ export function valueTypeOf(kind: FieldKind): ValueType<any> {
     case 'oneOf':
     case 'text': return stringType;
     case 'manyOf':
-    case 'tree': return stringSetType;
+    case 'manyOfTree': return stringSetType;
     case 'numeric': return numberType;
     case 'range': return rangeType;
     case 'mixed-boolean': throw new Error(NOT_STORABLE);
@@ -169,7 +169,7 @@ export function sanitizeStored(
       warnDropped(id, 'choices', stored.filter((v) => !known.includes(v)), warn);
       return known.filter((v) => stored.includes(v));
     }
-    case 'tree': {
+    case 'manyOfTree': {
       const stored = value as string[];
       const nodes = nodesOf(definition, ctx);
       const known = nodeValues(nodes);

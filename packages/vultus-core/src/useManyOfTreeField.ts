@@ -8,7 +8,7 @@ import {
 } from './tree.js';
 import type { ErrorRoutesRegistry, ValueOrFn } from './types.js';
 
-export type TreeOwnOptions<T extends string = string, Ctx = any> = {
+export type ManyOfTreeOwnOptions<T extends string = string, Ctx = any> = {
   /** The roots, each with its children; static or derived (a function, of the field context if it declares a parameter). */
   nodes: ValueOrFn<TreeNode<T>[], Ctx>;
   /** What the value lists; default `'topmost'` (see TreeSelection). */
@@ -17,10 +17,10 @@ export type TreeOwnOptions<T extends string = string, Ctx = any> = {
   expand?: TreeExpand;
 };
 
-export type TreeFieldOptions<T extends string = string, RouteId extends string = string, Ctx = any> =
-  FieldOptions<T[], T[], RouteId, Ctx> & TreeOwnOptions<T, Ctx>;
+export type ManyOfTreeFieldOptions<T extends string = string, RouteId extends string = string, Ctx = any> =
+  FieldOptions<T[], T[], RouteId, Ctx> & ManyOfTreeOwnOptions<T, Ctx>;
 
-export interface TreeFieldControls<T extends string = string> extends FieldControls<T[], T[]> {
+export interface ManyOfTreeFieldControls<T extends string = string> extends FieldControls<T[], T[]> {
   /** The roots as the widgets get them, each with its children. */
   nodes: TreeNodeControls<T>[];
   selection: TreeSelection;
@@ -32,8 +32,8 @@ export interface TreeFieldControls<T extends string = string> extends FieldContr
   toggle(value: T): void;
 }
 
-/** The implicit initial value for a tree field: `initialValue` resolved, else the empty list. */
-export function treeInitialValue<T extends string>(
+/** The implicit initial value for a many-of tree field: `initialValue` resolved, else the empty list. */
+export function manyOfTreeInitialValue<T extends string>(
   opts: { initialValue?: ValueOrFn<T[]> },
   ctx: FieldCtx,
   id: string,
@@ -55,17 +55,17 @@ function sameList<T>(a: T[], b: T[]): boolean {
  * disabled nodes (the widgets disable them); `toggle` refuses a disabled or unknown node with
  * a warning, as useManyOfField does.
  */
-export function useTreeField<T extends string = string, RouteId extends string = string, Ctx = any>(
-  opts: TreeFieldOptions<T, RouteId, Ctx>,
+export function useManyOfTreeField<T extends string = string, RouteId extends string = string, Ctx = any>(
+  opts: ManyOfTreeFieldOptions<T, RouteId, Ctx>,
   registry?: ErrorRoutesRegistry<RouteId>,
-): TreeFieldControls<T> {
+): ManyOfTreeFieldControls<T> {
   const ctx = useFieldContext();
   const nodes = resolveIn<TreeNode<T>[]>(opts.nodes, [], ctx, `Field '${opts.id}': option 'nodes'`);
   const selection = opts.selection ?? 'topmost';
 
   const inside = !opts.onChange && !opts.commit;
-  const initialValue = () => treeInitialValue<T>(opts, ctx, opts.id);
-  const field = useFieldCore<T[], T[], RouteId, Ctx>('tree', inside ? { ...opts, initialValue } : opts, registry);
+  const initialValue = () => manyOfTreeInitialValue<T>(opts, ctx, opts.id);
+  const field = useFieldCore<T[], T[], RouteId, Ctx>('manyOfTree', inside ? { ...opts, initialValue } : opts, registry);
 
   // The same list object while it is already normalized, so the value is stable across renders.
   const normalized = normalizeTreeValue(nodes, field.value, selection);

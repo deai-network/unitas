@@ -44,7 +44,7 @@ export const TASK_FILTERS: FieldDefinition[] = [
   { kind: 'text', id: 'q', label: 'Search', placeholder: 'Words in the task', widget: 'search' },
   { kind: 'oneOf', id: 'grade', label: 'Grade', description: 'The grade the tasks were set for.', choices: GRADES, widget: 'segmented' },
   { kind: 'manyOf', id: 'rounds', label: 'Rounds', description: 'None checked: every round.', choices: ROUNDS },
-  { kind: 'tree', id: 'categories', label: 'Categories', description: 'Tasks filed under these categories.', nodes: CATEGORIES, placeholder: 'All categories' },
+  { kind: 'manyOfTree', id: 'categories', label: 'Categories', description: 'Tasks filed under these categories.', nodes: CATEGORIES, placeholder: 'All categories' },
   {
     kind: 'range', id: 'years', label: 'School years', min: 2010, max: 2025, format: schoolYear,
     widget: { name: 'slider', showValue: true, style: { width: 380 } },

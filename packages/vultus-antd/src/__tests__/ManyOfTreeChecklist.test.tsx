@@ -3,9 +3,9 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
 import {
-  denyWithReason, useTreeField, type FieldCommit, type TreeFieldOptions, type TreeNode, type TreeSelection,
+  denyWithReason, useManyOfTreeField, type FieldCommit, type ManyOfTreeFieldOptions, type TreeNode, type TreeSelection,
 } from 'vultus-core';
-import { TreeChecklist } from '../TreeChecklist.js';
+import { ManyOfTreeChecklist } from '../ManyOfTreeChecklist.js';
 import { openTooltips } from './helpers/tooltips.js';
 
 type Cat = 'alg' | 'egy' | 'egyl' | 'ossz' | 'komb' | 'graf' | 'lesz' | 'geo';
@@ -23,11 +23,11 @@ const NODES: TreeNode<Cat>[] = [
   { value: 'geo', label: 'Geometria', note: '9', description: 'Plane geometry', enabled: denyWithReason('Not in this contest') },
 ];
 
-type InsideOpts = Partial<Omit<TreeFieldOptions<Cat>, 'value' | 'onChange' | 'commit'>>;
+type InsideOpts = Partial<Omit<ManyOfTreeFieldOptions<Cat>, 'value' | 'onChange' | 'commit'>>;
 
 function Inside(opts: InsideOpts) {
-  const field = useTreeField<Cat>({ id: 'cats', label: 'Categories', nodes: NODES, ...opts } as TreeFieldOptions<Cat>);
-  return <><TreeChecklist field={field} /><output>{field.value.join(',')}</output></>;
+  const field = useManyOfTreeField<Cat>({ id: 'cats', label: 'Categories', nodes: NODES, ...opts } as ManyOfTreeFieldOptions<Cat>);
+  return <><ManyOfTreeChecklist field={field} /><output>{field.value.join(',')}</output></>;
 }
 
 function Committed({ fire, confirmation, initial = [], selection }: {
@@ -37,11 +37,11 @@ function Committed({ fire, confirmation, initial = [], selection }: {
   selection?: TreeSelection;
 }) {
   const [stored, setStored] = useState<Cat[]>(initial);
-  const field = useTreeField<Cat>({
+  const field = useManyOfTreeField<Cat>({
     id: 'cats', label: 'Categories', nodes: NODES, selection, value: stored,
     commit: { confirmation, fire: async (next) => { await fire(next); setStored(next); } },
   });
-  return <><TreeChecklist field={field} /><output>{field.value.join(',')}</output></>;
+  return <><ManyOfTreeChecklist field={field} /><output>{field.value.join(',')}</output></>;
 }
 
 /** A reference span painted with colorTextDescription, so tests compare against the live theme. */
@@ -71,15 +71,15 @@ async function settled() {
 
 afterEach(() => { vi.restoreAllMocks(); });
 
-describe('TreeChecklist: disabled nodes, as antd and the hook both conduct', () => {
+describe('ManyOfTreeChecklist: disabled nodes, as antd and the hook both conduct', () => {
   type Geo = 'geometria' | 'sik' | 'ter';
   function Geometria() {
-    const field = useTreeField<Geo>({
+    const field = useManyOfTreeField<Geo>({
       id: 'cats', label: 'Categories',
       nodes: [{ value: 'geometria', label: 'Geometria', children: [{ value: 'sik', label: 'Síkgeometria' }, { value: 'ter', label: 'Térgeometria', disabled: true }] }],
     });
     const covered = [...field.byValue.values()].filter((n) => n.checked).map((n) => n.value);
-    return <><TreeChecklist field={field} /><output>{field.value.join(',')}</output><span data-testid="covered">{covered.join(',')}</span></>;
+    return <><ManyOfTreeChecklist field={field} /><output>{field.value.join(',')}</output><span data-testid="covered">{covered.join(',')}</span></>;
   }
 
   it('checking the only enabled child checks the parent; the hook\'s checked nodes are the ones the tree shows checked', async () => {
@@ -94,11 +94,11 @@ describe('TreeChecklist: disabled nodes, as antd and the hook both conduct', () 
 
   it('checking a parent keeps its checked disabled child checked (topmost names it beside the parent)', async () => {
     function Kept() {
-      const field = useTreeField<Geo>({
+      const field = useManyOfTreeField<Geo>({
         id: 'cats', label: 'Categories', initialValue: ['ter'],
         nodes: [{ value: 'geometria', label: 'Geometria', children: [{ value: 'sik', label: 'Síkgeometria' }, { value: 'ter', label: 'Térgeometria', disabled: true }] }],
       });
-      return <><TreeChecklist field={field} /><output>{field.value.join(',')}</output></>;
+      return <><ManyOfTreeChecklist field={field} /><output>{field.value.join(',')}</output></>;
     }
     wrap(<Kept />);
     expect(checkbox('Térgeometria')).toHaveAttribute('aria-checked', 'true');
@@ -109,7 +109,7 @@ describe('TreeChecklist: disabled nodes, as antd and the hook both conduct', () 
   });
 });
 
-describe('TreeChecklist: rendering', () => {
+describe('ManyOfTreeChecklist: rendering', () => {
   it('renders the tree open at the top, each node with its note in brackets after the label', () => {
     wrap(<><Inside /><DescriptionColorProbe /></>);
     expect(row('Algebra')).toBeInTheDocument();
@@ -166,7 +166,7 @@ describe('TreeChecklist: rendering', () => {
   });
 });
 
-describe('TreeChecklist: checking (antd\'s conduction, normalized by the hook)', () => {
+describe('ManyOfTreeChecklist: checking (antd\'s conduction, normalized by the hook)', () => {
   it('a checked parent shows its children checked', () => {
     wrap(<Inside initialValue={['alg']} />);
     expect(checkbox('Algebra')).toHaveAttribute('aria-checked', 'true');
@@ -229,7 +229,7 @@ describe('TreeChecklist: checking (antd\'s conduction, normalized by the hook)',
   });
 });
 
-describe('TreeChecklist: search', () => {
+describe('ManyOfTreeChecklist: search', () => {
   it('keeps a match and its ancestors, accent- and case-insensitive', () => {
     wrap(<Inside />);
     search('OSSZEG');
@@ -316,7 +316,7 @@ function activeRow(): HTMLElement | null {
 const press = (key: string) => fireEvent.keyDown(screen.getByRole('tree'), { key });
 const focusTree = () => act(() => { screen.getByRole('tree').focus(); });
 
-describe('TreeChecklist: keyboard while searching (never onto a hidden node)', () => {
+describe('ManyOfTreeChecklist: keyboard while searching (never onto a hidden node)', () => {
   it('focus activates the first shown node, and Space checks it (not a hidden one)', async () => {
     wrap(<Inside />);
     search('kombinatorika');
@@ -361,18 +361,18 @@ describe('TreeChecklist: keyboard while searching (never onto a hidden node)', (
   });
 });
 
-describe('TreeChecklist: animation', () => {
+describe('ManyOfTreeChecklist: animation', () => {
   it('a re-render of its own while a node opens does not cut the opening short', async () => {
     wrap(<Inside expand="none" />);
     fireEvent.click(row('Algebra')!.querySelector<HTMLElement>('.ant-tree-switcher')!);
     await waitFor(() => expect(document.querySelector('.ant-tree-treenode-motion')).not.toBeNull());
-    focusTree(); // activates the first node: TreeChecklist re-renders, the field unchanged
+    focusTree(); // activates the first node: ManyOfTreeChecklist re-renders, the field unchanged
     await waitFor(() => expect(activeRow()?.textContent).toMatch(/^Algebra/));
     expect(document.querySelector('.ant-tree-treenode-motion')).not.toBeNull();
   });
 });
 
-describe('TreeChecklist: field conventions', () => {
+describe('ManyOfTreeChecklist: field conventions', () => {
   it('confirmation for the requested value: asks first, commits on OK', async () => {
     const fire = vi.fn();
     wrap(<Committed fire={fire} confirmation={() => ({ kind: 'popconfirm', question: 'Change categories?' })} />);

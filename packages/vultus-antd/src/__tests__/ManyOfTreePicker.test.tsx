@@ -3,9 +3,9 @@ import { render, screen, fireEvent, waitFor, act, within } from '@testing-librar
 import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
 import {
-  denyWithReason, useTreeField, type FieldCommit, type SpinnerProps, type TreeFieldOptions, type TreeNode, type TreeSelection,
+  denyWithReason, useManyOfTreeField, type FieldCommit, type SpinnerProps, type ManyOfTreeFieldOptions, type TreeNode, type TreeSelection,
 } from 'vultus-core';
-import { TreePicker } from '../TreePicker.js';
+import { ManyOfTreePicker } from '../ManyOfTreePicker.js';
 import { VultusProvider } from '../VultusProvider.js';
 import { measureTags, stopMeasuring } from './helpers/measureTags.js';
 import { openTooltips } from './helpers/tooltips.js';
@@ -25,16 +25,16 @@ const NODES: TreeNode<Cat>[] = [
   { value: 'geo', label: 'Geometria', note: '9', description: 'Plane geometry', enabled: denyWithReason('Not in this contest') },
 ];
 
-type InsideOpts = Partial<Omit<TreeFieldOptions<Cat>, 'value' | 'onChange' | 'commit'>> & {
+type InsideOpts = Partial<Omit<ManyOfTreeFieldOptions<Cat>, 'value' | 'onChange' | 'commit'>> & {
   listHeight?: number;
   popupMatchSelectWidth?: boolean | number;
 };
 
 function Inside({ listHeight, popupMatchSelectWidth, ...opts }: InsideOpts) {
-  const field = useTreeField<Cat>({ id: 'cats', label: 'Categories', nodes: NODES, ...opts } as TreeFieldOptions<Cat>);
+  const field = useManyOfTreeField<Cat>({ id: 'cats', label: 'Categories', nodes: NODES, ...opts } as ManyOfTreeFieldOptions<Cat>);
   return (
     <>
-      <TreePicker field={field} listHeight={listHeight} popupMatchSelectWidth={popupMatchSelectWidth} />
+      <ManyOfTreePicker field={field} listHeight={listHeight} popupMatchSelectWidth={popupMatchSelectWidth} />
       <output>{field.value.join(',')}</output>
     </>
   );
@@ -47,11 +47,11 @@ function Committed({ fire, confirmation, initial = [], selection }: {
   selection?: TreeSelection;
 }) {
   const [stored, setStored] = useState<Cat[]>(initial);
-  const field = useTreeField<Cat>({
+  const field = useManyOfTreeField<Cat>({
     id: 'cats', label: 'Categories', description: 'Which categories to show', nodes: NODES, selection, value: stored,
     commit: { confirmation, fire: async (next) => { await fire(next); setStored(next); } },
   });
-  return <><TreePicker field={field} /><output>{field.value.join(',')}</output></>;
+  return <><ManyOfTreePicker field={field} /><output>{field.value.join(',')}</output></>;
 }
 
 /** A reference span painted with colorTextDescription, so tests compare against the live theme. */
@@ -111,7 +111,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('TreePicker: the closed field', () => {
+describe('ManyOfTreePicker: the closed field', () => {
   it.each([
     ['topmost', ['alg', 'graf'], ['Algebra', 'Gráfok']],
     ['all', ['komb', 'graf', 'lesz'], ['Kombinatorika', 'Gráfok', 'Leszámlálás']],
@@ -163,7 +163,7 @@ describe('TreePicker: the closed field', () => {
   });
 });
 
-describe('TreePicker: the open tree', () => {
+describe('ManyOfTreePicker: the open tree', () => {
   it('each node shows its note aside, right-aligned, in the description colour', async () => {
     wrap(<><Inside /><DescriptionColorProbe /></>);
     await openTree();
@@ -231,7 +231,7 @@ describe('TreePicker: the open tree', () => {
   });
 });
 
-describe('TreePicker: selecting (antd\'s conduction, normalized by the hook)', () => {
+describe('ManyOfTreePicker: selecting (antd\'s conduction, normalized by the hook)', () => {
   it('a selected parent shows its children checked', async () => {
     wrap(<Inside initialValue={['alg']} />);
     await openTree();
@@ -303,10 +303,10 @@ describe('TreePicker: selecting (antd\'s conduction, normalized by the hook)', (
   });
 });
 
-describe('TreePicker: a disabled node in the value (each click toggles the node it was on)', () => {
+describe('ManyOfTreePicker: a disabled node in the value (each click toggles the node it was on)', () => {
   function Picker({ nodes, initialValue, selection }: { nodes: TreeNode[]; initialValue: string[]; selection: TreeSelection }) {
-    const field = useTreeField({ id: 'cats', label: 'Categories', nodes, initialValue, selection });
-    return <><TreePicker field={field} /><output>{field.value.join(',')}</output></>;
+    const field = useManyOfTreeField({ id: 'cats', label: 'Categories', nodes, initialValue, selection });
+    return <><ManyOfTreePicker field={field} /><output>{field.value.join(',')}</output></>;
   }
 
   it('leaves: checking the children of a checked disabled parent one by one keeps the parent', async () => {
@@ -341,7 +341,7 @@ describe('TreePicker: a disabled node in the value (each click toggles the node 
   });
 });
 
-describe('TreePicker: search', () => {
+describe('ManyOfTreePicker: search', () => {
   it('accent- and case-insensitive over the labels; keeps a match and its ancestors', async () => {
     wrap(<Inside />);
     await search('OSSZEG');
@@ -375,7 +375,7 @@ describe('TreePicker: search', () => {
   });
 });
 
-describe('TreePicker: field conventions', () => {
+describe('ManyOfTreePicker: field conventions', () => {
   it('confirmation for the requested value: asks first, commits on OK', async () => {
     const fire = vi.fn();
     wrap(<Committed fire={fire} confirmation={() => ({ kind: 'popconfirm', question: 'Change categories?' })} />);

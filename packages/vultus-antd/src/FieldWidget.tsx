@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import type {
   BoolFieldControls, FieldControls, FieldKind, ManyOfFieldControls, MixedBoolFieldControls, NumericFieldControls,
-  OneOfFieldControls, RangeFieldControls, TextFieldControls, TreeFieldControls, WidgetHint,
+  OneOfFieldControls, RangeFieldControls, TextFieldControls, ManyOfTreeFieldControls, WidgetHint,
 } from 'vultus-core';
 import { BoolCheckbox } from './BoolCheckbox.js';
 import { BoolSwitch } from './BoolSwitch.js';
@@ -17,11 +17,11 @@ import { OneOfSlider } from './OneOfSlider.js';
 import { RangeSlider } from './RangeSlider.js';
 import { SearchInput } from './SearchInput.js';
 import { TextInput } from './TextInput.js';
-import { TreeChecklist, type TreeChecklistProps } from './TreeChecklist.js';
-import { TreePicker } from './TreePicker.js';
+import { ManyOfTreeChecklist, type ManyOfTreeChecklistProps } from './ManyOfTreeChecklist.js';
+import { ManyOfTreePicker } from './ManyOfTreePicker.js';
 
 /**
- * Each kind's widgets by name (the spec's widget table). TreeChecklist is listed with its public
+ * Each kind's widgets by name (the spec's widget table). ManyOfTreeChecklist is listed with its public
  * props only, so its internal `nested` cannot be reached through a hint or a render-site prop.
  */
 const WIDGETS = {
@@ -31,7 +31,7 @@ const WIDGETS = {
   manyOf: { checkboxes: ManyOfCheckboxes, select: ManyOfSelect, switches: ManyOfSwitches },
   numeric: { input: NumericInput, slider: NumericSlider },
   range: { slider: RangeSlider },
-  tree: { picker: TreePicker, checklist: TreeChecklist as (props: TreeChecklistProps<string>) => ReturnType<typeof TreeChecklist> },
+  manyOfTree: { picker: ManyOfTreePicker, checklist: ManyOfTreeChecklist as (props: ManyOfTreeChecklistProps<string>) => ReturnType<typeof ManyOfTreeChecklist> },
   text: { input: TextInput, search: SearchInput },
 } satisfies Record<FieldKind, Record<string, ComponentType<any>>>;
 
@@ -47,7 +47,7 @@ export type WidgetName =
 
 const DEFAULT_WIDGETS: { [K in FieldKind]: WidgetNameOf<K> } = {
   boolean: 'switch', 'mixed-boolean': 'switch', oneOf: 'select', manyOf: 'checkboxes',
-  numeric: 'input', range: 'slider', tree: 'picker', text: 'input',
+  numeric: 'input', range: 'slider', manyOfTree: 'picker', text: 'input',
 };
 
 /** A widget's display props: its props without `field`. */
@@ -80,7 +80,7 @@ export interface ControlsByKind {
   manyOf: ManyOfFieldControls;
   numeric: NumericFieldControls;
   range: RangeFieldControls;
-  tree: TreeFieldControls;
+  manyOfTree: ManyOfTreeFieldControls;
   text: TextFieldControls;
 }
 
@@ -94,7 +94,7 @@ export type FieldRequestOf<K extends FieldKind> = K extends FieldKind ? Paramete
  * FieldKind union, so it cannot tell): every kind for controls of no known shape.
  */
 export type KindOfControls<C> =
-  C extends TreeFieldControls<any> ? 'tree'
+  C extends ManyOfTreeFieldControls<any> ? 'manyOfTree'
   : C extends ManyOfFieldControls<any> ? 'manyOf'
   : C extends OneOfFieldControls<any> ? 'oneOf'
   : C extends RangeFieldControls ? 'range'
@@ -156,7 +156,7 @@ export type FieldWidgetProps<C extends FieldControls<any, any> = FieldControls<a
  * The widget for controls a caller made with a field hook (sidedao's InputField): picked by the
  * controls' `type`, by the render-site `widget`, else the controls' hint, else the kind's
  * default (boolean and mixed-boolean `switch`, oneOf `select`, manyOf `checkboxes`, numeric
- * `input`, range `slider`, tree `picker`, text `input`). The other props are the display props
+ * `input`, range `slider`, manyOfTree `picker`, text `input`). The other props are the display props
  * of the kind's widgets (`vertical`, `iconOnly`, `panel`, `onEnter`, `style`, ...), over the
  * hint's. An unknown kind or widget name throws.
  *

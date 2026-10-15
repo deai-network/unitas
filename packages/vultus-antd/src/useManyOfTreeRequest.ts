@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import type { TreeFieldControls } from 'vultus-core';
+import type { ManyOfTreeFieldControls } from 'vultus-core';
 import { sameMembers, useFieldRequest } from './useFieldRequest.js';
 
 /**
@@ -9,7 +9,7 @@ import { sameMembers, useFieldRequest } from './useFieldRequest.js';
  * any order does nothing). A tree selection names no single node to label the
  * confirmation's OK with, so it is labelled with the field itself.
  */
-export function useTreeRequest<T extends string>(field: TreeFieldControls<T>): {
+export function useManyOfTreeRequest<T extends string>(field: ManyOfTreeFieldControls<T>): {
   request: (next: T[]) => void;
   wrap: (control: ReactElement) => ReactElement;
   asking: boolean;

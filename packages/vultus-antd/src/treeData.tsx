@@ -44,8 +44,8 @@ export interface TreeDataOptions<T extends string> {
 }
 
 /**
- * A tree field's nodes (useTreeField's `nodes`) as antd tree data, shared by
- * TreeChecklist and TreePicker. Each node's title is its label (ChoiceLabel:
+ * A tree field's nodes (useManyOfTreeField's `nodes`) as antd tree data, shared by
+ * ManyOfTreeChecklist and ManyOfTreePicker. Each node's title is its label (ChoiceLabel:
  * in the description colour while dimmed) and note (ChoiceNote, placed by
  * `noteStyle`), with the node's own tooltip (choiceTooltip: a disabled node's
  * reason first, then its description); a disabled node is disabled.

@@ -1,6 +1,6 @@
 import {
   MessageSinkContext, useBoolField, useManyOfField, useMessageSink, useMixedBoolField, useNumericField, useOneOfField,
-  useRangeField, useStoredField, useTextField, useTreeField,
+  useRangeField, useStoredField, useTextField, useManyOfTreeField,
   type ErrorRoutesRegistry, type FieldCommit, type FieldDefinition, type FieldKind, type MessageSink,
 } from 'vultus-core';
 import {
@@ -131,7 +131,7 @@ const KIND_FIELDS: { [K in FieldKind]: ReturnType<typeof kindFields<K>> } = {
   manyOf: kindFields('manyOf', useManyOfField),
   numeric: kindFields('numeric', useNumericField),
   range: kindFields('range', useRangeField),
-  tree: kindFields('tree', useTreeField),
+  manyOfTree: kindFields('manyOfTree', useManyOfTreeField),
   text: kindFields('text', useTextField),
 };
 

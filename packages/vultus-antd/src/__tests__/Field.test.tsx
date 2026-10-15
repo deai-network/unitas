@@ -37,7 +37,7 @@ const DEFINITIONS: Record<FieldKind, FieldDefinition> = {
   manyOf: { kind: 'manyOf', id: 'rounds', label: 'Rounds', choices: CHOICES },
   numeric: { kind: 'numeric', id: 'copies', label: 'Copies', min: 1, max: 10 },
   range: { kind: 'range', id: 'years', label: 'Years', min: 2000, max: 2025 },
-  tree: { kind: 'tree', id: 'topics', label: 'Topics', nodes: NODES },
+  manyOfTree: { kind: 'manyOfTree', id: 'topics', label: 'Topics', nodes: NODES },
   text: { kind: 'text', id: 'q', label: 'Search' },
 };
 
@@ -53,13 +53,13 @@ const MARKS: Record<FieldKind, Record<string, () => boolean>> = {
   manyOf: { checkboxes: has('.ant-checkbox-group'), select: has('.ant-select-multiple'), switches: has('.ant-switch') },
   numeric: { input: has('.ant-input-number'), slider: has('.ant-slider') },
   range: { slider: has('.ant-slider') },
-  tree: { picker: has('.ant-select'), checklist: has('.ant-tree') },
+  manyOfTree: { picker: has('.ant-select'), checklist: has('.ant-tree') },
   text: { input: () => has('input.ant-input')() && !has('.anticon-search')(), search: has('.anticon-search') },
 };
 
 const DEFAULTS: Record<FieldKind, string> = {
   boolean: 'switch', 'mixed-boolean': 'switch', oneOf: 'select', manyOf: 'checkboxes',
-  numeric: 'input', range: 'slider', tree: 'picker', text: 'input',
+  numeric: 'input', range: 'slider', manyOfTree: 'picker', text: 'input',
 };
 
 const wrap = (node: ReactNode) => render(<AntApp>{node}</AntApp>);
@@ -337,8 +337,8 @@ describe('Field: storage', () => {
   });
 
   it.each([
-    ['nodes', { kind: 'tree', id: 'room', nodes: NODES } as FieldDefinition, { nodes: [{ value: 'geo' }] }],
-    ['selection', { kind: 'tree', id: 'room', nodes: NODES } as FieldDefinition, { selection: 'all' }],
+    ['nodes', { kind: 'manyOfTree', id: 'room', nodes: NODES } as FieldDefinition, { nodes: [{ value: 'geo' }] }],
+    ['selection', { kind: 'manyOfTree', id: 'room', nodes: NODES } as FieldDefinition, { selection: 'all' }],
     ['min', { kind: 'numeric', id: 'room', min: 1, max: 10 } as FieldDefinition, { min: 2 }],
     ['max', { kind: 'range', id: 'room', min: 1, max: 10 } as FieldDefinition, { max: 5 }],
     ['integer', { kind: 'numeric', id: 'room' } as FieldDefinition, { integer: true }],

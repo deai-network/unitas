@@ -2,26 +2,26 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Space, Tag } from 'antd';
 import { useState } from 'react';
 import {
-  TreeChecklist, TreePicker, VultusProvider, coveredNodes, denyWithReason, useTreeField,
+  ManyOfTreeChecklist, ManyOfTreePicker, VultusProvider, coveredNodes, denyWithReason, useManyOfTreeField,
   type TreeExpand, type TreeNode, type TreeSelection, type VultusTexts,
 } from 'vultus-antd';
 import { Example, Showcase, delay } from '../Showcase.js';
 
 /**
- * useTreeField: a field whose value is a set of tree nodes (moxb's Tree,
+ * useManyOfTreeField: a field whose value is a set of tree nodes (moxb's Tree,
  * Praeceptor's category filter). Each node is a choice with children: a
  * label, an optional note (e.g. a count), maybe dimmed or disabled with a
  * reason. `selection` says which of the checked nodes the value lists
  * (`topmost`, the default: a checked node stands for its subtree), `expand`
- * which nodes open at first. TreePicker is antd's TreeSelect (Taskmaster's
+ * which nodes open at first. ManyOfTreePicker is antd's TreeSelect (Taskmaster's
  * category filter on a desktop): the value as tags, the tree in a dropdown
- * with a search, each node's note right-aligned. TreeChecklist is moxb's
+ * with a search, each node's note right-aligned. ManyOfTreeChecklist is moxb's
  * always-open checkable tree with a search box, each note in brackets. On a
- * phone, TreePicker's `panel="drawer"` opens a TreeChecklist in a panel from
+ * phone, ManyOfTreePicker's `panel="drawer"` opens a ManyOfTreeChecklist in a panel from
  * the bottom instead, and `summary="firstWords"` shows one line of the
  * selections' first words in place of the tags (Taskmaster's phone layout).
  */
-const meta: Meta = { title: 'Fields/Tree' };
+const meta: Meta = { title: 'Fields/Many of tree' };
 export default meta;
 
 /** A competition-maths category tree, with the number of tasks filed under each category. */
@@ -72,7 +72,7 @@ export const TaskCategories: StoryObj<CategoryArgs> = {
   },
   render: function Render({ selection, expand, readOnly, latencyMs }) {
     const [stored, setStored] = useState<string[]>(['kombinatorika', 'oszthatosag']);
-    const field = useTreeField({
+    const field = useManyOfTreeField({
       id: 'tasks.categories',
       label: 'Categories',
       description: 'Show the tasks filed under these categories.',
@@ -95,11 +95,11 @@ export const TaskCategories: StoryObj<CategoryArgs> = {
         note="One field, two widgets. Each category shows its number of tasks, right-aligned in the picker's dropdown and in brackets in the checklist; a category with none is dimmed (still checkable); Térgeometria is disabled, its reason on hover. Checking a category checks its subtree, and the value lists what 'selection' says (topmost: the checked categories whose parent is not checked; 'independent' checks each node alone); the picker shows it as tags, as many as fit. Both searches ignore accents and case ('kombinatorika', 'oszthatosag', 'grafok'): they keep the matches, their ancestors and a match's whole subtree, all open; checking while searching keeps the categories the search hides. Unchecking the last category, or clearing the picker, asks first; each change commits to a pretend server (latency), the widgets disabled meanwhile. 'expand' sets which categories open at first; 'readOnly' disables the field, its reason over each widget."
       >
         <Space size={32} align="start" wrap>
-          <Example label="TreePicker">
-            <TreePicker key={expand} field={field} style={{ width: 380 }} />
+          <Example label="ManyOfTreePicker">
+            <ManyOfTreePicker key={expand} field={field} style={{ width: 380 }} />
           </Example>
-          <Example label="TreeChecklist">
-            <div style={{ width: 380 }}><TreeChecklist key={expand} field={field} /></div>
+          <Example label="ManyOfTreeChecklist">
+            <div style={{ width: 380 }}><ManyOfTreeChecklist key={expand} field={field} /></div>
           </Example>
           <Example label="field.value"><Tag>{field.value.join(', ') || '(none)'}</Tag></Example>
           <Example label="stored on the server"><Tag color="green">{stored.join(', ') || '(none)'}</Tag></Example>
@@ -128,7 +128,7 @@ export const OnAPhone: StoryObj<PhoneArgs> = {
   },
   render: function Render({ language, summary, latencyMs }) {
     const [stored, setStored] = useState<string[]>(['lnko', 'grafok', 'logika']);
-    const field = useTreeField({
+    const field = useManyOfTreeField({
       id: 'phone.categories',
       label: 'Categories',
       description: 'Show the tasks filed under these categories.',
@@ -148,10 +148,10 @@ export const OnAPhone: StoryObj<PhoneArgs> = {
         note="The same categories as a phone shows them (Taskmaster's narrow layout), in a 360px wide column. The closed field only shows the choice: one line of each selected category's first words ('summary: firstWords', about 16 characters each, 40 for a single one), never ending on a joining word ('Gráfok és…' in English, 'Gráfok…' with the Hungarian texts, whose joining words are 'és', 'a', 'az'). A tap on the field, anywhere but its clear icon, opens the tree in a panel from the bottom: the checklist with its search box (accent-insensitive, 'grafok') and the counts in brackets; each check commits at once (latency), Done closes the panel. Clearing, or unchecking the last category, asks first. 'summary: tags' keeps the tags with the panel; then a tag's remove icon removes it without opening the panel."
       >
         <Space size={32} align="start" wrap>
-          <Example label={`TreePicker panel="drawer" summary="${summary}"`}>
+          <Example label={`ManyOfTreePicker panel="drawer" summary="${summary}"`}>
             <VultusProvider texts={PHONE_TEXTS[language]}>
               <div style={{ width: 360, boxSizing: 'border-box', padding: 12, border: '1px dashed rgba(128, 128, 128, 0.5)', borderRadius: 16 }}>
-                <TreePicker field={field} panel="drawer" summary={summary} style={{ width: 334 }} />
+                <ManyOfTreePicker field={field} panel="drawer" summary={summary} style={{ width: 334 }} />
               </div>
             </VultusProvider>
           </Example>
@@ -182,7 +182,7 @@ export const ValueInsideTheField: StoryObj<{ selection: TreeSelection }> = {
   args: { selection: 'topmost' },
   argTypes: { selection: { control: 'inline-radio', options: ['topmost', 'all', 'leaves', 'independent'] } },
   render: function Render({ selection }) {
-    const field = useTreeField<Area>({
+    const field = useManyOfTreeField<Area>({
       id: 'review.areas',
       label: 'Areas',
       description: 'Which parts of the code this review covers.',
@@ -197,8 +197,8 @@ export const ValueInsideTheField: StoryObj<{ selection: TreeSelection }> = {
         note="initialValue, every node open (expand: all), no notes. field.value lists the checked nodes as 'selection' says, and the picker's tags show the same nodes; coveredNodes lists every node the value stands for (what an item filed under some node matches against), whatever the selection."
       >
         <Space size={32} align="start" wrap>
-          <Example label="TreePicker"><TreePicker field={field} style={{ width: 280 }} /></Example>
-          <Example label="TreeChecklist"><div style={{ width: 280 }}><TreeChecklist field={field} /></div></Example>
+          <Example label="ManyOfTreePicker"><ManyOfTreePicker field={field} style={{ width: 280 }} /></Example>
+          <Example label="ManyOfTreeChecklist"><div style={{ width: 280 }}><ManyOfTreeChecklist field={field} /></div></Example>
           <Example label="field.value"><Tag>{field.value.join(', ') || '(none)'}</Tag></Example>
           <Example label="coveredNodes"><Tag>{coveredNodes(field.nodes, field.value, field.selection).join(', ') || '(none)'}</Tag></Example>
         </Space>
@@ -210,7 +210,7 @@ export const ValueInsideTheField: StoryObj<{ selection: TreeSelection }> = {
 export const DisabledWithReason: StoryObj = {
   name: 'Disabled, with a reason',
   render: function Render() {
-    const field = useTreeField<Area>({
+    const field = useManyOfTreeField<Area>({
       id: 'review.areas.locked',
       label: 'Areas',
       description: 'Which parts of the code this review covers.',
@@ -224,8 +224,8 @@ export const DisabledWithReason: StoryObj = {
         note="A disabled field shows its reason, then its description, over the whole widget: the picker cannot open; in the checklist every node is disabled, and its search still filters the view."
       >
         <Space size={32} align="start" wrap>
-          <Example label="TreePicker"><TreePicker field={field} style={{ width: 280 }} /></Example>
-          <Example label="TreeChecklist"><div style={{ width: 280 }}><TreeChecklist field={field} /></div></Example>
+          <Example label="ManyOfTreePicker"><ManyOfTreePicker field={field} style={{ width: 280 }} /></Example>
+          <Example label="ManyOfTreeChecklist"><div style={{ width: 280 }}><ManyOfTreeChecklist field={field} /></div></Example>
         </Space>
       </Showcase>
     );

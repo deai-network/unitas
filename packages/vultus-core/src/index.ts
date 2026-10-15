@@ -46,9 +46,9 @@ export {
   type TreeNode, type TreeNodeControls, type TreeSelection, type TreeExpand,
 } from './tree.js';
 export {
-  useTreeField, treeInitialValue,
-  type TreeFieldControls, type TreeFieldOptions, type TreeOwnOptions,
-} from './useTreeField.js';
+  useManyOfTreeField, manyOfTreeInitialValue,
+  type ManyOfTreeFieldControls, type ManyOfTreeFieldOptions, type ManyOfTreeOwnOptions,
+} from './useManyOfTreeField.js';
 export {
   useTextField, textInitialValue,
   type TextFieldControls, type TextFieldOptions, type TextOwnOptions,

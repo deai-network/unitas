@@ -3,10 +3,10 @@ import { render, screen, fireEvent, waitFor, act, within } from '@testing-librar
 import { App as AntApp } from 'antd';
 import { useState } from 'react';
 import {
-  denyWithReason, useTreeField, type FieldCommit, type TreeFieldOptions, type TreeNode,
+  denyWithReason, useManyOfTreeField, type FieldCommit, type ManyOfTreeFieldOptions, type TreeNode,
 } from 'vultus-core';
 import type { VultusTexts } from '../texts.js';
-import { TreePicker, type TreePickerProps } from '../TreePicker.js';
+import { ManyOfTreePicker, type ManyOfTreePickerProps } from '../ManyOfTreePicker.js';
 import { VultusProvider } from '../VultusProvider.js';
 import { measureTags, stopMeasuring } from './helpers/measureTags.js';
 
@@ -24,12 +24,12 @@ const NODES: TreeNode<Cat>[] = [
   { value: 'val', label: 'Feltételes valószínűség', note: '0', dimmed: true },
 ];
 
-type Display = Pick<TreePickerProps<Cat>, 'panel' | 'summary'>;
-type InsideOpts = Partial<Omit<TreeFieldOptions<Cat>, 'value' | 'onChange' | 'commit'>> & Display;
+type Display = Pick<ManyOfTreePickerProps<Cat>, 'panel' | 'summary'>;
+type InsideOpts = Partial<Omit<ManyOfTreeFieldOptions<Cat>, 'value' | 'onChange' | 'commit'>> & Display;
 
 function Inside({ panel, summary, ...opts }: InsideOpts) {
-  const field = useTreeField<Cat>({ id: 'cats', label: 'Categories', nodes: NODES, ...opts } as TreeFieldOptions<Cat>);
-  return <><TreePicker field={field} panel={panel} summary={summary} /><output>{field.value.join(',')}</output></>;
+  const field = useManyOfTreeField<Cat>({ id: 'cats', label: 'Categories', nodes: NODES, ...opts } as ManyOfTreeFieldOptions<Cat>);
+  return <><ManyOfTreePicker field={field} panel={panel} summary={summary} /><output>{field.value.join(',')}</output></>;
 }
 
 function Committed({ fire, confirmation, initial = [], panel, summary }: Display & {
@@ -38,11 +38,11 @@ function Committed({ fire, confirmation, initial = [], panel, summary }: Display
   initial?: Cat[];
 }) {
   const [stored, setStored] = useState<Cat[]>(initial);
-  const field = useTreeField<Cat>({
+  const field = useManyOfTreeField<Cat>({
     id: 'cats', label: 'Categories', nodes: NODES, value: stored,
     commit: { confirmation, fire: async (next) => { await fire(next); setStored(next); } },
   });
-  return <><TreePicker field={field} panel={panel} summary={summary} /><output>{field.value.join(',')}</output></>;
+  return <><ManyOfTreePicker field={field} panel={panel} summary={summary} /><output>{field.value.join(',')}</output></>;
 }
 
 const wrap = (node: React.ReactNode, texts?: Partial<VultusTexts>) =>
@@ -66,7 +66,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('TreePicker panel="drawer": the closed field', () => {
+describe('ManyOfTreePicker panel="drawer": the closed field', () => {
   it('shows the choice only: a tap opens no dropdown but a drawer from the bottom, titled with the label', async () => {
     wrap(<Inside panel="drawer" initialValue={['komb']} />);
     expect(openDrawer()).toBeNull();
@@ -138,7 +138,7 @@ describe('TreePicker panel="drawer": the closed field', () => {
   });
 });
 
-describe('TreePicker panel="drawer": the drawer', () => {
+describe('ManyOfTreePicker panel="drawer": the drawer', () => {
   it('holds a checklist of the field: notes in brackets, its own search box', async () => {
     wrap(<Inside panel="drawer" />);
     tap(root());
@@ -199,7 +199,7 @@ describe('TreePicker panel="drawer": the drawer', () => {
   });
 });
 
-describe('TreePicker summary="firstWords"', () => {
+describe('ManyOfTreePicker summary="firstWords"', () => {
   /** The closed field's selection items: with summary="firstWords", only the one summary. */
   const items = () => Array.from(root().querySelectorAll('.ant-select-selection-item'));
 

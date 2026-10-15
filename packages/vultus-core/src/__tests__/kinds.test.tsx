@@ -10,7 +10,7 @@ import { useOneOfField } from '../useOneOfField.js';
 import { useManyOfField } from '../useManyOfField.js';
 import { useNumericField } from '../useNumericField.js';
 import { useRangeField } from '../useRangeField.js';
-import { useTreeField } from '../useTreeField.js';
+import { useManyOfTreeField } from '../useManyOfTreeField.js';
 import { useTextField } from '../useTextField.js';
 import type { TreeNode } from '../tree.js';
 import type { FieldKind } from '../field.js';
@@ -32,7 +32,7 @@ const DEFINITIONS: FieldDefinition[] = [
   { kind: 'manyOf', id: 'rounds', choices: [{ value: 'regional' }, { value: 'final' }], initialValue: ['final'] },
   { kind: 'numeric', id: 'count', min: 1, max: 9, unit: ' pcs' },
   { kind: 'range', id: 'years', min: 2000, max: 2030, initialValue: [2010, 2020] },
-  { kind: 'tree', id: 'topics', nodes: NODES, selection: 'leaves', initialValue: ['A1'] },
+  { kind: 'manyOfTree', id: 'topics', nodes: NODES, selection: 'leaves', initialValue: ['A1'] },
   { kind: 'text', id: 'q', control: 'textarea', placeholder: 'Search' },
 ];
 
@@ -45,7 +45,7 @@ function useDefinition(definition: FieldDefinition) {
     case 'manyOf': return useManyOfField(definition);
     case 'numeric': return useNumericField(definition);
     case 'range': return useRangeField(definition);
-    case 'tree': return useTreeField(definition);
+    case 'manyOfTree': return useManyOfTreeField(definition);
     case 'text': return useTextField(definition);
   }
 }
@@ -70,7 +70,7 @@ describe('FieldDefinition', () => {
 
   it('every kind\'s hook resolves a context-function initialValue once, when it mounts, not on every render', () => {
     const values: Record<FieldKind, unknown> = {
-      boolean: true, 'mixed-boolean': 'mixed', oneOf: 'b', manyOf: ['final'], numeric: 3, range: [2010, 2020], tree: ['A1'], text: 'abc',
+      boolean: true, 'mixed-boolean': 'mixed', oneOf: 'b', manyOf: ['final'], numeric: 3, range: [2010, 2020], manyOfTree: ['A1'], text: 'abc',
     };
     for (const definition of DEFINITIONS) {
       const initialValue = vi.fn((ctx: { lang: string }) => (ctx.lang === 'hu' ? values[definition.kind] : undefined));
@@ -135,14 +135,14 @@ describe('initialValueOf', () => {
     expect(initialValueOf({ kind: 'numeric', id: 'n', min: 5, format }, NO_FIELD_CONTEXT)).toBe(5);
   });
 
-  it('tree: initialValue, else the empty list', () => {
-    expect(initialValueOf({ kind: 'tree', id: 'topics', nodes: NODES }, NO_FIELD_CONTEXT)).toEqual([]);
-    expect(initialValueOf({ kind: 'tree', id: 'topics', nodes: NODES, initialValue: ['A'] }, NO_FIELD_CONTEXT)).toEqual(['A']);
+  it('manyOfTree: initialValue, else the empty list', () => {
+    expect(initialValueOf({ kind: 'manyOfTree', id: 'topics', nodes: NODES }, NO_FIELD_CONTEXT)).toEqual([]);
+    expect(initialValueOf({ kind: 'manyOfTree', id: 'topics', nodes: NODES, initialValue: ['A'] }, NO_FIELD_CONTEXT)).toEqual(['A']);
   });
 
-  it('tree: the initial value comes normalized under the selection, as the hook shows it', () => {
-    expect(initialValueOf({ kind: 'tree', id: 'topics', nodes: NODES, initialValue: ['A1', 'A2'] }, NO_FIELD_CONTEXT)).toEqual(['A']);
-    expect(initialValueOf({ kind: 'tree', id: 'topics', nodes: NODES, selection: 'leaves', initialValue: ['A'] }, NO_FIELD_CONTEXT))
+  it('manyOfTree: the initial value comes normalized under the selection, as the hook shows it', () => {
+    expect(initialValueOf({ kind: 'manyOfTree', id: 'topics', nodes: NODES, initialValue: ['A1', 'A2'] }, NO_FIELD_CONTEXT)).toEqual(['A']);
+    expect(initialValueOf({ kind: 'manyOfTree', id: 'topics', nodes: NODES, selection: 'leaves', initialValue: ['A'] }, NO_FIELD_CONTEXT))
       .toEqual(['A1', 'A2']);
   });
 
@@ -186,7 +186,7 @@ describe('valueTypeOf', () => {
     expect(valueTypeOf('oneOf')).toBe(stringType);
     expect(valueTypeOf('text')).toBe(stringType);
     expect(valueTypeOf('manyOf')).toBe(stringSetType);
-    expect(valueTypeOf('tree')).toBe(stringSetType);
+    expect(valueTypeOf('manyOfTree')).toBe(stringSetType);
     expect(valueTypeOf('numeric')).toBe(numberType);
     expect(valueTypeOf('range')).toBe(rangeType);
   });
@@ -280,10 +280,10 @@ describe('sanitizeStored', () => {
     });
   });
 
-  describe('tree', () => {
+  describe('manyOfTree', () => {
     it('normalizes the value under the selection, silently', () => {
-      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: NODES }, ['A1', 'A2', 'B'], NO_FIELD_CONTEXT)).toEqual(['A', 'B']);
-      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: NODES, selection: 'leaves' }, ['A'], NO_FIELD_CONTEXT))
+      expect(sanitizeStored({ kind: 'manyOfTree', id: 'topics', nodes: NODES }, ['A1', 'A2', 'B'], NO_FIELD_CONTEXT)).toEqual(['A', 'B']);
+      expect(sanitizeStored({ kind: 'manyOfTree', id: 'topics', nodes: NODES, selection: 'leaves' }, ['A'], NO_FIELD_CONTEXT))
         .toEqual(['A1', 'A2']);
       expect(warn).not.toHaveBeenCalled();
     });
@@ -292,10 +292,10 @@ describe('sanitizeStored', () => {
       const geometria: TreeNode[] = [
         { value: 'geometria', children: [{ value: 'sikgeometria' }, { value: 'tergeometria', disabled: true }] },
       ];
-      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: geometria }, ['sikgeometria'], NO_FIELD_CONTEXT)).toEqual(['geometria']);
-      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: geometria, selection: 'all' }, ['geometria'], NO_FIELD_CONTEXT))
+      expect(sanitizeStored({ kind: 'manyOfTree', id: 'topics', nodes: geometria }, ['sikgeometria'], NO_FIELD_CONTEXT)).toEqual(['geometria']);
+      expect(sanitizeStored({ kind: 'manyOfTree', id: 'topics', nodes: geometria, selection: 'all' }, ['geometria'], NO_FIELD_CONTEXT))
         .toEqual(['geometria', 'sikgeometria']);
-      expect(initialValueOf({ kind: 'tree', id: 'topics', nodes: geometria, selection: 'all', initialValue: ['geometria'] }, NO_FIELD_CONTEXT))
+      expect(initialValueOf({ kind: 'manyOfTree', id: 'topics', nodes: geometria, selection: 'all', initialValue: ['geometria'] }, NO_FIELD_CONTEXT))
         .toEqual(['geometria', 'sikgeometria']);
       expect(warn).not.toHaveBeenCalled();
     });
@@ -305,16 +305,16 @@ describe('sanitizeStored', () => {
         { value: 'geometria', children: [{ value: 'sikgeometria' }, { value: 'tergeometria', disabled: true }] },
       ];
       const stored = ['geometria', 'tergeometria'];
-      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: geometria }, stored, NO_FIELD_CONTEXT)).toEqual(['geometria', 'tergeometria']);
-      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: geometria, selection: 'all' }, stored, NO_FIELD_CONTEXT))
+      expect(sanitizeStored({ kind: 'manyOfTree', id: 'topics', nodes: geometria }, stored, NO_FIELD_CONTEXT)).toEqual(['geometria', 'tergeometria']);
+      expect(sanitizeStored({ kind: 'manyOfTree', id: 'topics', nodes: geometria, selection: 'all' }, stored, NO_FIELD_CONTEXT))
         .toEqual(['geometria', 'sikgeometria', 'tergeometria']);
-      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: geometria, selection: 'leaves' }, stored, NO_FIELD_CONTEXT))
+      expect(sanitizeStored({ kind: 'manyOfTree', id: 'topics', nodes: geometria, selection: 'leaves' }, stored, NO_FIELD_CONTEXT))
         .toEqual(['sikgeometria', 'tergeometria']);
       expect(warn).not.toHaveBeenCalled();
     });
 
     it('drops values not among the nodes, then normalizes, with a warning naming the field and them', () => {
-      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: NODES }, ['A1', 'A2', 'gone'], NO_FIELD_CONTEXT)).toEqual(['A']);
+      expect(sanitizeStored({ kind: 'manyOfTree', id: 'topics', nodes: NODES }, ['A1', 'A2', 'gone'], NO_FIELD_CONTEXT)).toEqual(['A']);
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith("Field 'topics': dropping stored values that are not among its nodes: 'gone'");
     });

@@ -2,13 +2,13 @@
 // not shipped (src/**/__tests__ is outside the build and the package's files): tsconfig.typecheck.json
 // type-checks it — `pnpm typecheck` in this package, beside `tsc -p tsconfig.json`.
 import type {
-  FieldControls, FieldDefinition, OneOfFieldControls, TextFieldControls, TreeFieldControls,
+  FieldControls, FieldDefinition, OneOfFieldControls, TextFieldControls, ManyOfTreeFieldControls,
 } from 'vultus-core';
 import {
   ChoiceLabel, Field, FieldWidget,
   type ManyOfCheckboxesProps, type ManyOfSelectProps, type ManyOfSwitchesProps, type NumericInputProps,
   type NumericSliderProps, type RangeSliderProps, type RequestableField, type SearchInputProps, type TextInputProps,
-  type TreeChecklistProps, type TreePickerProps,
+  type ManyOfTreeChecklistProps, type ManyOfTreePickerProps,
 } from '../index.js';
 
 /** The definition of kind `K` (FieldDefinition's member). */
@@ -17,7 +17,7 @@ type DefinitionOf<K extends FieldDefinition['kind']> = Extract<FieldDefinition, 
 /** Compile-time checks of Field's props: typed by the definition's kind, and by every kind for the FieldDefinition union. */
 function fieldPropsAreTyped(
   wide: FieldDefinition, bool: DefinitionOf<'boolean'>, oneOf: DefinitionOf<'oneOf'>, range: DefinitionOf<'range'>,
-  tree: DefinitionOf<'tree'>, mixed: DefinitionOf<'mixed-boolean'>,
+  tree: DefinitionOf<'manyOfTree'>, mixed: DefinitionOf<'mixed-boolean'>,
 ) {
   const takesString = (typed: string) => typed;
   function Wrapper<W extends FieldDefinition>({ definition, flag }: { definition: W; flag: boolean }) {
@@ -70,7 +70,7 @@ function fieldPropsAreTyped(
     <Field definition={oneOf} value="a" onChange={(next: number) => next} />,
     // @ts-expect-error -- a mixed-boolean field is asked for a boolean, never 'mixed'.
     <Field definition={mixed} value="mixed" onChange={(next: 'mixed') => next} />,
-    // @ts-expect-error -- TreeChecklist's internal `nested` is not a display prop.
+    // @ts-expect-error -- ManyOfTreeChecklist's internal `nested` is not a display prop.
     <Field definition={tree} widget="checklist" nested />,
     // @ts-expect-error -- onEnter receives the typed text, a string.
     <Field definition={wide} onEnter={(typed: number) => typed} />,
@@ -82,7 +82,7 @@ function fieldPropsAreTyped(
 }
 
 /** Compile-time checks of FieldWidget's props, keyed on the controls' kind. */
-function fieldWidgetPropsAreTyped(oneOf: OneOfFieldControls, tree: TreeFieldControls, text: TextFieldControls, any: FieldControls<any, any>) {
+function fieldWidgetPropsAreTyped(oneOf: OneOfFieldControls, tree: ManyOfTreeFieldControls, text: TextFieldControls, any: FieldControls<any, any>) {
   return [
     <FieldWidget field={oneOf} widget="segmented" iconOnly />,
     <FieldWidget field={oneOf} widget={{ name: 'segmented', iconOnly: true }} />,
@@ -94,7 +94,7 @@ function fieldWidgetPropsAreTyped(oneOf: OneOfFieldControls, tree: TreeFieldCont
     <FieldWidget field={oneOf} iconOnyl />,
     // @ts-expect-error -- vertical is a many-of widget's prop, not a one-of widget's.
     <FieldWidget field={oneOf} vertical />,
-    // @ts-expect-error -- TreeChecklist's internal `nested` is not a display prop.
+    // @ts-expect-error -- ManyOfTreeChecklist's internal `nested` is not a display prop.
     <FieldWidget field={tree} widget="checklist" nested />,
     // @ts-expect-error -- nor can a hint reach it.
     <FieldWidget field={tree} widget={{ name: 'checklist', nested: true }} />,
@@ -114,7 +114,7 @@ function choiceLabelTakesAChoiceWithoutDimmed() {
 /** A compile-time check: every new widget's props type is exported, and so is the request hooks' field shape. */
 type WidgetPropsAreExported = [
   ManyOfCheckboxesProps<string>, ManyOfSwitchesProps<string>, ManyOfSelectProps<string>, NumericInputProps,
-  NumericSliderProps, RangeSliderProps, TreeChecklistProps<string>, TreePickerProps<string>, TextInputProps,
+  NumericSliderProps, RangeSliderProps, ManyOfTreeChecklistProps<string>, ManyOfTreePickerProps<string>, TextInputProps,
   SearchInputProps, RequestableField<string>,
 ];
 

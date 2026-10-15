@@ -10,7 +10,7 @@ import { useArg } from '../useArg.js';
 import { useOneOfField } from '../useOneOfField.js';
 import { useManyOfField } from '../useManyOfField.js';
 import { useRangeField } from '../useRangeField.js';
-import { useTreeField } from '../useTreeField.js';
+import { useManyOfTreeField } from '../useManyOfTreeField.js';
 import type { TreeNode } from '../tree.js';
 import { argOf, useStoredField, useStoredFields } from '../useStoredField.js';
 
@@ -30,7 +30,7 @@ const NODES: TreeNode[] = [
   { value: 'A', children: [{ value: 'A1' }, { value: 'A2' }] },
   { value: 'B' },
 ];
-const TOPICS: DefinitionOf<'tree'> = { kind: 'tree', id: 'topics', nodes: NODES };
+const TOPICS: DefinitionOf<'manyOfTree'> = { kind: 'manyOfTree', id: 'topics', nodes: NODES };
 const TAGS: DefinitionOf<'manyOf'> = { kind: 'manyOf', id: 'tags', choices: [{ value: 'a' }, { value: 'b' }] };
 const ALL_DONE: DefinitionOf<'mixed-boolean'> = { kind: 'mixed-boolean', id: 'allDone' };
 
@@ -171,12 +171,12 @@ describe('useStoredField', () => {
     warn.mockRestore();
   });
 
-  it('tree: re-selecting the default state leaves the key absent, the default being normalized', () => {
+  it('manyOfTree: re-selecting the default state leaves the key absent, the default being normalized', () => {
     const store = memoryStore();
-    const definition: DefinitionOf<'tree'> = { ...TOPICS, initialValue: ['A1', 'A2'] };
+    const definition: DefinitionOf<'manyOfTree'> = { ...TOPICS, initialValue: ['A1', 'A2'] };
     const { result } = renderHook(() => {
       const stored = useStoredField(definition);
-      return { stored, field: useTreeField(stored.options) };
+      return { stored, field: useManyOfTreeField(stored.options) };
     }, { wrapper: providing(store) });
     expect(result.current.field.value).toEqual(['A']);
     expect(result.current.stored.isDefault).toBe(true);
@@ -231,11 +231,11 @@ describe('useStoredField: value identity', () => {
     expect(result.current.field.value).toBe(first);
   });
 
-  it('tree: options.value and useTreeField\'s value keep their identity across a re-render', () => {
+  it('manyOfTree: options.value and useManyOfTreeField\'s value keep their identity across a re-render', () => {
     const store = memoryStore({ topics: 'A1,A2,B' });
     const { result, rerender } = renderHook(() => {
       const stored = useStoredField(TOPICS);
-      return { stored, field: useTreeField(stored.options) };
+      return { stored, field: useManyOfTreeField(stored.options) };
     }, { wrapper: providing(store) });
     const first = result.current.stored.options.value;
     expect(first).toEqual(['A', 'B']);

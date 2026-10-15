@@ -12,17 +12,17 @@ export interface VultusTexts {
   currentState: string;
   /** Leads another choice's description on its segment or mark (what a click does): "Switch to: Off". */
   switchTo: string;
-  /** Closes TreePicker's phone panel (`panel="drawer"`), the button at its top. */
+  /** Closes ManyOfTreePicker's phone panel (`panel="drawer"`), the button at its top. */
   done: string;
   /**
    * A tree widget's search box placeholder, filtering its nodes by label
-   * (TreeChecklist's own search box; TreePicker `panel="drawer"`'s, which
-   * holds a TreeChecklist). No many-of widget has a search box of its own
+   * (ManyOfTreeChecklist's own search box; ManyOfTreePicker `panel="drawer"`'s, which
+   * holds a ManyOfTreeChecklist). No many-of widget has a search box of its own
    * today (ManyOfSelect's is antd's unlabelled one).
    */
   search: string;
   /**
-   * Words a first-words cut does not end on (TreePicker `summary="firstWords"`: "Gráfok és…" is
+   * Words a first-words cut does not end on (ManyOfTreePicker `summary="firstWords"`: "Gráfok és…" is
    * shown "Gráfok…"), compared case-insensitively.
    */
   joiningWords: string[];

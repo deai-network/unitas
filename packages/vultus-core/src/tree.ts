@@ -164,7 +164,7 @@ export function coveredNodes<T extends string>(nodes: TreeNode<T>[], value: T[],
  * have all their enabled children); an uncovered one is added, covering its subtree as
  * `cascade` says. With `'independent'` the node alone is added or removed. A `node` that is
  * not one of the nodes changes nothing. Whether `node` itself may be flipped is the caller's
- * to decide (useTreeField refuses a disabled one).
+ * to decide (useManyOfTreeField refuses a disabled one).
  */
 export function toggleTreeValue<T extends string>(nodes: TreeNode<T>[], value: T[], node: T, selection: TreeSelection): T[] {
   const { order, parent } = indexTree(nodes);

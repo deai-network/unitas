@@ -65,7 +65,7 @@ export const HintsAndOverrides: StoryObj = {
       </Showcase>
       <Showcase
         title="The definition's values"
-        note="The same definitions with a render-site label, a reason to disable (hover it), and a placeholder; the categories with TreePicker's phone layout (panel and summary are its display options)."
+        note="The same definitions with a render-site label, a reason to disable (hover it), and a placeholder; the categories with ManyOfTreePicker's phone layout (panel and summary are its display options)."
       >
         <Example label={'label="Rounds of 2025"'}><Field definition={byId('rounds')} label="Rounds of 2025" widget="switches" item /></Example>
         <Example label="enabled={denyWithReason(…)}">

@@ -23,7 +23,7 @@ npm install vultus-core
   `useAction`, `useActionList`; the field context (`FieldContextProvider`,
   `createFieldContext`, `useFieldContext`, `NO_FIELD_CONTEXT`); every field
   kind's hook (`useBoolField`, `useMixedBoolField`, `useOneOfField`,
-  `useManyOfField`, `useNumericField`, `useRangeField`, `useTreeField`,
+  `useManyOfField`, `useNumericField`, `useRangeField`, `useManyOfTreeField`,
   `useTextField`, `useFieldCore` and their types) and their shared helpers
   (`resolveChoice`, `normalizeText`, `clamp`, `resolveNumeric`, the tree
   helpers `normalizeTreeValue` / `coveredNodes` / `toggleTreeValue` /
@@ -210,7 +210,7 @@ const field = useRangeField({ id: 'years', min: 2010, max: 2026 });
 field.valueText; // '2010–2026'
 ```
 
-### tree (`useTreeField`)
+### many-of tree (`useManyOfTreeField`)
 
 The value is a list of node ids (`nodes`: `TreeNode`, a choice with
 `children`), kept as a set. `selection` says which of the covered nodes the
@@ -242,7 +242,7 @@ a checked disabled node beside its checked parent (`['geometria',
 as antd TreeSelect's `SHOW_PARENT` does; under `'leaves'` a checked node with
 children that is disabled or has only disabled children — where antd's
 `SHOW_CHILD` would drop it (and with it what it covers), so vultus-antd's
-`TreePicker` requests the field's value with the clicked node toggled rather
+`ManyOfTreePicker` requests the field's value with the clicked node toggled rather
 than antd's list. So normalizing never changes what a value covers. The same rule sanitizes a stored value. The
 cost: a parent in the value stands for its subtree as it is when read, so
 under `'topmost'` (and `'all'`, which lists the parent too) a child that was
@@ -258,7 +258,7 @@ is trimmed, leaving the nodes given unchanged. Implicit initial value: the
 empty list.
 
 ```ts
-const field = useTreeField({
+const field = useManyOfTreeField({
   id: 'categories',
   nodes: [{ value: 'a', children: [{ value: 'a1' }, { value: 'a2' }] }],
 });
@@ -285,7 +285,7 @@ const field = useTextField({ id: 'search', control: 'input' });
 A `FieldDefinition` is a field's options in their "inside" form (no `value`
 plus `onChange` or `commit`), tagged with a required `kind` — one of
 `'boolean'`, `'mixed-boolean'`, `'oneOf'`, `'manyOf'`, `'numeric'`,
-`'range'`, `'tree'`, `'text'` (the same strings `FieldControls.type` already
+`'range'`, `'manyOfTree'`, `'text'` (the same strings `FieldControls.type` already
 carries). `kind` stays optional on each hook's own options — a hook knows
 its own kind, and throws if a definition names a different one — but is
 required once a field becomes plain data: a module declares its filters as a
@@ -334,7 +334,7 @@ type's own meaning (a list as a set, a range by both ends), used everywhere
 two values of that type are compared — including whether a value is the
 default, so it's left out of the store. `valueTypeOf(kind)` gives each field
 kind's: `booleanType` (`'1'` / `'0'`), `stringType` (one-of, text),
-`stringSetType` (many-of, tree — a sorted comma list; a *present but empty*
+`stringSetType` (many-of, many-of tree — a sorted comma list; a *present but empty*
 value reads as the empty list, which differs from the key being absent
 altogether), `numberType`, `rangeType` (`from..to`). A mixed-boolean field
 shows an aggregate of other data and has no value type:
