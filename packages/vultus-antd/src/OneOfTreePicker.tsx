@@ -1,9 +1,10 @@
-import { TreeSelect, type TreeSelectProps } from 'antd';
+import { Drawer, TreeSelect, type TreeSelectProps } from 'antd';
 import { useMemo, useRef, useState, type CSSProperties, type Key } from 'react';
 import {
   useSpinnerKey, useVultusComponents, type OneOfTreeFieldControls, type OneOfTreeNodeControls,
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { OneOfTreeList } from './OneOfTreeList.js';
 import { useVultusTexts } from './texts.js';
 import { labelMatches, treeData, TreeSwitcherIcon, type FieldTreeDataNode } from './treeData.js';
 import { useOneOfTreeRequest } from './useOneOfTreeRequest.js';
@@ -25,8 +26,10 @@ export interface OneOfTreePickerProps<T extends string> {
   summary?: 'label' | 'path';
   /**
    * Where the tree opens: `'dropdown'` (default) under the field, with its
-   * search; `'drawer'` is meant for a phone, a panel from the bottom of the
-   * screen. The drawer is not built yet: `'drawer'` opens the dropdown too.
+   * search; `'drawer'` in a panel from the bottom of the screen instead, for
+   * a phone: an `OneOfTreeList` of the field (its search box) under the
+   * field's label, no Done button (choosing closes it). The app decides when
+   * (on a narrow screen).
    */
   panel?: 'dropdown' | 'drawer';
 }
@@ -49,6 +52,19 @@ function withPaths<T extends string>(nodes: FieldTreeDataNode<T>[], separator: s
 /** The values of the nodes that have children, in pre-order. */
 function parentValues<T extends string>(nodes: OneOfTreeNodeControls<T>[]): T[] {
   return nodes.flatMap((node) => (node.children?.length ? [node.value, ...parentValues(node.children)] : []));
+}
+
+/** The parts of the closed field that act on their own (clearing): a tap on them does not open the drawer. */
+const OWN_ACTIONS = '.ant-select-clear';
+
+/**
+ * Whether a confirmation (a popconfirm, or either kind of modal; see useConfirm) is currently
+ * shown anywhere: the drawer's `OneOfTreeList` runs its own request path, invisible to the
+ * picker, so this is the only way to tell "a choice opened a confirmation" apart from "nothing
+ * was requested" after `onChosen` fires for both (see the drawer's `onChosen` below).
+ */
+function confirmationShown(): boolean {
+  return document.querySelector('.ant-popconfirm, .ant-modal') !== null;
 }
 
 /**
@@ -87,14 +103,30 @@ function parentValues<T extends string>(nodes: OneOfTreeNodeControls<T>[]): T[] 
  * The field's label is the accessible name; a pending commit disables the
  * field and shows the lent Spinner as its suffix icon (else antd's loading
  * icon).
+ *
+ * On a phone: `panel="drawer"` keeps the closed field to showing the choice
+ * (no dropdown, no search in it); a tap on it (or Enter while it has focus),
+ * except on its clear icon, opens an antd Drawer from the bottom, 88% high,
+ * titled with the field's label, holding an `OneOfTreeList` of the same
+ * field (`nested`: the list carries no `data-field-id` or `data-value` of
+ * its own, the closed field's root being the only carrier), its search box
+ * included. A disabled or pending field does not open it.
+ *
+ * The drawer closes when the field's value becomes the node chosen in it (a
+ * choice with no confirmation, or a confirmed one), or when the node chosen
+ * is the one already current (nothing is requested then, but the user's
+ * intent is clear); it does not close merely because a request was taken,
+ * so a popconfirm or modal confirmation opened from the list's choice stays
+ * visible, and a Cancel keeps the drawer open. There is no Done button.
  */
 export function OneOfTreePicker<T extends string>({
-  field, size, style, listHeight = 520, popupMatchSelectWidth = 480, summary = 'label',
+  field, size, style, listHeight = 520, popupMatchSelectWidth = 480, summary = 'label', panel = 'dropdown',
 }: OneOfTreePickerProps<T>) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { request, wrap, asking } = useOneOfTreeRequest(field);
   const [open, setOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState<T[]>(field.expandedKeys);
   /** The user's own expansion under the current search; null opens every node. */
@@ -117,12 +149,62 @@ export function OneOfTreePicker<T extends string>({
     return summary === 'path' ? withPaths(nodes, texts.pathSeparator) : nodes;
   }, [field.nodes, field.enabled, asking, summary, texts.pathSeparator]);
   const parents = useMemo(() => parentValues(field.nodes), [field.nodes]);
+  // Closes the drawer when the value becomes the node chosen in it (this render's, or a later
+  // one, under a confirmation that commits): not on a request merely taken (see `chosen` below),
+  // so a popconfirm or modal confirmation stays visible, and a Cancel keeps the drawer open.
+  const [trackedValue, setTrackedValue] = useState(field.value);
+  if (trackedValue !== field.value) {
+    setTrackedValue(field.value);
+    if (drawerOpen) setDrawerOpen(false);
+  }
   if (!field.visible) return null;
+
+  const disabled = !field.enabled || field.pending;
+  const openDrawer = () => { if (!disabled) setDrawerOpen(true); };
+  /**
+   * The drawer list's `onChosen`: fires for a request taken (including one that only opened a
+   * confirmation, not yet in the DOM at this point) and for choosing the already-current node
+   * (nothing requested then). Deferred to a microtask (as treeData's own scroll-into-view is),
+   * so a confirmation's popconfirm or modal, if the choice opened one, has had its commit land by
+   * the time this checks: only the already-current choice, which opens none, closes the drawer
+   * here; a choice that changes the value is `trackedValue` above's, once its own commit lands.
+   */
+  const chosen = () => queueMicrotask(() => { if (!confirmationShown()) setDrawerOpen(false); });
 
   // antd filters while the search is not empty; it opens every node then, as here.
   const searching = query !== '';
   const expandedKeys = searching ? searchExpanded ?? parents : expanded;
   const setExpandedKeys = searching ? setSearchExpanded : setExpanded;
+  const opening: Partial<TreeSelectProps> = panel === 'drawer'
+    ? {
+      open: false,
+      showSearch: false,
+      onOpenChange: (next) => { if (next) openDrawer(); },
+      // A focused select may report no new opening on a second tap (as
+      // ManyOfTreePicker found): any tap opens the drawer, except on the field's own clear icon.
+      onClick: (e) => { if (!(e.target as HTMLElement).closest(OWN_ACTIONS)) openDrawer(); },
+    }
+    : {
+      // `treeNodeFilterProp` only drives antd's highlight of the matches,
+      // which ignores case but not accents; the filtering is labelMatches'.
+      // The search is held here (antd clears it as the tree closes), so the
+      // expansion knows it.
+      showSearch: {
+        filterTreeNode: labelMatches,
+        treeNodeFilterProp: 'label',
+        searchValue: query,
+        onSearch: (next) => {
+          setQuery(next);
+          setSearchExpanded(null);
+        },
+      },
+      onOpenChange: (next) => {
+        setOpen(next);
+        if (!next) return;
+        const ancestors = field.path.slice(0, -1).map((node) => node.value);
+        setExpanded((keys) => [...keys, ...ancestors.filter((key) => !keys.includes(key))]);
+      },
+    };
 
   const select = (
     <TreeSelect
@@ -135,25 +217,7 @@ export function OneOfTreePicker<T extends string>({
         if (toggled.current && toggled.current.key === next) setExpandedKeys(toggled.current.before);
         request(next ?? '');
       }}
-      // `treeNodeFilterProp` only drives antd's highlight of the matches,
-      // which ignores case but not accents; the filtering is labelMatches'.
-      // The search is held here (antd clears it as the tree closes), so the
-      // expansion knows it.
-      showSearch={{
-        filterTreeNode: labelMatches,
-        treeNodeFilterProp: 'label',
-        searchValue: query,
-        onSearch: (next) => {
-          setQuery(next);
-          setSearchExpanded(null);
-        },
-      }}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) return;
-        const ancestors = field.path.slice(0, -1).map((node) => node.value);
-        setExpanded((keys) => [...keys, ...ancestors.filter((key) => !keys.includes(key))]);
-      }}
+      {...opening}
       treeNodeLabelProp={summary === 'path' ? 'path' : 'label'}
       treeExpandedKeys={expandedKeys}
       onTreeExpand={(keys: Key[]) => {
@@ -179,7 +243,7 @@ export function OneOfTreePicker<T extends string>({
       // See OneOfSelect: `suffixIcon` is the one loading-related prop antd
       // strips before forwarding the rest to @rc-component/select.
       suffixIcon={Spinner && field.pending ? <Spinner spinnerKey={spinnerKey} size="small" /> : undefined}
-      disabled={!field.enabled || field.pending}
+      disabled={disabled}
       // As OneOfSelect's: an empty title keeps antd from putting the label in a native tooltip on
       // the closed select, where it would compete with ours.
       title=""
@@ -189,11 +253,27 @@ export function OneOfTreePicker<T extends string>({
       data-value={field.value}
     />
   );
-  return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, select, {
-    open: open || asking ? false : undefined,
+  const closed = wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, select, {
+    open: open || drawerOpen || asking ? false : undefined,
     // Without a width the span is a block, so the select fills a form item (antd's ant-select-in-form-item); elsewhere it keeps its natural width.
     style,
     block: style?.width === undefined,
     stable: true,
   }));
+  if (panel !== 'drawer') return closed;
+  return (
+    <>
+      {closed}
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        placement="bottom"
+        size="88%"
+        title={field.label || undefined}
+      >
+        {/* Nested: the select's root alone carries the field's data-field-id and data-value. */}
+        <OneOfTreeList field={field} search nested onChosen={chosen} />
+      </Drawer>
+    </>
+  );
 }

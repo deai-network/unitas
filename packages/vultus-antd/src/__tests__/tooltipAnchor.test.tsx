@@ -21,6 +21,8 @@ const CASES: [string, FieldDefinition, string][] = [
   ['OneOfSlider', { kind: 'oneOf', id: 'f', label: 'F', choices: CHOICES }, 'slider'],
   ['ManyOfSelect', { kind: 'manyOf', id: 'f', label: 'F', description, choices: CHOICES }, 'select'],
   ['ManyOfTreePicker', { kind: 'manyOfTree', id: 'f', label: 'F', nodes: [{ value: 'a' }] }, 'picker'],
+  ['OneOfTreePicker', { kind: 'oneOfTree', id: 'f', label: 'F', nodes: [{ value: 'a' }] }, 'picker'],
+  ['OneOfTreeList', { kind: 'oneOfTree', id: 'f', label: 'F', nodes: [{ value: 'a' }] }, 'list'],
 ];
 
 const anchors = () => document.querySelectorAll<HTMLElement>('.vultus-tooltip-anchor');
@@ -49,6 +51,7 @@ describe('a select in a form item fills it, as antd intends (its span is a block
     ['OneOfSelect', { kind: 'oneOf', id: 'f', label: 'F', description, choices: CHOICES }],
     ['ManyOfSelect', { kind: 'manyOf', id: 'f', label: 'F', choices: CHOICES, widget: 'select' }],
     ['ManyOfTreePicker', { kind: 'manyOfTree', id: 'f', label: 'F', description, nodes: [{ value: 'a' }] }],
+    ['OneOfTreePicker', { kind: 'oneOfTree', id: 'f', label: 'F', description, nodes: [{ value: 'a' }] }],
   ] as [string, FieldDefinition][])('%s', (_, definition) => {
     render(<AntApp><Form><Field<FieldDefinition> item definition={definition} /></Form></AntApp>);
     const anchor = anchors()[0];

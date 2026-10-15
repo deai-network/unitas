@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { App as AntApp } from 'antd';
 import type { FieldDefinition } from 'vultus-core';
 import { Field } from '../Field.js';
@@ -21,6 +21,12 @@ const DUPLEX: FieldDefinition = {
   valueDescriptions: { true: 'Printing on both sides' },
 };
 const { description: _none, ...DUPLEX_UNDESCRIBED } = DUPLEX as FieldDefinition & { description?: string };
+const CATEGORY: FieldDefinition = {
+  kind: 'oneOfTree', id: 'cat', label: 'Category',
+  // Only Alpha has a description: the current state ("Current state: …") shows for it alone.
+  nodes: [{ value: 'a', label: 'Alpha', description: 'The first one' }, { value: 'b', label: 'Beta' }],
+};
+const CATEGORY_LIST: FieldDefinition = { ...CATEGORY, widget: 'list' };
 
 /** Opens the select and clicks the option with this label, the focus staying on the select. */
 async function pick(label: string) {
@@ -28,6 +34,14 @@ async function pick(label: string) {
   await waitFor(() => expect(document.querySelectorAll('.ant-select-item-option').length).toBeGreaterThan(0));
   const option = Array.from(document.querySelectorAll<HTMLElement>('.ant-select-item-option')).find((o) => o.textContent === label)!;
   fireEvent.click(option);
+}
+
+/** Opens OneOfTreePicker's tree and clicks the node with this label, the focus staying on the select. */
+async function pickTree(label: string) {
+  fireEvent.mouseDown(screen.getByRole('combobox'));
+  await waitFor(() => expect(document.querySelectorAll('.ant-select-tree-treenode').length).toBeGreaterThan(0));
+  const row = Array.from(document.querySelectorAll<HTMLElement>('.ant-select-tree-treenode')).find((r) => r.textContent === label)!;
+  fireEvent.click(within(row).getByText(label));
 }
 
 describe('a control whose tooltip comes and goes with its value keeps its identity and the focus', () => {
@@ -44,6 +58,36 @@ describe('a control whose tooltip comes and goes with its value keeps its identi
     await waitFor(() => expect(document.querySelector('[data-field-id="paper"]')).toHaveAttribute('data-value', 'a4'));
     expect(document.querySelector('[data-field-id="paper"]')).toBe(root);
     expect(document.activeElement).toBe(input);
+  });
+
+  it.each([[true], [false]])('a one-of tree picker, picking a node without a description and back (item: %s)', async (item) => {
+    wrap(<Field item={item} definition={CATEGORY} />);
+    const root = document.querySelector('[data-field-id="cat"]')!;
+    const input = screen.getByRole('combobox');
+    act(() => input.focus());
+    await pickTree('Beta');
+    await waitFor(() => expect(document.querySelector('[data-field-id="cat"]')).toHaveAttribute('data-value', 'b'));
+    expect(document.querySelector('[data-field-id="cat"]')).toBe(root);
+    expect(document.activeElement).toBe(input);
+    await pickTree('Alpha');
+    await waitFor(() => expect(document.querySelector('[data-field-id="cat"]')).toHaveAttribute('data-value', 'a'));
+    expect(document.querySelector('[data-field-id="cat"]')).toBe(root);
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('a one-of tree list, picking a node without a description and back', async () => {
+    wrap(<Field definition={CATEGORY_LIST} />);
+    const root = document.querySelector('[data-field-id="cat"]')!;
+    const tree = screen.getByRole('tree');
+    act(() => tree.focus());
+    fireEvent.click(screen.getByText('Beta'));
+    await waitFor(() => expect(document.querySelector('[data-field-id="cat"]')).toHaveAttribute('data-value', 'b'));
+    expect(document.querySelector('[data-field-id="cat"]')).toBe(root);
+    expect(document.activeElement).toBe(tree);
+    fireEvent.click(screen.getByText('Alpha'));
+    await waitFor(() => expect(document.querySelector('[data-field-id="cat"]')).toHaveAttribute('data-value', 'a'));
+    expect(document.querySelector('[data-field-id="cat"]')).toBe(root);
+    expect(document.activeElement).toBe(tree);
   });
 
   it.each([
