@@ -69,6 +69,17 @@ with a browser or memory router, the query inside the hash (`#/modules/7?rounds=
 with a hash router. A location change from outside (Back, Forward, a link)
 reaches every argument, also those whose components did not re-render.
 
+**Reading your own writes.** A write notifies at once, and the store reads
+it back at once: the writes not yet applied (see Batching), then the
+store's own navigation until its location renders (react-router renders it
+in a transition, a data router after its loaders), laid over the rendered
+location. So a stored text field keeps its caret and every keystroke, and a
+stored slider does not jump back after a move. Once the router will not
+get there — a blocker blocks the store's navigation, a navigation from
+outside cancels or overtakes it, a loader redirects it — the location
+shows again: a navigation from outside wins. `hrefFor` builds on the same
+values.
+
 A write navigates to the same path with the changed query, keeping the hash
 and every other parameter in its place; a key whose value is removed goes
 away, and the last one going takes the `?` with it. An empty value stays as

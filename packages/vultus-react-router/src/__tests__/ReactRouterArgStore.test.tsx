@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import {
   createHashRouter, createMemoryRouter, createPath, HashRouter, MemoryRouter, Outlet, redirect, Route, RouterProvider,
-  Routes, ScrollRestoration, useNavigate,
+  Routes, ScrollRestoration, useBlocker, useNavigate,
   type InitialEntry, type LoaderFunction, type Location, type NavigateFunction, type RouteObject,
 } from 'react-router';
 import {
@@ -62,7 +62,9 @@ function gate() {
  */
 function setup(
   entries: InitialEntry[],
-  { loader, routes = [], scrollRestoration = false }: { loader?: LoaderFunction; routes?: RouteObject[]; scrollRestoration?: boolean } = {},
+  { loader, routes = [], scrollRestoration = false, beside }: {
+    loader?: LoaderFunction; routes?: RouteObject[]; scrollRestoration?: boolean; beside?: React.ReactNode;
+  } = {},
 ) {
   const seen = {} as Seen;
   function Probe() {
@@ -73,7 +75,7 @@ function setup(
     return <span data-testid="value">{`${seen.rounds.value.join(',')}|${seen.q.value}`}</span>;
   }
   const pages: RouteObject[] = [
-    { id: 'm', path: '/m', loader, element: <ReactRouterArgStore><Probe /></ReactRouterArgStore> },
+    { id: 'm', path: '/m', loader, element: <ReactRouterArgStore><Probe />{beside}</ReactRouterArgStore> },
     { path: '/start', element: null },
     ...routes,
   ];
@@ -189,13 +191,15 @@ describe('ReactRouterArgStore: writing', () => {
   });
 
   it('a batch builds on the store\'s own last navigation, not on a location that has not rendered yet', async () => {
-    const { seen, url } = setup(['/m?rounds=final,regional&q=x']);
+    const { seen, router, url } = setup(['/m?rounds=final,regional&q=x']);
     await act(async () => {
       seen.q.set('y');
       await Promise.resolve();
       await Promise.resolve();
-      // The first batch has navigated; React has not rendered the new location inside act.
-      expect(seen.store.read('q')).toBe('x');
+      // The first batch has navigated; React has not rendered the new location inside act (the
+      // store reads its own write meanwhile).
+      expect(router.state.location.search).toBe('?rounds=final,regional&q=y');
+      expect(seen.store.read('q')).toBe('y');
       seen.rounds.set(['regional']);
     });
     expect(url()).toBe('/m?rounds=regional&q=y');
@@ -302,6 +306,187 @@ describe('ReactRouterArgStore: writing', () => {
       seen.store.write([], 'push');
     });
     expect(navigations).toEqual([]);
+  });
+});
+
+/** A loader that holds the calls whose URL has `q=y` until `open()` and answers the others at once. */
+function gateForQY() {
+  const held: (() => void)[] = [];
+  const loader: LoaderFunction = ({ request }) => {
+    if (new URL(request.url).searchParams.get('q') !== 'y') return null;
+    return new Promise<null>((resolve) => {
+      held.push(() => resolve(null));
+    });
+  };
+  return { loader, open: () => held.splice(0).forEach((release) => release()) };
+}
+
+/** Counts the router subscriptions made from now on that are still open. */
+function watchSubscriptions(router: ReturnType<typeof createMemoryRouter>) {
+  let open = 0;
+  const subscribe = router.subscribe.bind(router);
+  vi.spyOn(router, 'subscribe').mockImplementation((listener) => {
+    open += 1;
+    const unsubscribe = subscribe(listener);
+    return () => {
+      open -= 1;
+      unsubscribe();
+    };
+  });
+  return () => open;
+}
+
+describe('ReactRouterArgStore: reading its own writes', () => {
+  it('a write reads back at once and notifies at once, before its navigation is made or rendered', async () => {
+    const { seen, router, url } = setup(['/m?rounds=final,regional&q=x']);
+    const heard = vi.fn();
+    const unsubscribe = seen.store.subscribe(heard);
+    act(() => {
+      seen.q.set('y');
+      expect(heard).toHaveBeenCalledTimes(1);
+      expect(seen.store.read('q')).toBe('y');
+      seen.rounds.reset();
+      expect(seen.store.read('rounds')).toBeUndefined();
+    });
+    unsubscribe();
+    // React has rendered the written values; the batch has not navigated yet.
+    expect(url()).toBe('/m?rounds=final,regional&q=x');
+    expect(screen.getByTestId('value').textContent).toBe('final|y');
+    await act(async () => {});
+    expect(url()).toBe('/m?q=y');
+    expect(router.state.navigation.state).toBe('idle');
+    expect(seen.store.read('q')).toBe('y');
+    expect(screen.getByTestId('value').textContent).toBe('final|y');
+  });
+
+  it('while its navigation is loading the store reads its own values; once that location renders, the location\'s', async () => {
+    const { loader, open } = gate();
+    const { seen, router, url } = setup(['/m?rounds=final,regional&q=x'], { loader });
+    const following = watchSubscriptions(router);
+    await act(async () => {
+      seen.q.set('y');
+    });
+    expect(router.state.navigation.state).toBe('loading');
+    expect(url()).toBe('/m?rounds=final,regional&q=x');
+    expect(seen.store.read('q')).toBe('y');
+    await act(async () => {
+      seen.rounds.set(['regional']);
+    });
+    expect(seen.store.read('q')).toBe('y');
+    expect(seen.store.read('rounds')).toBe('regional');
+    expect(screen.getByTestId('value').textContent).toBe('regional|y');
+    expect(following()).toBeGreaterThan(0);
+    await act(async () => {
+      open();
+    });
+    await act(() => vi.waitFor(() => expect(router.state.navigation.state).toBe('idle')));
+    expect(url()).toBe('/m?rounds=regional&q=y');
+    expect(screen.getByTestId('value').textContent).toBe('regional|y');
+    // Rendered: the store no longer stands in for the location, nor follows the router for it.
+    expect(following()).toBe(0);
+  });
+
+  it('an earlier location rendering first does not drop the values of the store\'s navigation still on its way', async () => {
+    const { loader, open } = gateForQY();
+    const { seen, router, url } = setup(['/m?q=x'], { loader });
+    await act(async () => {
+      void router.navigate('/m?k=1');
+      while (router.state.location.search !== '?k=1') await Promise.resolve();
+      seen.q.set('y');
+    });
+    // /m?k=1 has rendered; the store's navigation on top of it (/m?k=1&q=y) is loading.
+    expect(url()).toBe('/m?k=1');
+    expect(router.state.navigation.location?.search).toBe('?k=1&q=y');
+    expect(seen.store.read('k')).toBe('1');
+    expect(seen.store.read('q')).toBe('y');
+    expect(screen.getByTestId('value').textContent).toBe('final|y');
+    await act(async () => {
+      open();
+    });
+    await act(() => vi.waitFor(() => expect(router.state.navigation.state).toBe('idle')));
+    expect(url()).toBe('/m?k=1&q=y');
+    expect(screen.getByTestId('value').textContent).toBe('final|y');
+  });
+
+  it('a navigation from outside after the store\'s wins: the store reads where it went', async () => {
+    const { seen, router, url } = setup(['/m?q=x']);
+    await act(async () => {
+      seen.q.set('y');
+      while (router.state.location.search !== '?q=y') await Promise.resolve();
+      void router.navigate('/m?q=z');
+    });
+    expect(url()).toBe('/m?q=z');
+    expect(seen.store.read('q')).toBe('z');
+    expect(screen.getByTestId('value').textContent).toBe('final|z');
+  });
+
+  it('under a declarative router too: a navigation from outside after the store\'s wins', async () => {
+    const seen = {} as Seen & { navigate: NavigateFunction };
+    function Probe() {
+      seen.q = useArg(q);
+      seen.store = useRouterArgStore();
+      seen.navigate = useNavigate();
+      return <span data-testid="value">{seen.q.value}</span>;
+    }
+    render(
+      <MemoryRouter initialEntries={['/m?q=x']}>
+        <ReactRouterArgStore><Routes><Route path="/m" element={<Probe />} /></Routes></ReactRouterArgStore>
+      </MemoryRouter>,
+    );
+    await act(async () => {
+      seen.q.set('y');
+      expect(seen.store.read('q')).toBe('y');
+      await Promise.resolve();
+      await Promise.resolve();
+      seen.navigate('/m?q=z');
+    });
+    expect(seen.store.read('q')).toBe('z');
+    expect(screen.getByTestId('value').textContent).toBe('z');
+  });
+
+  it('a navigation of the store\'s that a blocker blocks: the store reads the location again, and the next write builds on it', async () => {
+    function Blocker() {
+      useBlocker(({ nextLocation }) => new URLSearchParams(nextLocation.search).get('q') === 'y');
+      return null;
+    }
+    const { seen, router, url } = setup(['/m?q=x'], { beside: <Blocker /> });
+    act(() => {
+      seen.q.set('y');
+    });
+    expect(screen.getByTestId('value').textContent).toBe('final|y');
+    await act(async () => {});
+    expect(router.state.blockers.size).toBe(1);
+    expect([...router.state.blockers.values()][0].state).toBe('blocked');
+    expect(url()).toBe('/m?q=x');
+    expect(seen.store.read('q')).toBe('x');
+    expect(screen.getByTestId('value').textContent).toBe('final|x');
+    await act(async () => {
+      seen.rounds.set(['regional']);
+    });
+    expect(url()).toBe('/m?q=x&rounds=regional');
+    expect(screen.getByTestId('value').textContent).toBe('regional|x');
+  });
+
+  it('a navigation of the store\'s cancelled by one from outside: the store reads the location again', async () => {
+    const { loader, open } = gate();
+    const { seen, router, url } = setup(['/m?q=x'], { loader });
+    await act(async () => {
+      seen.q.set('y');
+    });
+    expect(seen.store.read('q')).toBe('y');
+    await act(async () => {
+      void router.navigate('/m?k=1');
+    });
+    expect(router.state.navigation.location?.search).toBe('?k=1');
+    expect(seen.store.read('q')).toBe('x');
+    expect(screen.getByTestId('value').textContent).toBe('final|x');
+    await act(async () => {
+      open();
+    });
+    await act(() => vi.waitFor(() => expect(router.state.navigation.state).toBe('idle')));
+    expect(url()).toBe('/m?k=1');
+    expect(seen.store.read('q')).toBeUndefined();
+    expect(screen.getByTestId('value').textContent).toBe('final|all');
   });
 });
 
@@ -506,6 +691,21 @@ describe('ReactRouterArgStore: hrefFor', () => {
     expect(seen.q.hrefFor('y')).toBe('/m?rounds=final,regional&q=y#sec');
     expect(seen.store.hrefFor?.([{ key: 'rounds', raw: undefined }, { key: 'n', raw: 'a b' }])).toBe('/m?q=x&n=a%20b#sec');
   });
+
+  it('includes the store\'s own writes that the rendered location does not show yet, as read does', async () => {
+    const { loader, open } = gate();
+    const { seen, router } = setup(['/m?rounds=final,regional&q=x'], { loader });
+    act(() => {
+      seen.q.set('y');
+      expect(seen.store.hrefFor?.([{ key: 'n', raw: '1' }])).toBe('/m?rounds=final,regional&q=y&n=1');
+    });
+    await act(async () => {});
+    expect(router.state.navigation.state).toBe('loading');
+    expect(seen.rounds.hrefFor(['regional'])).toBe('/m?rounds=regional&q=y');
+    await act(async () => {
+      open();
+    });
+  });
 });
 
 describe('ReactRouterArgStore with a basename', () => {
@@ -637,9 +837,9 @@ describe('ReactRouterArgStore under a classic <HashRouter>', () => {
       seen.store.write([{ key: 'x', raw: '1' }], 'push');
       await Promise.resolve();
       await Promise.resolve();
-      // The push has navigated; React has not rendered it inside act.
+      // The push has navigated; React has not rendered it inside act (the store reads its own write meanwhile).
       expect(window.location.hash).toBe('#/m?x=1');
-      expect(seen.store.read('x')).toBe('0');
+      expect(seen.store.read('x')).toBe('1');
       seen.store.write([{ key: 'y', raw: '2' }], 'replace');
     });
     expect(window.location.hash).toBe('#/m?x=1&y=2');
