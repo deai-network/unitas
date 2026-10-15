@@ -10,7 +10,7 @@ import { manyOfInitialValue, type ManyOfOwnOptions, type useManyOfField } from '
 import { mixedBoolInitialValue, type MixedBool, type useMixedBoolField } from './useMixedBoolField.js';
 import { numericInitialValue, type NumericOwnOptions, type useNumericField } from './useNumericField.js';
 import { oneOfInitialValue, type OneOfOwnOptions, type useOneOfField } from './useOneOfField.js';
-import { rangeInitialValue, type Range, type RangeOwnOptions, type useRangeField } from './useRangeField.js';
+import { rangeInitialValue, type NumberRange, type RangeOwnOptions, type useRangeField } from './useRangeField.js';
 import { textInitialValue, type TextOwnOptions, type useTextField } from './useTextField.js';
 import { treeInitialValue, type TreeOwnOptions, type useTreeField } from './useTreeField.js';
 import { booleanType, numberType, rangeType, stringSetType, stringType, type ValueType } from './valueTypes.js';
@@ -34,7 +34,7 @@ export type FieldDefinition<Ctx = any> =
   | Definition<'oneOf', string, OneOfOwnOptions<string, Ctx>, Ctx>
   | Definition<'manyOf', string[], ManyOfOwnOptions<string, Ctx>, Ctx>
   | Definition<'numeric', number, NumericOwnOptions<Ctx>, Ctx>
-  | Definition<'range', Range, RangeOwnOptions<Ctx>, Ctx>
+  | Definition<'range', NumberRange, RangeOwnOptions<Ctx>, Ctx>
   | Definition<'tree', string[], TreeOwnOptions<string, Ctx>, Ctx>
   | Definition<'text', string, TextOwnOptions, Ctx>;
 
@@ -182,11 +182,11 @@ export function sanitizeStored(
       return clamped;
     }
     case 'range': {
-      const stored = value as Range;
+      const stored = value as NumberRange;
       const { min, max } = resolveNumeric(id, definition, ctx);
       const from = clamp(stored[0], min, max);
       const to = clamp(stored[1], min, max);
-      const sanitized: Range = [Math.min(from, to), Math.max(from, to)];
+      const sanitized: NumberRange = [Math.min(from, to), Math.max(from, to)];
       if (from !== stored[0] || to !== stored[1]) {
         warn(`Field '${id}': stored range ${rangeType.format(stored)} is outside its bounds, using ${rangeType.format(sanitized)}`);
       }

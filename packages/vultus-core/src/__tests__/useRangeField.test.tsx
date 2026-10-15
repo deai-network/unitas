@@ -41,6 +41,15 @@ describe('useRangeField: shown value is clamped and ordered', () => {
     }));
     expect(result.current.value).toEqual([2010, 2025]);
   });
+
+  it('an integer field shows fractional ends rounded, after clamping', () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() => useRangeField({
+      id: 'r', value: [2.5, 12.7], onChange, min: 0, max: 10.4, integer: true,
+    }));
+    expect(result.current.value).toEqual([3, 10]);
+    expect(result.current.valueText).toBe('3–10');
+  });
 });
 
 describe('useRangeField: requests', () => {

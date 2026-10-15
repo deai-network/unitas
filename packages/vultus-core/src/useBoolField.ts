@@ -33,7 +33,7 @@ export function useBoolField<RouteId extends string = string, Ctx = any>(
 ): BoolFieldControls {
   const ctx = useFieldContext();
   const inside = !opts.onChange && !opts.commit;
-  const initialValue = inside ? boolInitialValue(opts, ctx, opts.id) : undefined;
+  const initialValue = () => boolInitialValue(opts, ctx, opts.id);
   const field = useFieldCore<boolean, boolean, RouteId, Ctx>(
     'boolean',
     inside ? { ...opts, initialValue } : opts,

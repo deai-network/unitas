@@ -35,7 +35,7 @@ export {
 } from './useNumericField.js';
 export {
   useRangeField, rangeInitialValue,
-  type Range, type RangeFieldControls, type RangeFieldOptions, type RangeOwnOptions,
+  type NumberRange, type RangeFieldControls, type RangeFieldOptions, type RangeOwnOptions,
 } from './useRangeField.js';
 export {
   normalizeTreeValue, coveredNodes, toggleTreeValue, expandedTreeKeys, filterTree,

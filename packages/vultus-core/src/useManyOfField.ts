@@ -54,7 +54,7 @@ export function useManyOfField<T extends string = string, RouteId extends string
   const choiceOrder = resolvedChoices.map((c) => c.value);
 
   const inside = !opts.onChange && !opts.commit;
-  const initialValue = inside ? manyOfInitialValue(opts, ctx, opts.id) : undefined;
+  const initialValue = () => manyOfInitialValue<T>(opts, ctx, opts.id);
   const field = useFieldCore<T[], T[], RouteId, Ctx>('manyOf', inside ? { ...opts, initialValue } : opts, registry);
 
   /** The normalized list a request becomes, or undefined when the request is refused (with a warning already issued). */

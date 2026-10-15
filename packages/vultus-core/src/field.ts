@@ -149,7 +149,8 @@ export function calculateEnabled(id: string, enabled: Decision | undefined, disa
  * enabled state (with reason), the storage mode, and in commit mode the setter
  * as an action (its pending state and messages become the field's). Functions
  * among the options are resolved with the field context, on every render;
- * `initialValue` once, when the field mounts.
+ * `initialValue` once, when the field mounts. A kind's hook passes its implicit
+ * initial value as a zero-argument function, so that too is computed only then.
  */
 export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId extends string = string, Ctx = any>(
   type: FieldKind,

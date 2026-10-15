@@ -35,7 +35,7 @@ export function useMixedBoolField<RouteId extends string = string, Ctx = any>(
 ): MixedBoolFieldControls {
   const ctx = useFieldContext();
   const inside = !opts.onChange && !opts.commit;
-  const initialValue = inside ? mixedBoolInitialValue(opts, ctx, opts.id) : undefined;
+  const initialValue = () => mixedBoolInitialValue(opts, ctx, opts.id);
   const field = useFieldCore<MixedBool, boolean, RouteId, Ctx>(
     'mixed-boolean',
     inside ? { ...opts, initialValue } : opts,

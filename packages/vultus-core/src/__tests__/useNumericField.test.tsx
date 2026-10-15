@@ -95,4 +95,13 @@ describe('useNumericField: shown value is clamped', () => {
     const { result } = renderHook(() => useNumericField({ id: 'n', value: 500, onChange, max: 100 }));
     expect(result.current.value).toBe(100);
   });
+
+  it('an integer field shows a fractional value rounded, after clamping', () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() => useNumericField({ id: 'n', value: 2.5, onChange, integer: true }));
+    expect(result.current.value).toBe(3);
+    expect(result.current.valueText).toBe('3');
+    const clamped = renderHook(() => useNumericField({ id: 'n', value: 12.7, onChange, integer: true, max: 10.4 }));
+    expect(clamped.result.current.value).toBe(10);
+  });
 });

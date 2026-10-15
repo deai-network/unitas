@@ -55,7 +55,8 @@ export function useOneOfField<T extends string = string, RouteId extends string 
   const choices = resolveIn<OneOfChoice<T>[]>(opts.choices, [], ctx, `Field '${opts.id}': option 'choices'`)
     .map((c) => resolveChoice(opts.id, c));
   const inside = !opts.onChange && !opts.commit;
-  const initialValue = oneOfInitialValue(opts, ctx, opts.id, choices);
+  // Undefined when no choice is enabled, and then so is the value.
+  const initialValue = () => oneOfInitialValue(opts, ctx, opts.id, choices) as T;
   const field = useFieldCore<T, T, RouteId, Ctx>('oneOf', inside ? { ...opts, initialValue } : opts, registry);
   const current = choices.find((c) => c.value === field.value);
 

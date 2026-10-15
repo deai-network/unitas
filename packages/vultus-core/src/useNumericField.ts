@@ -14,7 +14,11 @@ export interface NumericFieldControls extends FieldControls<number, number>, Res
   valueText: string;
 }
 
-/** The implicit initial value for a numeric field: `initialValue` resolved, else `min` (or 0), clamped into the bounds. */
+/**
+ * The implicit initial value for a numeric field: `initialValue` resolved, else `min` (or 0),
+ * clamped into the bounds. Only those options are resolved, not `format`, so a `format` of the
+ * field context needs no provider here.
+ */
 export function numericInitialValue(opts: NumericFieldOptions, ctx: FieldCtx, id: string): number {
   const resolved = resolveIn<number | undefined>(opts.initialValue, undefined, ctx, `Field '${id}': option 'initialValue'`);
   if (resolved !== undefined) return resolved;
@@ -25,10 +29,10 @@ export function numericInitialValue(opts: NumericFieldOptions, ctx: FieldCtx, id
 
 /**
  * A field whose value is a single number (moxb's Numeric). The shown value is always clamped
- * into the bounds, since a value from outside (a stored or passed-in one) may fall outside them
- * even when every request this hook makes stays inside. A request is clamped too, and rounded
- * when `integer`; a non-finite request (e.g. a widget parsing `''`) is refused with a warning,
- * as a disabled field refuses any request.
+ * into the bounds, then rounded when `integer`, since a value from outside (a stored or
+ * passed-in one) may fall outside them or be fractional even when every request this hook makes
+ * fits. A request is clamped and rounded the same way; a non-finite request (e.g. a widget
+ * parsing `''`) is refused with a warning, as a disabled field refuses any request.
  */
 export function useNumericField<RouteId extends string = string, Ctx = any>(
   opts: NumericFieldOptions<RouteId, Ctx>,
@@ -37,18 +41,22 @@ export function useNumericField<RouteId extends string = string, Ctx = any>(
   const ctx = useFieldContext();
   const resolved = resolveNumeric(opts.id, opts, ctx);
   const inside = !opts.onChange && !opts.commit;
-  const initialValue = inside ? numericInitialValue(opts, ctx, opts.id) : undefined;
+  const initialValue = () => numericInitialValue(opts, ctx, opts.id);
   const field = useFieldCore<number, number, RouteId, Ctx>('numeric', inside ? { ...opts, initialValue } : opts, registry);
 
-  const value = clamp(field.value, resolved.min, resolved.max);
+  /** A number clamped into the bounds, then rounded when `integer`. */
+  const fit = (n: number) => {
+    const clamped = clamp(n, resolved.min, resolved.max);
+    return resolved.integer ? Math.round(clamped) : clamped;
+  };
+  const value = fit(field.value);
 
   const setValue = (next: number) => {
     if (!Number.isFinite(next)) {
       console.warn(`Field '${opts.id}': '${next}' is not a finite number`);
       return;
     }
-    const clamped = clamp(next, resolved.min, resolved.max);
-    field.setValue(resolved.integer ? Math.round(clamped) : clamped);
+    field.setValue(fit(next));
   };
 
   return {

@@ -63,7 +63,7 @@ export function useTreeField<T extends string = string, RouteId extends string =
   const selection = opts.selection ?? 'topmost';
 
   const inside = !opts.onChange && !opts.commit;
-  const initialValue = inside ? treeInitialValue(opts, ctx, opts.id) : undefined;
+  const initialValue = () => treeInitialValue<T>(opts, ctx, opts.id);
   const field = useFieldCore<T[], T[], RouteId, Ctx>('tree', inside ? { ...opts, initialValue } : opts, registry);
 
   // The same list object while it is already normalized, so the value is stable across renders.

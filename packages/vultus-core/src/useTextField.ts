@@ -33,7 +33,7 @@ export function useTextField<RouteId extends string = string, Ctx = any>(
 ): TextFieldControls {
   const ctx = useFieldContext();
   const inside = !opts.onChange && !opts.commit;
-  const initialValue = inside ? textInitialValue(opts, ctx, opts.id) : undefined;
+  const initialValue = () => textInitialValue(opts, ctx, opts.id);
   const field = useFieldCore<string, string, RouteId, Ctx>('text', inside ? { ...opts, initialValue } : opts, registry);
   return { ...field, control: opts.control ?? 'input' };
 }

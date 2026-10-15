@@ -170,12 +170,13 @@ field.toggle('urgent'); // field.isSelected('urgent') === true
 The value is a single number. `min`, `max`, `step`, `integer` (moxb's
 `onlyInteger`) and `unit` may each be a context function; `format(n, ctx)`
 overrides the default display (the number followed by the unit, if any).
-The shown value is always clamped into the bounds, since a value from
-outside — a passed-in `value`, a stored one — may fall outside them even
-though every request the hook itself makes stays inside; a non-finite
-request (a widget that parsed `''`) is refused with a warning. `valueText`
-carries the formatted value. Implicit initial value: `min` (or `0` if there
-is none), clamped into the bounds.
+The shown value is always clamped into the bounds, then rounded when
+`integer` (a stored `2.5` shows `3`), since a value from outside — a
+passed-in `value`, a stored one — may fall outside them or be fractional
+even though every request the hook itself makes fits; a non-finite request
+(a widget that parsed `''`) is refused with a warning. `valueText` carries
+the formatted value. Implicit initial value: `min` (or `0` if there is
+none), clamped into the bounds.
 
 ```ts
 const field = useNumericField({ id: 'count', min: 0, max: 10, unit: 'pcs' });
@@ -184,12 +185,13 @@ field.valueText; // '0pcs'
 
 ### range (`useRangeField`)
 
-The value is `[from, to]` with `min <= from <= to <= max`; it shares
-numeric's bounds and formatting, but `min` and `max` are required here and
-`step` defaults to `1`. `valueText` joins the formatted ends with an en dash
-("2010/11–2025/26"), so a layout can put the whole range in the field's
-label instead of next to it. A value from outside is clamped into the
-bounds end by end, then ordered. Implicit initial value: `[min, max]`.
+The value is a `NumberRange`, `[from, to]` with `min <= from <= to <= max`;
+it shares numeric's bounds and formatting, but `min` and `max` are required
+here and `step` defaults to `1`. `valueText` joins the formatted ends with
+an en dash ("2010/11–2025/26"), so a layout can put the whole range in the
+field's label instead of next to it. A value from outside is clamped into
+the bounds end by end, rounded when `integer`, then ordered. Implicit
+initial value: `[min, max]`.
 
 ```ts
 const field = useRangeField({ id: 'years', min: 2010, max: 2026 });
@@ -257,11 +259,14 @@ A definer who doesn't care where the value lives gives only `initialValue`
 (or nothing, for the kind's implicit default); whoever runs the field — a
 hook directly, or `useStoredField` (see Arguments, below) — chooses the
 storage. `initialValueOf(definition, ctx)` is every kind's default in one
-place: what a definition with no `initialValue` starts at, what a reset
-restores, and what "is it changed?" compares against — `false`; the first
-enabled choice; the empty list; `min` (or `0`) clamped into the bounds;
-`[min, max]`; the empty string for text; for a tree, the value normalized
-under its `selection`.
+place, and the entry point for it: what a definition with no `initialValue`
+starts at, what a reset restores, and what "is it changed?" compares
+against — `false`; the first enabled choice; the empty list; `min` (or `0`)
+clamped into the bounds; `[min, max]`; the empty string for text; for a
+tree, the value normalized under its `selection`. (The per-kind helpers it
+is built on — `boolInitialValue`, `oneOfInitialValue`, `rangeInitialValue`
+and the like — are exported too.) A hook computes its kind's default once,
+when the field mounts, not on every render.
 
 The `widget` hint (`WidgetHint = string | { name: string; [option]: unknown
 }`) names which widget renders the field — `'segmented'`, or `{ name:

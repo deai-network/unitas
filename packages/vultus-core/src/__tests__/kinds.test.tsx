@@ -68,6 +68,21 @@ describe('FieldDefinition', () => {
     }
   });
 
+  it('every kind\'s hook resolves a context-function initialValue once, when it mounts, not on every render', () => {
+    const values: Record<FieldKind, unknown> = {
+      boolean: true, 'mixed-boolean': 'mixed', oneOf: 'b', manyOf: ['final'], numeric: 3, range: [2010, 2020], tree: ['A1'], text: 'abc',
+    };
+    for (const definition of DEFINITIONS) {
+      const initialValue = vi.fn((ctx: { lang: string }) => (ctx.lang === 'hu' ? values[definition.kind] : undefined));
+      const lazy = { ...definition, initialValue } as FieldDefinition;
+      const { result, rerender } = renderHook(() => useDefinition(lazy), { wrapper: providing({ lang: 'hu' }) });
+      rerender();
+      rerender();
+      expect(result.current.value, definition.kind).toEqual(values[definition.kind]);
+      expect(initialValue, definition.kind).toHaveBeenCalledTimes(1);
+    }
+  });
+
   it('takes no value, onChange or commit: a definition is in its inside form', () => {
     const definitions: FieldDefinition[] = [
       // @ts-expect-error `value` belongs to whoever runs the field, not to its definition
@@ -112,6 +127,12 @@ describe('initialValueOf', () => {
     expect(initialValueOf({ kind: 'range', id: 'years', min: 2000, max: 2030 }, NO_FIELD_CONTEXT)).toEqual([2000, 2030]);
     expect(initialValueOf({ kind: 'range', id: 'years', min: 2000, max: 2030, initialValue: [2010, 2020] }, NO_FIELD_CONTEXT))
       .toEqual([2010, 2020]);
+  });
+
+  it('numeric and range: a format that takes the context is not resolved, so no provider is needed', () => {
+    const format = (n: number, ctx: { lang: string }) => `${ctx.lang}${n}`;
+    expect(initialValueOf({ kind: 'range', id: 'years', min: 2000, max: 2030, format }, NO_FIELD_CONTEXT)).toEqual([2000, 2030]);
+    expect(initialValueOf({ kind: 'numeric', id: 'n', min: 5, format }, NO_FIELD_CONTEXT)).toBe(5);
   });
 
   it('tree: initialValue, else the empty list', () => {
