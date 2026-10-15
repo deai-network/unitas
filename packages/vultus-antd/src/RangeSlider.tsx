@@ -63,7 +63,7 @@ export function RangeSlider({ field, style, showValue }: RangeSliderProps) {
       onMouseLeave={() => setOnHandle(false)}
       style={{ display: style?.width === undefined ? 'inline-flex' : 'flex', alignItems: 'center', gap: 8, width: style?.width }}
     >
-      {showValue && <span>{field.valueText}</span>}
+      {showValue && <span style={{ whiteSpace: 'nowrap' }}>{field.valueText}</span>}
       {slider}
     </span>
   );

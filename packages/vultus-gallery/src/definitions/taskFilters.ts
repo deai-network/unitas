@@ -47,8 +47,8 @@ export const TASK_FILTERS: FieldDefinition[] = [
   { kind: 'tree', id: 'categories', label: 'Categories', description: 'Tasks filed under these categories.', nodes: CATEGORIES, placeholder: 'All categories' },
   {
     kind: 'range', id: 'years', label: 'School years', min: 2010, max: 2025, format: schoolYear,
-    widget: { name: 'slider', showValue: true, style: { width: 260 } },
+    widget: { name: 'slider', showValue: true, style: { width: 380 } },
   },
-  { kind: 'numeric', id: 'difficulty', label: 'Difficulty at least', min: 1, max: 5, integer: true, widget: { name: 'slider', showValue: true, style: { width: 200 } } },
+  { kind: 'numeric', id: 'difficulty', label: 'Difficulty at least', min: 1, max: 5, integer: true, widget: { name: 'slider', showValue: true, style: { width: 220 } } },
   { kind: 'boolean', id: 'unsolved', label: 'Only the ones I have not solved' },
 ];

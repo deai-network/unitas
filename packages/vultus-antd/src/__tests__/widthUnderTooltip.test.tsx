@@ -41,6 +41,16 @@ describe.each(CASES)('%s with style.width under a tooltip', (name, definition, w
       expect(slider.style.width).toBe('');
     });
 
+    if (name !== 'OneOfSlider') {
+      it('with showValue in a given width, the value stays on one line beside the slider', () => {
+        render(<AntApp><Field<FieldDefinition> definition={definition} widget={{ name: 'slider', showValue: true } as never} style={{ width: '100%' }} /></AntApp>);
+        const body = document.querySelector<HTMLElement>('[data-field-id="f"]')!;
+        const value = body.firstElementChild as HTMLElement;
+        expect(value.classList.contains('ant-slider')).toBe(false);
+        expect(value.style.whiteSpace).toBe('nowrap');
+      });
+    }
+
     it('without a width the body stays inline', () => {
       render(<AntApp><Field<FieldDefinition> definition={definition} widget={widget as never} /></AntApp>);
       const body = document.querySelector<HTMLElement>('[data-field-id="f"]')!;
