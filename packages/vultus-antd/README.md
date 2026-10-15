@@ -292,7 +292,8 @@ fields, above.
 the value in the nearest `ArgStore` instead (`useStoredField`, vultus-core: the URL, localStorage,
 ...); or the render site passes `value` together with `onChange` or `commit`, keeping it outside
 the field entirely. `stored` does not go together with `value`, `onChange` or `commit` — giving
-both throws. An `initialValue` override only makes sense for a value kept inside the field: giving
+both throws (and with a literal `stored`, `<Field definition={d} stored value={…} />` is a type
+error). An `initialValue` override only makes sense for a value kept inside the field: giving
 one together with `stored`, `value`, `onChange` or `commit` throws too.
 
 **Precedence**, for both the widget's display options (`iconOnly`, `vertical`, `showValue`,
