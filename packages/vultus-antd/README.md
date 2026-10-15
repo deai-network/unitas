@@ -286,8 +286,15 @@ node's title as `<a href>` (the optional row's `''` likewise), while the field i
 commit is pending (otherwise plain text, as a disabled node is). A plain click requests the node
 through the field's confirmation, the browser not following the link; a click with Ctrl, Cmd,
 Shift or Alt, or the middle button, is left to the browser (a new tab, which reads the value from
-its own URL) and requests nothing. `OneOfTreePicker` does not use `hrefFor` — the closed field is
-not a link.
+its own URL) and requests nothing. A link's href is the one the list rendered, asked of `hrefFor`
+again whenever the link may be used (the pointer entering it, its focus, a button pressed on it,
+its context menu, a modified click), so it follows a URL that changed without the list rendering
+again (another parameter of the query, the path). `OneOfTreePicker` does not use `hrefFor` — the
+closed field is not a link.
+
+An app's own links built from `hrefFor` (a previous / next pair) are as fresh as their
+component's last render: render them in a component that re-renders on location changes (one
+that calls react-router's `useLocation`), or compute them at interaction time.
 
 ```tsx
 <OneOfTreeList field={field} search />

@@ -438,7 +438,13 @@ amounts to, or `undefined` where nothing gives one. With `value` + `onChange` or
 `commit`, the caller passes it; inside the field it is always `undefined`. `useStoredField`
 wires its own from the store (`useArg`'s `hrefFor`, itself from the store's), so a field stored
 over a URL store (vultus-react-router's) links each value it could be set to, e.g.
-`field.hrefFor(field.choices[0].value)` next to the field's own widget.
+`field.hrefFor(field.choices[0].value)` next to the field's own widget. A link built from
+`hrefFor` is as fresh as the render that built it: a URL that changes without re-rendering its
+component (another key of the query, the path) leaves it stale. Render an app's own links (a
+previous / next pair) in a component that re-renders on location changes (with react-router,
+one that calls `useLocation`), or compute them at interaction time (vultus-antd's
+`OneOfTreeList` asks again as the pointer enters a link, on its focus, a button press, its
+context menu, a modified click).
 
 ```tsx
 const store = memoryStore();

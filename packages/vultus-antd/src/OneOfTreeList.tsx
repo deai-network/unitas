@@ -1,5 +1,5 @@
 import { Empty, Tree } from 'antd';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type SyntheticEvent } from 'react';
 import { filterTree, type OneOfTreeFieldControls, type OneOfTreeNodeControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useVultusTexts } from './texts.js';
@@ -55,16 +55,32 @@ type ListDataNode<T extends string> = Omit<FieldTreeDataNode<T | ''>, 'children'
  * auxclick. The link is out of the tab order (the tree is one tab stop, its keyboard choosing)
  * and in the tree's text colour; a click still focuses it, and Enter there is the tree's (see
  * OneOfTreeList's root), never the link's.
+ *
+ * `href` is the link as the list rendered; the URL may have changed since without the list
+ * rendering again (another query parameter, the path), so whenever the link may be used — the
+ * pointer entering it, its focus, a button pressed on it (the middle one's auxclick comes after),
+ * its context menu ("open in new tab", "copy link"), a modified click before its default — it
+ * takes `fresh()` (`field.hrefFor` asked again: a URL store answers from the URL as it is then).
  */
-function rowLink(href: string, title: ReactNode): ReactNode {
+function rowLink(href: string, title: ReactNode, fresh: () => string | undefined): ReactNode {
+  const refresh = (e: SyntheticEvent<HTMLAnchorElement>) => {
+    const next = fresh();
+    if (typeof next === 'string') e.currentTarget.href = next;
+  };
   return (
     <a
       href={href}
       tabIndex={-1}
       style={{ color: 'inherit' }}
+      onMouseEnter={refresh}
+      onFocus={refresh}
+      onMouseDown={refresh}
+      onContextMenu={refresh}
       onClick={(e) => {
-        if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) e.stopPropagation();
-        else e.preventDefault();
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+          refresh(e);
+          e.stopPropagation();
+        } else e.preventDefault();
       }}
     >
       {title}
@@ -87,7 +103,7 @@ function listRows<T extends string>(
     const href = node.choosable ? hrefFor?.(row.value) : undefined;
     return {
       ...row,
-      title: typeof href === 'string' ? rowLink(href, title) : title,
+      title: typeof href === 'string' ? rowLink(href, title, () => hrefFor?.(row.value)) : title,
       'data-value': row.value,
       children: row.children && listRows(row.children, byValue, hrefFor),
     };
@@ -125,7 +141,10 @@ function listRows<T extends string>(
  * a URL store), its title is a link (`<a href>`), while the field is enabled and no commit is
  * pending (otherwise plain text). A plain click requests the node as any click does, the
  * browser not following the link; a click with Ctrl, Cmd, Shift or Alt, or the middle button,
- * is left to the browser and requests nothing. The optional row links to `''` likewise.
+ * is left to the browser and requests nothing. The optional row links to `''` likewise. A link
+ * asks `field.hrefFor` again whenever it may be used (the pointer entering it, its focus, a
+ * button pressed on it, its context menu, a modified click), so it follows a URL that changed
+ * without the list rendering again (another parameter of the query, the path).
  *
  * `search` adds ManyOfTreeChecklist's search box (placeholder `texts.search`, named
  * "<search> <label>"): the nodes filterTree keeps, accent- and case-insensitive (the matches,
@@ -197,7 +216,7 @@ export function OneOfTreeList<T extends string>({
     const title = <span>{label}</span>;
     const none: ListDataNode<T> = {
       key: '', value: '', label, disabled: false, 'data-value': '',
-      title: typeof href === 'string' ? rowLink(href, title) : title,
+      title: typeof href === 'string' ? rowLink(href, title, () => hrefFor?.('')) : title,
       style: kept ? { display: 'none' } : undefined,
     };
     return [none, ...rows];
