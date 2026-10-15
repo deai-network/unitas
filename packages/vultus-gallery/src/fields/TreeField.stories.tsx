@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Space, Tag } from 'antd';
 import { useState } from 'react';
 import {
-  TreeChecklist, coveredNodes, denyWithReason, useTreeField,
+  TreeChecklist, TreePicker, coveredNodes, denyWithReason, useTreeField,
   type TreeExpand, type TreeNode, type TreeSelection,
 } from 'vultus-antd';
 import { Example, Showcase, delay } from '../Showcase.js';
@@ -13,8 +13,10 @@ import { Example, Showcase, delay } from '../Showcase.js';
  * label, an optional note (e.g. a count), maybe dimmed or disabled with a
  * reason. `selection` says which of the checked nodes the value lists
  * (`topmost`, the default: a checked node stands for its subtree), `expand`
- * which nodes open at first. TreeChecklist is moxb's always-open checkable
- * tree with a search box.
+ * which nodes open at first. TreePicker is antd's TreeSelect (Taskmaster's
+ * category filter on a desktop): the value as tags, the tree in a dropdown
+ * with a search, each node's note right-aligned. TreeChecklist is moxb's
+ * always-open checkable tree with a search box, each note in brackets.
  */
 const meta: Meta = { title: 'Fields/Tree' };
 export default meta;
@@ -71,6 +73,7 @@ export const TaskCategories: StoryObj<CategoryArgs> = {
       id: 'tasks.categories',
       label: 'Categories',
       description: 'Show the tasks filed under these categories.',
+      placeholder: 'All categories',
       nodes: categoryNodes(),
       selection,
       expand,
@@ -86,9 +89,12 @@ export const TaskCategories: StoryObj<CategoryArgs> = {
     return (
       <Showcase
         title="Task categories"
-        note="Each category shows its number of tasks in brackets; a category with none is dimmed (still checkable); Térgeometria is disabled, its reason on hover. Checking a category checks its subtree, and the value lists what 'selection' says (topmost: the checked categories whose parent is not checked; 'independent' checks each node alone). The search box ignores accents and case ('kombinatorika', 'oszthatosag', 'grafok'): it keeps the matches, their ancestors and a match's whole subtree, all open; checking while searching keeps the categories the search hides. Unchecking the last category asks first; each change commits to a pretend server (latency), the tree disabled meanwhile. 'expand' sets which categories open at first; 'readOnly' disables the field, its reason over the tree."
+        note="One field, two widgets. Each category shows its number of tasks, right-aligned in the picker's dropdown and in brackets in the checklist; a category with none is dimmed (still checkable); Térgeometria is disabled, its reason on hover. Checking a category checks its subtree, and the value lists what 'selection' says (topmost: the checked categories whose parent is not checked; 'independent' checks each node alone); the picker shows it as tags, as many as fit. Both searches ignore accents and case ('kombinatorika', 'oszthatosag', 'grafok'): they keep the matches, their ancestors and a match's whole subtree, all open; checking while searching keeps the categories the search hides. Unchecking the last category, or clearing the picker, asks first; each change commits to a pretend server (latency), the widgets disabled meanwhile. 'expand' sets which categories open at first; 'readOnly' disables the field, its reason over each widget."
       >
         <Space size={32} align="start" wrap>
+          <Example label="TreePicker">
+            <TreePicker key={expand} field={field} style={{ width: 380 }} />
+          </Example>
           <Example label="TreeChecklist">
             <div style={{ width: 380 }}><TreeChecklist key={expand} field={field} /></div>
           </Example>
@@ -132,9 +138,10 @@ export const ValueInsideTheField: StoryObj<{ selection: TreeSelection }> = {
     return (
       <Showcase
         title="Value inside the field"
-        note="initialValue, every node open (expand: all), no notes. field.value lists the checked nodes as 'selection' says; coveredNodes lists every node the value stands for (what an item filed under some node matches against), whatever the selection."
+        note="initialValue, every node open (expand: all), no notes. field.value lists the checked nodes as 'selection' says, and the picker's tags show the same nodes; coveredNodes lists every node the value stands for (what an item filed under some node matches against), whatever the selection."
       >
         <Space size={32} align="start" wrap>
+          <Example label="TreePicker"><TreePicker field={field} style={{ width: 280 }} /></Example>
           <Example label="TreeChecklist"><div style={{ width: 280 }}><TreeChecklist field={field} /></div></Example>
           <Example label="field.value"><Tag>{field.value.join(', ') || '(none)'}</Tag></Example>
           <Example label="coveredNodes"><Tag>{coveredNodes(field.nodes, field.value, field.selection).join(', ') || '(none)'}</Tag></Example>
@@ -158,9 +165,12 @@ export const DisabledWithReason: StoryObj = {
     return (
       <Showcase
         title="Disabled, with a reason"
-        note="A disabled field shows its reason, then its description, over the whole tree; every node is disabled. The search still filters the view."
+        note="A disabled field shows its reason, then its description, over the whole widget: the picker cannot open; in the checklist every node is disabled, and its search still filters the view."
       >
-        <Example label="TreeChecklist"><div style={{ width: 280 }}><TreeChecklist field={field} /></div></Example>
+        <Space size={32} align="start" wrap>
+          <Example label="TreePicker"><TreePicker field={field} style={{ width: 280 }} /></Example>
+          <Example label="TreeChecklist"><div style={{ width: 280 }}><TreeChecklist field={field} /></div></Example>
+        </Space>
       </Showcase>
     );
   },

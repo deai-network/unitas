@@ -1,3 +1,4 @@
+import type { TooltipProps } from 'antd';
 import type { CSSProperties, ReactNode } from 'react';
 import type { TreeNodeControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
@@ -32,6 +33,8 @@ export interface TreeDataOptions<T extends string> {
   tooltips?: boolean;
   /** Hold the nodes' tooltips back (a confirmation is open). */
   holdTooltips?: boolean;
+  /** Where the nodes' tooltips open; default antd's (above). A dropdown's open to the side (`'right'`), clear of the rows above. */
+  tooltipPlacement?: TooltipProps['placement'];
   /**
    * The nodes to show (a search's); any other node is hidden but stays in the
    * tree, so antd's check conduction still runs over the whole tree. Default:
@@ -48,7 +51,7 @@ export interface TreeDataOptions<T extends string> {
  * reason first, then its description); a disabled node is disabled.
  */
 export function treeData<T extends string>(nodes: TreeNodeControls<T>[], options: TreeDataOptions<T>): FieldTreeDataNode<T>[] {
-  const { noteStyle, tooltips = true, holdTooltips = false, shown } = options;
+  const { noteStyle, tooltips = true, holdTooltips = false, tooltipPlacement, shown } = options;
   const map = (node: TreeNodeControls<T>): FieldTreeDataNode<T> => {
     const title = noteStyle === 'aside'
       ? <ChoiceRow choice={node} />
@@ -59,6 +62,7 @@ export function treeData<T extends string>(nodes: TreeNodeControls<T>[], options
       label: node.label,
       title: withTooltip(tooltips ? choiceTooltip(node) : undefined, !node.enabled, title, {
         open: holdTooltips ? false : undefined,
+        placement: tooltipPlacement,
         block: noteStyle === 'aside',
       }),
       disabled: !node.enabled,

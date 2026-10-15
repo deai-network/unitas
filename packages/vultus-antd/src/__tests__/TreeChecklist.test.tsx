@@ -248,7 +248,8 @@ describe('TreeChecklist: search', () => {
     search('gra');
     await waitFor(() => expect(row('Gráfok')).toBeInTheDocument());
     search('graf');
-    await waitFor(() => expect(row('Gráfok')).toBeInTheDocument());
+    await settled();
+    expect(row('Gráfok')).toBeInTheDocument();
   });
 
   it('no matches: antd\'s empty notice instead of the tree', () => {
@@ -319,6 +320,17 @@ describe('TreeChecklist: keyboard while searching (never onto a hidden node)', (
     await waitFor(() => expect(activeRow()?.textContent).toMatch(/^Algebra/));
     press('ArrowRight'); // Egyenletek and Egyenlőtlenségek are hidden
     await waitFor(() => expect(activeRow()?.textContent).toMatch(/^Összegzés/));
+  });
+});
+
+describe('TreeChecklist: animation', () => {
+  it('a re-render of its own while a node opens does not cut the opening short', async () => {
+    wrap(<Inside expand="none" />);
+    fireEvent.click(row('Algebra')!.querySelector<HTMLElement>('.ant-tree-switcher')!);
+    await waitFor(() => expect(document.querySelector('.ant-tree-treenode-motion')).not.toBeNull());
+    focusTree(); // activates the first node: TreeChecklist re-renders, the field unchanged
+    await waitFor(() => expect(activeRow()?.textContent).toMatch(/^Algebra/));
+    expect(document.querySelector('.ant-tree-treenode-motion')).not.toBeNull();
   });
 });
 

@@ -1,5 +1,5 @@
 import { Empty, Input, Spin, Tree } from 'antd';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   filterTree, normalizeTreeValue, useSpinnerKey, useVultusComponents,
   type TreeFieldControls, type TreeNodeControls,
@@ -97,11 +97,17 @@ export function TreeChecklist<T extends string>({ field }: TreeChecklistProps<T>
   const [active, setActive] = useState<T | null>(null);
   /** Which way the last key moves the active node: 1 down (and on focus), -1 up. */
   const travel = useRef<1 | -1>(1);
+  // The same tree data while the field and the search stay the same: a
+  // re-render of its own (the keyboard's active node) would otherwise hand
+  // rc-tree new data, cutting short a node's opening or closing.
+  const kept = useMemo(() => (query.trim() !== '' ? collect(filterTree(field.nodes, query)) : undefined), [field.nodes, query]);
+  const data = useMemo(() => treeData(field.nodes, {
+    noteStyle: 'brackets', tooltips: field.enabled, holdTooltips: asking, shown: kept?.all,
+  }), [field.nodes, field.enabled, asking, kept]);
   if (!field.visible) return null;
 
   const disabled = !field.enabled || field.pending;
   const strict = field.selection === 'independent';
-  const kept = query.trim() !== '' ? collect(filterTree(field.nodes, query)) : undefined;
   const expandedKeys = !kept ? expanded : searchExpanded ?? kept.parents;
   const known = field.value.filter((v) => field.byValue.has(v));
   const unknown = field.value.filter((v) => !field.byValue.has(v));
@@ -131,9 +137,7 @@ export function TreeChecklist<T extends string>({ field }: TreeChecklistProps<T>
       switcherIcon={<TreeSwitcherIcon />}
       checkStrictly={strict}
       disabled={disabled}
-      treeData={treeData(field.nodes, {
-        noteStyle: 'brackets', tooltips: field.enabled, holdTooltips: asking, shown: kept?.all,
-      })}
+      treeData={data}
       checkedKeys={strict ? { checked: known, halfChecked: [] } : known}
       expandedKeys={expandedKeys}
       onExpand={(keys) => {
