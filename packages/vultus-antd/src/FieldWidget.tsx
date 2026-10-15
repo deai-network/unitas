@@ -19,11 +19,13 @@ import { SearchInput } from './SearchInput.js';
 import { TextInput } from './TextInput.js';
 import { ManyOfTreeChecklist, type ManyOfTreeChecklistProps } from './ManyOfTreeChecklist.js';
 import { ManyOfTreePicker } from './ManyOfTreePicker.js';
+import { OneOfTreeList, type OneOfTreeListProps } from './OneOfTreeList.js';
 import { OneOfTreePicker } from './OneOfTreePicker.js';
 
 /**
- * Each kind's widgets by name (the spec's widget table). ManyOfTreeChecklist is listed with its public
- * props only, so its internal `nested` cannot be reached through a hint or a render-site prop.
+ * Each kind's widgets by name (the spec's widget table). ManyOfTreeChecklist and OneOfTreeList are
+ * listed with their public props only, so their internal props (`nested`, `onChosen`) cannot be
+ * reached through a hint or a render-site prop.
  */
 const WIDGETS = {
   boolean: { switch: BoolSwitch, checkbox: BoolCheckbox },
@@ -33,7 +35,7 @@ const WIDGETS = {
   numeric: { input: NumericInput, slider: NumericSlider },
   range: { slider: RangeSlider },
   manyOfTree: { picker: ManyOfTreePicker, checklist: ManyOfTreeChecklist as (props: ManyOfTreeChecklistProps<string>) => ReturnType<typeof ManyOfTreeChecklist> },
-  oneOfTree: { picker: OneOfTreePicker },
+  oneOfTree: { picker: OneOfTreePicker, list: OneOfTreeList as (props: OneOfTreeListProps<string>) => ReturnType<typeof OneOfTreeList> },
   text: { input: TextInput, search: SearchInput },
 } satisfies Record<FieldKind, Record<string, ComponentType<any>>>;
 
@@ -45,7 +47,7 @@ export type WidgetNameOf<K extends FieldKind> = K extends FieldKind ? keyof Widg
 /** The widget names a hint can give (general UI terms; which of them a kind has, see WidgetNameOf). */
 export type WidgetName =
   | 'switch' | 'checkbox' | 'select' | 'segmented' | 'slider' | 'checkboxes' | 'switches'
-  | 'input' | 'picker' | 'checklist' | 'search';
+  | 'input' | 'picker' | 'checklist' | 'search' | 'list';
 
 const DEFAULT_WIDGETS: { [K in FieldKind]: WidgetNameOf<K> } = {
   boolean: 'switch', 'mixed-boolean': 'switch', oneOf: 'select', manyOf: 'checkboxes',

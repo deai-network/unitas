@@ -8,7 +8,7 @@ import {
   ChoiceLabel, Field, FieldWidget,
   type ManyOfCheckboxesProps, type ManyOfSelectProps, type ManyOfSwitchesProps, type NumericInputProps,
   type NumericSliderProps, type RangeSliderProps, type RequestableField, type SearchInputProps, type TextInputProps,
-  type ManyOfTreeChecklistProps, type ManyOfTreePickerProps, type OneOfTreePickerProps,
+  type ManyOfTreeChecklistProps, type ManyOfTreePickerProps, type OneOfTreePickerProps, type OneOfTreeListProps,
 } from '../index.js';
 
 /** The definition of kind `K` (FieldDefinition's member). */
@@ -62,6 +62,12 @@ function fieldPropsAreTyped(
     <Field definition={oneOfTree} stored optional />,
     // @ts-expect-error -- a one-of tree's summary is its label or path, not the many-of tree's tags.
     <Field definition={oneOfTree} summary="tags" />,
+    <Field definition={oneOfTree} widget="list" search style={{ width: 240 }} />,
+    <Field definition={oneOfTree} widget={{ name: 'list', search: true }} />,
+    // @ts-expect-error -- OneOfTreeList's internal `nested` is not a display prop.
+    <Field definition={oneOfTree} widget="list" nested />,
+    // @ts-expect-error -- nor is its internal `onChosen`.
+    <Field definition={oneOfTree} widget="list" onChosen={() => {}} />,
     <Field definition={bool} initialValue />,
     <Field definition={{ kind: 'manyOf', id: 'rounds', choices: [] }} vertical label="Rounds" value={['a']} onChange={(next) => next.join()} />,
     // @ts-expect-error -- an inline definition is typed by its kind too: iconOnly is a one-of widget's prop.
@@ -100,6 +106,11 @@ function fieldWidgetPropsAreTyped(
     <FieldWidget field={oneOfTree} widget="picker" summary="path" />,
     // @ts-expect-error -- one-of tree controls are read as their own kind (not as of every kind): no search widget.
     <FieldWidget field={oneOfTree} widget="search" />,
+    <FieldWidget field={oneOfTree} widget="list" search />,
+    // @ts-expect-error -- OneOfTreeList's internal `onChosen` is not a display prop.
+    <FieldWidget field={oneOfTree} widget="list" onChosen={() => {}} />,
+    // @ts-expect-error -- nor can a hint reach its `nested`.
+    <FieldWidget field={oneOfTree} widget={{ name: 'list', nested: true }} />,
     <FieldWidget field={oneOf} widget="segmented" iconOnly />,
     <FieldWidget field={oneOf} widget={{ name: 'segmented', iconOnly: true }} />,
     <FieldWidget field={text} widget="search" onEnter={(typed) => typed.toUpperCase()} />,
@@ -131,7 +142,7 @@ function choiceLabelTakesAChoiceWithoutDimmed() {
 type WidgetPropsAreExported = [
   ManyOfCheckboxesProps<string>, ManyOfSwitchesProps<string>, ManyOfSelectProps<string>, NumericInputProps,
   NumericSliderProps, RangeSliderProps, ManyOfTreeChecklistProps<string>, ManyOfTreePickerProps<string>, TextInputProps,
-  SearchInputProps, RequestableField<string>, OneOfTreePickerProps<string>,
+  SearchInputProps, RequestableField<string>, OneOfTreePickerProps<string>, OneOfTreeListProps<string>,
 ];
 
 export {

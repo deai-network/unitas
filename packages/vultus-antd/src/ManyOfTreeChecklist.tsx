@@ -2,11 +2,11 @@ import { Empty, Input, Spin, Tree } from 'antd';
 import { useMemo, useRef, useState } from 'react';
 import {
   filterTree, normalizeTreeValue, useSpinnerKey, useVultusComponents,
-  type ManyOfTreeFieldControls, type TreeNodeControls,
+  type ManyOfTreeFieldControls,
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useVultusTexts } from './texts.js';
-import { treeData, TreeSwitcherIcon } from './treeData.js';
+import { collectValues, openOrder, treeData, TreeSwitcherIcon } from './treeData.js';
 import { useManyOfTreeRequest } from './useManyOfTreeRequest.js';
 import { withTooltip } from './WithReason.js';
 
@@ -23,36 +23,6 @@ interface InternalManyOfTreeChecklistProps {
    * the document.
    */
   nested?: boolean;
-}
-
-/** The values of `nodes` and their descendants, and of those that have children. */
-function collect<T extends string>(nodes: TreeNodeControls<T>[]): { all: Set<T>; parents: T[] } {
-  const all = new Set<T>();
-  const parents: T[] = [];
-  const walk = (list: TreeNodeControls<T>[]) => {
-    for (const node of list) {
-      all.add(node.value);
-      if (node.children?.length) {
-        parents.push(node.value);
-        walk(node.children);
-      }
-    }
-  };
-  walk(nodes);
-  return { all, parents };
-}
-
-/** The nodes in the order the tree lists them: pre-order, a node's children only while it is open (as rc-tree's keyboard walks them). */
-function openOrder<T extends string>(nodes: TreeNodeControls<T>[], open: Set<T>): T[] {
-  const order: T[] = [];
-  const walk = (list: TreeNodeControls<T>[]) => {
-    for (const node of list) {
-      order.push(node.value);
-      if (node.children && open.has(node.value)) walk(node.children);
-    }
-  };
-  walk(nodes);
-  return order;
 }
 
 /**
@@ -112,7 +82,7 @@ export function ManyOfTreeChecklist<T extends string>({ field, nested = false }:
   // The same tree data while the field and the search stay the same: a
   // re-render of its own (the keyboard's active node) would otherwise hand
   // rc-tree new data, cutting short a node's opening or closing.
-  const kept = useMemo(() => (query.trim() !== '' ? collect(filterTree(field.nodes, query)) : undefined), [field.nodes, query]);
+  const kept = useMemo(() => (query.trim() !== '' ? collectValues(filterTree(field.nodes, query)) : undefined), [field.nodes, query]);
   const data = useMemo(() => treeData(field.nodes, {
     noteStyle: 'brackets', tooltips: field.enabled, holdTooltips: asking, shown: kept?.all,
   }), [field.nodes, field.enabled, asking, kept]);

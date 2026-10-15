@@ -28,6 +28,7 @@ export { ManyOfTreeChecklist, type ManyOfTreeChecklistProps } from './ManyOfTree
 export { ManyOfTreePicker, type ManyOfTreePickerProps } from './ManyOfTreePicker.js';
 export { useManyOfTreeRequest } from './useManyOfTreeRequest.js';
 export { OneOfTreePicker, type OneOfTreePickerProps } from './OneOfTreePicker.js';
+export { OneOfTreeList, type OneOfTreeListProps } from './OneOfTreeList.js';
 export { TextInput, type TextInputProps } from './TextInput.js';
 export { SearchInput, type SearchInputProps } from './SearchInput.js';
 export { FieldWidget, type FieldWidgetProps, type WidgetNameOf, type WidgetHintOf } from './FieldWidget.js';

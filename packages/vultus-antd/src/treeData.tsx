@@ -57,12 +57,12 @@ export interface TreeDataOptions<T extends string> {
 
 /**
  * A tree field's nodes (useManyOfTreeField's or useOneOfTreeField's `nodes`) as antd tree data,
- * shared by the tree widgets (ManyOfTreeChecklist, ManyOfTreePicker, OneOfTreePicker). Each
- * node's title is its label (ChoiceLabel: in the description colour while dimmed) and note
- * (ChoiceNote, placed by `noteStyle`), with the node's own tooltip (choiceTooltip: a disabled
- * node's reason first, then its description); a disabled node is disabled. A one-of tree's
- * node is `selectable` as it is `choosable`, so a click on one that cannot be chosen only
- * opens or closes it.
+ * shared by the tree widgets (ManyOfTreeChecklist, ManyOfTreePicker, OneOfTreePicker,
+ * OneOfTreeList). Each node's title is its label (ChoiceLabel: in the description colour while
+ * dimmed) and note (ChoiceNote, placed by `noteStyle`), with the node's own tooltip
+ * (choiceTooltip: a disabled node's reason first, then its description); a disabled node is
+ * disabled. A one-of tree's node is `selectable` as it is `choosable`, so a click on one that
+ * cannot be chosen only opens or closes it.
  */
 export function treeData<T extends string>(nodes: ChoiceTreeNode<T>[], options: TreeDataOptions<T>): FieldTreeDataNode<T>[] {
   const { noteStyle, tooltips = true, holdTooltips = false, tooltipPlacement, shown } = options;
@@ -86,6 +86,45 @@ export function treeData<T extends string>(nodes: ChoiceTreeNode<T>[], options: 
     };
   };
   return nodes.map(map);
+}
+
+/** A tree field's node as the walks below take it: its value and its children. */
+interface WalkedNode<T extends string> {
+  value: T;
+  children?: WalkedNode<T>[] | undefined;
+}
+
+/**
+ * The values of `nodes` and their descendants, and of those that have children: what a search
+ * (filterTree's result) shows, and opens, in the always-open tree widgets.
+ */
+export function collectValues<T extends string>(nodes: WalkedNode<T>[]): { all: Set<T>; parents: T[] } {
+  const all = new Set<T>();
+  const parents: T[] = [];
+  const walk = (list: WalkedNode<T>[]) => {
+    for (const node of list) {
+      all.add(node.value);
+      if (node.children?.length) {
+        parents.push(node.value);
+        walk(node.children);
+      }
+    }
+  };
+  walk(nodes);
+  return { all, parents };
+}
+
+/** The nodes in the order the tree lists them: pre-order, a node's children only while it is open (as rc-tree's keyboard walks them). */
+export function openOrder<T extends string>(nodes: WalkedNode<T>[], open: Set<T>): T[] {
+  const order: T[] = [];
+  const walk = (list: WalkedNode<T>[]) => {
+    for (const node of list) {
+      order.push(node.value);
+      if (node.children && open.has(node.value)) walk(node.children);
+    }
+  };
+  walk(nodes);
+  return order;
 }
 
 /**

@@ -55,7 +55,7 @@ const MARKS: Record<FieldKind, Record<string, () => boolean>> = {
   numeric: { input: has('.ant-input-number'), slider: has('.ant-slider') },
   range: { slider: has('.ant-slider') },
   manyOfTree: { picker: has('.ant-select'), checklist: has('.ant-tree') },
-  oneOfTree: { picker: has('.ant-select') },
+  oneOfTree: { picker: has('.ant-select'), list: has('.ant-tree') },
   text: { input: () => has('input.ant-input')() && !has('.anticon-search')(), search: has('.anticon-search') },
 };
 
