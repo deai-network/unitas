@@ -23,3 +23,5 @@ export { NumericInput } from './NumericInput.js';
 export { NumericSlider } from './NumericSlider.js';
 export { useNumericRequest } from './useNumericRequest.js';
 export { RangeSlider } from './RangeSlider.js';
+export { TreeChecklist, type TreeChecklistProps } from './TreeChecklist.js';
+export { useTreeRequest } from './useTreeRequest.js';
