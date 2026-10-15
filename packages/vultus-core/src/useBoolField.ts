@@ -1,5 +1,7 @@
 import { useFieldCore, type FieldControls, type FieldOptions } from './field.js';
-import type { ErrorRoutesRegistry } from './types.js';
+import { useFieldContext, type FieldCtx } from './FieldContext.js';
+import { resolveIn } from './resolve.js';
+import type { ErrorRoutesRegistry, ValueOrFn } from './types.js';
 
 export type BoolFieldOptions<RouteId extends string = string, Ctx = any> = FieldOptions<boolean, boolean, RouteId, Ctx>;
 
@@ -12,6 +14,21 @@ export interface BoolFieldControls extends FieldControls<boolean, boolean> {
 }
 
 /**
+ * The implicit initial value for a boolean field: `initialValue` resolved, else false. Checked
+ * against `undefined` after resolving, not just before it, so a context function that returns
+ * `undefined` (e.g. a lookup that missed) still falls back instead of leaving the field with no
+ * value at all.
+ */
+export function boolInitialValue(
+  opts: { initialValue?: ValueOrFn<boolean> },
+  ctx: FieldCtx,
+  id: string,
+): boolean {
+  const resolved = resolveIn<boolean | undefined>(opts.initialValue, undefined, ctx, `Field '${id}': option 'initialValue'`);
+  return resolved ?? false;
+}
+
+/**
  * A boolean field (moxb's Bool, the sidedao boolean field). Rendered by
  * vultus-antd's BoolCheckbox and BoolSwitch, which take the same controls.
  * Inside the field the value starts at `initialValue` (default false).
@@ -20,10 +37,12 @@ export function useBoolField<RouteId extends string = string, Ctx = any>(
   opts: BoolFieldOptions<RouteId, Ctx>,
   registry?: ErrorRoutesRegistry<RouteId>,
 ): BoolFieldControls {
+  const ctx = useFieldContext();
   const inside = !opts.onChange && !opts.commit;
+  const initialValue = inside ? boolInitialValue(opts, ctx, opts.id) : undefined;
   const field = useFieldCore<boolean, boolean, RouteId, Ctx>(
     'boolean',
-    inside ? { ...opts, initialValue: opts.initialValue ?? false } : opts,
+    inside ? { ...opts, initialValue } : opts,
     registry,
   );
   return { ...field, toggle: () => field.setValue(!field.value) };

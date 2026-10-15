@@ -1,8 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useBoolField } from '../useBoolField.js';
 import { denyWithReason } from '../decision.js';
+import { FieldContextProvider } from '../FieldContext.js';
+
+function providing(value: object) {
+  return ({ children }: { children?: ReactNode }) => <FieldContextProvider value={value}>{children}</FieldContextProvider>;
+}
 
 describe('useBoolField: value inside the field', () => {
   it('starts at false (or initialValue) and changes locally', () => {
@@ -15,6 +20,13 @@ describe('useBoolField: value inside the field', () => {
     expect(result.current.value).toBe(false);
     const started = renderHook(() => useBoolField({ id: 'g', initialValue: true }));
     expect(started.result.current.value).toBe(true);
+  });
+
+  it('falls back to false when a context-function initialValue resolves to undefined', () => {
+    const { result } = renderHook(() => useBoolField({
+      id: 'f', initialValue: (ctx: { on?: boolean }) => ctx.on as boolean,
+    }), { wrapper: providing({ on: undefined }) });
+    expect(result.current.value).toBe(false);
   });
 
   it('has no pending state or messages', () => {

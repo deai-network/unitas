@@ -16,9 +16,10 @@ export {
 } from './field.js';
 export { resolveChoice, type OneOfChoice, type OneOfChoiceControls } from './choices.js';
 export { normalizeText } from './normalizeText.js';
-export { useBoolField, type BoolFieldControls, type BoolFieldOptions } from './useBoolField.js';
+export { useBoolField, boolInitialValue, type BoolFieldControls, type BoolFieldOptions } from './useBoolField.js';
 export {
-  useMixedBoolField, aggregateBool, type MixedBool, type MixedBoolFieldControls, type MixedBoolFieldOptions,
+  useMixedBoolField, aggregateBool, mixedBoolInitialValue,
+  type MixedBool, type MixedBoolFieldControls, type MixedBoolFieldOptions,
 } from './useMixedBoolField.js';
 export {
   useOneOfField, oneOfInitialValue, type OneOfFieldControls, type OneOfFieldOptions, type OneOfOwnOptions,
@@ -44,6 +45,10 @@ export {
   useTreeField, treeInitialValue,
   type TreeFieldControls, type TreeFieldOptions, type TreeOwnOptions,
 } from './useTreeField.js';
+export {
+  useTextField, textInitialValue,
+  type TextFieldControls, type TextFieldOptions, type TextOwnOptions,
+} from './useTextField.js';
 export { InternalLinkContext, useInternalLink, type InternalLinkComponent } from './LinkContext.js';
 export { MessageSinkContext, useMessageSink, type MessageSink } from './MessageSink.js';
 export {
