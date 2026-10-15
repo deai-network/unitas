@@ -1,5 +1,5 @@
 import { Drawer, TreeSelect, type TreeSelectProps } from 'antd';
-import { useMemo, useRef, useState, type CSSProperties, type Key } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type Key } from 'react';
 import {
   useSpinnerKey, useVultusComponents, type OneOfTreeFieldControls, type OneOfTreeNodeControls,
 } from 'vultus-core';
@@ -102,10 +102,10 @@ const OWN_ACTIONS = '.ant-select-clear';
  * its own, the closed field's root being the only carrier), its search box
  * included. A disabled or pending field does not open it.
  *
- * The drawer closes when the field's value becomes the node chosen in it (a
- * choice with no confirmation, or a confirmed one), or when the node chosen
- * is the one already current (`onChosen`'s value then equals `field.value`:
- * `request` refuses it as equal, so nothing is requested, but the user's
+ * The drawer closes whenever the field's value changes while it is open, whatever the source (a
+ * choice with no confirmation, a confirmed one, the URL, the Back button, another widget of the
+ * same field), or when the node chosen in it is the one already current (`onChosen`'s value then
+ * equals `field.value`: `request` refuses it as equal, so nothing is requested, but the user's
  * intent is clear); it does not close merely because a request was taken,
  * so a popconfirm or modal confirmation opened from the list's choice stays
  * visible, and a Cancel keeps the drawer open. There is no Done button.
@@ -140,14 +140,16 @@ export function OneOfTreePicker<T extends string>({
     return summary === 'path' ? withPaths(nodes, texts.pathSeparator) : nodes;
   }, [field.nodes, field.enabled, asking, summary, texts.pathSeparator]);
   const parents = useMemo(() => parentValues(field.nodes), [field.nodes]);
-  // Closes the drawer when the value becomes the node chosen in it (this render's, or a later
-  // one, under a confirmation that commits): not on a request merely taken (see `chosen` below),
-  // so a popconfirm or modal confirmation stays visible, and a Cancel keeps the drawer open.
-  const [trackedValue, setTrackedValue] = useState(field.value);
-  if (trackedValue !== field.value) {
-    setTrackedValue(field.value);
-    if (drawerOpen) setDrawerOpen(false);
-  }
+  // Closes the drawer whenever field.value changes, whatever the source: a choice in the drawer
+  // applied at once, a later commit under a confirmation, the URL, the Back button, or another
+  // widget of the same field. Not on a request merely taken (see `chosen` below), so a
+  // popconfirm or modal confirmation stays visible, and a Cancel keeps the drawer open
+  // (field.value never changes then). An effect, not a render-phase update: closing the drawer
+  // (antd's own state) during the same render as field.value changing confuses its reconciliation
+  // (observed: the drawer reopens right after, with no call of ours asking for that).
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [field.value]);
   if (!field.visible) return null;
 
   const disabled = !field.enabled || field.pending;

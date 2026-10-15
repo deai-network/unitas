@@ -29,6 +29,12 @@ function Inside({ panel, ...opts }: InsideOpts) {
   return <><OneOfTreePicker field={field} panel={panel} /><output>{field.value}</output></>;
 }
 
+/** A field whose value the render site keeps, so a test can change it from outside (the URL, the Back button, another widget). */
+function Outside({ value }: { value: Geo | '' }) {
+  const field = useOneOfTreeField<Geo>({ id: 'cat', label: 'Category', nodes: GEO, expand: 'all', value, onChange: () => {} });
+  return <><OneOfTreePicker field={field} panel="drawer" /><output>{field.value}</output></>;
+}
+
 function Committed({ fire, confirmation, initial = 'alg', panel = 'drawer' }: {
   fire: (next: Geo | '') => Promise<void> | void;
   confirmation?: FieldCommit<Geo | ''>['confirmation'];
@@ -191,6 +197,15 @@ describe('OneOfTreePicker panel="drawer": the drawer', () => {
     await waitFor(() => expect(openDrawer()).not.toBeNull());
     fireEvent.click(within(drawerRow('Kör')!).getByText('Kör'));
     expect(onChange).not.toHaveBeenCalled();
+    await waitFor(() => expect(openDrawer()).toBeNull());
+  });
+
+  it('a value change from outside (the URL, the Back button, another widget) closes the drawer too', async () => {
+    const { rerender } = wrap(<Outside value="alg" />);
+    tap(root());
+    await waitFor(() => expect(openDrawer()).not.toBeNull());
+    rerender(<AntApp><Outside value="kor" /></AntApp>);
+    await waitFor(() => expect(shown()).toBe('kor'));
     await waitFor(() => expect(openDrawer()).toBeNull());
   });
 
