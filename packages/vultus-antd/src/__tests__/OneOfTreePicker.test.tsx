@@ -35,6 +35,12 @@ function Inside({ summary, listHeight, popupMatchSelectWidth, ...opts }: InsideO
   );
 }
 
+/** A field whose value the render site keeps, so a test can change it from outside. */
+function Outside({ value }: { value: Geo | '' }) {
+  const field = useOneOfTreeField<Geo>({ id: 'cat', label: 'Category', nodes: GEO, value, onChange: () => {} });
+  return <><OneOfTreePicker field={field} /><output>{field.value}</output></>;
+}
+
 function Committed({ fire, confirmation, optional }: {
   fire: (next: Geo | '') => Promise<void> | void;
   confirmation?: FieldCommit<Geo | ''>['confirmation'];
@@ -168,6 +174,64 @@ describe('OneOfTreePicker: choosing', () => {
   });
 });
 
+describe('OneOfTreePicker: the open tree follows the value', () => {
+  const ALL_OPEN = ['Geometria', 'Síkgeometria', 'Kör', 'Térgeometria', 'Algebra'];
+
+  it("a value changed while closed: opening shows it, its ancestors open", async () => {
+    const { rerender } = wrap(<Outside value="alg" />);
+    await openTree();
+    expect(treeLabels()).toEqual(['Geometria', 'Algebra']);
+    fireEvent.keyDown(combobox(), { key: 'Escape', keyCode: 27, which: 27 });
+    await waitFor(() => expect(isOpen()).toBe(false));
+    rerender(<AntApp><Outside value="kor" /></AntApp>);
+    fireEvent.mouseDown(combobox());
+    await waitFor(() => expect(treeLabels()).toEqual(ALL_OPEN));
+  });
+
+  it("expand 'none' opens no folder, but opening the tree opens the value's ancestors, without antd's scrollTo warning", async () => {
+    const error = vi.spyOn(console, 'error');
+    wrap(<Inside expand="none" initialValue="kor" />);
+    await openTree();
+    expect(treeLabels()).toEqual(ALL_OPEN);
+    expect(error.mock.calls.flat().join(' ')).not.toContain('scrollTo');
+  });
+
+  it("the user's own expansion is kept, the value's ancestors joining it", async () => {
+    wrap(<Inside initialValue="alg" />);
+    await openTree();
+    fireEvent.click(within(treeRow('Geometria')!).getByText('Geometria'));
+    await waitFor(() => expect(treeLabels()).toEqual(['Geometria', 'Síkgeometria', 'Térgeometria', 'Algebra']));
+    fireEvent.keyDown(combobox(), { key: 'Escape', keyCode: 27, which: 27 });
+    await waitFor(() => expect(isOpen()).toBe(false));
+    fireEvent.mouseDown(combobox());
+    await waitFor(() => expect(isOpen()).toBe(true));
+    expect(treeLabels()).toEqual(['Geometria', 'Síkgeometria', 'Térgeometria', 'Algebra']);
+  });
+
+  it('choosing a node with children leaves it open', async () => {
+    wrap(<Inside initialValue="kor" />);
+    await openTree();
+    expect(treeLabels()).toEqual(ALL_OPEN);
+    fireEvent.click(within(treeRow('Síkgeometria')!).getByText('Síkgeometria'));
+    await waitFor(() => expect(shown()).toBe('sik'));
+    await waitFor(() => expect(isOpen()).toBe(false));
+    fireEvent.mouseDown(combobox());
+    await waitFor(() => expect(isOpen()).toBe(true));
+    expect(treeLabels()).toEqual(ALL_OPEN);
+  });
+
+  it('a search opens everything it shows; the expansion from before comes back after it', async () => {
+    wrap(<Inside initialValue="alg" />);
+    await search('kor');
+    await waitFor(() => expect(treeLabels()).toEqual(['Geometria', 'Síkgeometria', 'Kör']));
+    fireEvent.keyDown(combobox(), { key: 'Escape', keyCode: 27, which: 27 });
+    await waitFor(() => expect(isOpen()).toBe(false));
+    fireEvent.mouseDown(combobox());
+    await waitFor(() => expect(isOpen()).toBe(true));
+    expect(treeLabels()).toEqual(['Geometria', 'Algebra']);
+  });
+});
+
 describe('OneOfTreePicker: the closed field', () => {
   it("shows the chosen node's label; summary=\"path\" shows its path", async () => {
     const { unmount } = wrap(<Inside initialValue="kor" />);
@@ -220,8 +284,7 @@ describe('OneOfTreePicker: search', () => {
   });
 
   it("keeps a match's whole subtree, open", async () => {
-    // The value at a root: antd scrolls the open tree to it, warning when a closed folder hides it.
-    wrap(<Inside expand="none" initialValue="alg" />);
+    wrap(<Inside expand="none" />);
     await search('geometria');
     await waitFor(() => expect(treeLabels()).toEqual(['Geometria', 'Síkgeometria', 'Kör', 'Térgeometria']));
   });
