@@ -1,6 +1,6 @@
 import { Switch, theme, type SwitchProps } from 'antd';
 import { useSpinnerKey, useVultusComponents, type BoolFieldControls, type MixedBoolFieldControls } from 'vultus-core';
-import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useVultusTexts } from './texts.js';
 import { useBoolRequest } from './useBoolRequest.js';
 import { useConfirm } from './useConfirm.js';
@@ -29,6 +29,7 @@ export function BoolSwitch({ field, size, checkedChildren, unCheckedChildren }: 
   const { confirm, wrap, asking } = useConfirm({ okText: field.label });
   const click = useBoolRequest(field, confirm);
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   if (!field.visible) return null;
@@ -58,5 +59,5 @@ export function BoolSwitch({ field, size, checkedChildren, unCheckedChildren }: 
   const control = Spinner
     ? <>{switchEl}{field.pending && <span style={{ marginInlineStart: 8 }}><Spinner spinnerKey={spinnerKey} size="small" /></span>}</>
     : switchEl;
-  return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, control, { open: asking ? false : undefined }));
+  return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, control, { open: asking ? false : undefined }));
 }

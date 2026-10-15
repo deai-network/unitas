@@ -1,7 +1,7 @@
 import { InputNumber, Spin } from 'antd';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useSpinnerKey, useVultusComponents, type NumericFieldControls } from 'vultus-core';
-import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useNumericRequest } from './useNumericRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -27,6 +27,7 @@ export interface NumericInputProps {
  */
 export function NumericInput({ field, style }: NumericInputProps) {
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { request, wrap, asking } = useNumericRequest(field);
   const [draft, setDraft] = useState<number | null>(field.value);
   const { Spinner } = useVultusComponents();
@@ -41,7 +42,7 @@ export function NumericInput({ field, style }: NumericInputProps) {
   const spinner = field.pending
     ? (Spinner ? <Spinner spinnerKey={spinnerKey} size="small" /> : <Spin size="small" />)
     : null;
-  return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, (
+  return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, (
     <InputNumber
       value={draft}
       min={field.min}

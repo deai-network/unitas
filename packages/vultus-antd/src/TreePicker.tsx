@@ -4,7 +4,7 @@ import {
   normalizeText, normalizeTreeValue, toggleTreeValue, useSpinnerKey, useVultusComponents,
   type TreeFieldControls, type TreeSelection,
 } from 'vultus-core';
-import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { firstWords } from './firstWords.js';
 import { useVultusTexts } from './texts.js';
 import { TreeChecklist } from './TreeChecklist.js';
@@ -117,6 +117,7 @@ export function TreePicker<T extends string>({
   field, size, style, listHeight = 520, popupMatchSelectWidth = 480, panel = 'dropdown', summary = 'tags',
 }: TreePickerProps<T>) {
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { request, wrap, asking } = useTreeRequest(field);
   const [open, setOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -207,7 +208,7 @@ export function TreePicker<T extends string>({
       data-value={field.value.join(',')}
     />
   );
-  const closed = wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, select, {
+  const closed = wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, select, {
     open: open || drawerOpen || asking ? false : undefined,
     width: style?.width,
   }));

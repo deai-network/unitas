@@ -1,7 +1,7 @@
 import { Segmented, type SegmentedProps } from 'antd';
 import type { OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
-import { choiceLead, fieldAccessibleDescription, fieldTooltip, shownChoiceTooltip } from './fieldTooltip.js';
+import { choiceLead, fieldAccessibleDescription, fieldTooltip, shownChoiceTooltip, useTooltipField } from './fieldTooltip.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -29,6 +29,7 @@ interface Props<T extends string> {
  */
 export function OneOfSegmented<T extends string>({ field, size, iconOnly }: Props<T>) {
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { request, wrap, asking } = useOneOfRequest(field);
   if (!field.visible) return null;
   const control = (
@@ -41,7 +42,7 @@ export function OneOfSegmented<T extends string>({ field, size, iconOnly }: Prop
         value: c.value,
         disabled: !c.enabled,
         label: field.enabled
-          ? withTooltip(shownChoiceTooltip(field, c, iconOnly, choiceLead(c, c.value === field.value, texts)), !c.enabled, <ChoiceLabel choice={c} iconOnly={iconOnly} />, { open: asking ? false : undefined })
+          ? withTooltip(shownChoiceTooltip(tipField, c, iconOnly, choiceLead(c, c.value === field.value, texts)), !c.enabled, <ChoiceLabel choice={c} iconOnly={iconOnly} />, { open: asking ? false : undefined })
           : <ChoiceLabel choice={{ ...c, enabled: false }} iconOnly={iconOnly} />,
       }))}
       aria-label={field.label || undefined}
@@ -50,5 +51,5 @@ export function OneOfSegmented<T extends string>({ field, size, iconOnly }: Prop
       data-value={field.value}
     />
   );
-  return wrap(field.enabled ? control : withTooltip(fieldTooltip(field, texts), true, control));
+  return wrap(field.enabled ? control : withTooltip(fieldTooltip(tipField, texts), true, control));
 }

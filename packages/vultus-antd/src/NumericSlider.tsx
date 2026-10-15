@@ -1,7 +1,7 @@
 import { Slider } from 'antd';
 import { useState, type CSSProperties, type MouseEvent } from 'react';
 import type { NumericFieldControls } from 'vultus-core';
-import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useNumericRequest } from './useNumericRequest.js';
 import { sliderStyle, useSliderMove } from './useSliderMove.js';
 import { useVultusTexts } from './texts.js';
@@ -32,6 +32,7 @@ export interface NumericSliderProps {
  */
 export function NumericSlider({ field, style, showValue }: NumericSliderProps) {
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { request, wrap, asking } = useNumericRequest(field);
   const move = useSliderMove<number>({ value: field.value, pending: field.pending, asking, request });
   const [onHandle, setOnHandle] = useState(false);
@@ -68,7 +69,7 @@ export function NumericSlider({ field, style, showValue }: NumericSliderProps) {
     </span>
   );
   // The handle shows what the value is (its own tooltip); the track says what the field is.
-  return wrap(withTooltip(fieldTooltip(field, texts, false), !field.enabled, body, {
+  return wrap(withTooltip(fieldTooltip(tipField, texts, false), !field.enabled, body, {
     open: asking || onHandle ? false : undefined,
     width: style?.width,
   }));

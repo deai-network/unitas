@@ -1,7 +1,7 @@
 import { Input, Spin } from 'antd';
 import type { ChangeEvent, CSSProperties, ReactElement } from 'react';
 import { useSpinnerKey, useVultusComponents, type TextFieldControls } from 'vultus-core';
-import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useTextDraft } from './useTextDraft.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -31,6 +31,7 @@ export interface TextInputProps {
  */
 export function TextInput({ field, style }: TextInputProps) {
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { value, change, commit, wrap, asking } = useTextDraft(field);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
@@ -72,7 +73,7 @@ export function TextInput({ field, style }: TextInputProps) {
         style={{ minWidth: 200, ...style }}
       />
     );
-  return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, control, {
+  return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, control, {
     open: asking ? false : undefined,
     width: style?.width,
   }));

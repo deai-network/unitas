@@ -2,7 +2,7 @@ import { Slider } from 'antd';
 import { useEffect, useState, type CSSProperties } from 'react';
 import type { OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
-import { choiceLead, fieldAccessibleDescription, fieldTooltip, shownChoiceTooltip } from './fieldTooltip.js';
+import { choiceLead, fieldAccessibleDescription, fieldTooltip, shownChoiceTooltip, useTooltipField } from './fieldTooltip.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
 import { sliderStyle } from './useSliderMove.js';
 import { useVultusTexts } from './texts.js';
@@ -34,6 +34,7 @@ interface Props<T extends string> {
  */
 export function OneOfSlider<T extends string>({ field, style, markStyle }: Props<T>) {
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { request, wrap, asking } = useOneOfRequest(field);
   const [moving, setMoving] = useState<number | null>(null);
   const [requested, setRequested] = useState<T | null>(null);
@@ -63,7 +64,7 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
       onChange={(index: number) => setMoving(index)}
       onChangeComplete={(index: number) => settle(index)}
       marks={Object.fromEntries(choices.map((c, i) => {
-        const tip = field.enabled ? shownChoiceTooltip(field, c, false, choiceLead(c, c.value === field.value, texts)) : undefined;
+        const tip = field.enabled ? shownChoiceTooltip(tipField, c, false, choiceLead(c, c.value === field.value, texts)) : undefined;
         return [i, {
           style: { whiteSpace: 'nowrap', ...markStyle },
           label: !field.enabled ? c.label
@@ -94,7 +95,7 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
     </span>
   );
   // The track and handle say what the field is, not its value: the marks do.
-  return wrap(withTooltip(fieldTooltip(field, texts, false), !field.enabled, body, {
+  return wrap(withTooltip(fieldTooltip(tipField, texts, false), !field.enabled, body, {
     open: asking || onMark ? false : undefined,
     width: style?.width,
   }));

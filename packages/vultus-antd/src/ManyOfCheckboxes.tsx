@@ -2,7 +2,7 @@ import { Checkbox, Spin } from 'antd';
 import { useSpinnerKey, useVultusComponents, type ManyOfChoiceControls, type ManyOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { ChoiceNote } from './ChoiceNote.js';
-import { choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { choiceTooltip, fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useManyOfRequest } from './useManyOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -58,6 +58,7 @@ function ChoiceCheckbox<T extends string>({ choice, disabled, showTooltip, askin
  */
 export function ManyOfCheckboxes<T extends string>({ field, vertical }: ManyOfCheckboxesProps<T>) {
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { request, wrap, asking } = useManyOfRequest(field);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
@@ -88,7 +89,7 @@ export function ManyOfCheckboxes<T extends string>({ field, vertical }: ManyOfCh
       ))}
     </Checkbox.Group>
   );
-  const control = field.enabled ? group : withTooltip(fieldTooltip(field, texts), true, group);
+  const control = field.enabled ? group : withTooltip(fieldTooltip(tipField, texts), true, group);
   return wrap(
     <>
       {control}

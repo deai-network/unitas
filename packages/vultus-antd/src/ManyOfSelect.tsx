@@ -2,7 +2,7 @@ import { Select, type SelectProps } from 'antd';
 import { useState, type CSSProperties } from 'react';
 import { normalizeText, useSpinnerKey, useVultusComponents, type ManyOfChoiceControls, type ManyOfFieldControls } from 'vultus-core';
 import { ChoiceRow } from './ChoiceNote.js';
-import { choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { choiceTooltip, fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useManyOfRequest } from './useManyOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -33,6 +33,7 @@ export interface ManyOfSelectProps<T extends string> {
  */
 export function ManyOfSelect<T extends string>({ field, size, style }: ManyOfSelectProps<T>) {
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { request, wrap, asking } = useManyOfRequest(field);
   const [open, setOpen] = useState(false);
   const { Spinner } = useVultusComponents();
@@ -45,7 +46,7 @@ export function ManyOfSelect<T extends string>({ field, size, style }: ManyOfSel
     ...field.choices.filter((c) => !c.group).map(option),
     ...groups.map((g) => ({ label: g, title: '', options: field.choices.filter((c) => c.group === g).map(option) })),
   ];
-  return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, (
+  return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, (
     <Select
       mode="multiple"
       value={field.value}

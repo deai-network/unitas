@@ -1,7 +1,7 @@
 import { Slider } from 'antd';
 import { useState, type CSSProperties, type MouseEvent } from 'react';
 import type { NumberRange, RangeFieldControls } from 'vultus-core';
-import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useFieldRequest } from './useFieldRequest.js';
 import { sliderStyle, useSliderMove } from './useSliderMove.js';
 import { useVultusTexts } from './texts.js';
@@ -34,6 +34,7 @@ const equalRange = (a: NumberRange, b: NumberRange): boolean => a[0] === b[0] &&
  */
 export function RangeSlider({ field, style, showValue }: RangeSliderProps) {
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { request, wrap, asking } = useFieldRequest<NumberRange>(field, { equal: equalRange });
   const move = useSliderMove<NumberRange>({ value: field.value, pending: field.pending, asking, request });
   const [onHandle, setOnHandle] = useState(false);
@@ -68,7 +69,7 @@ export function RangeSlider({ field, style, showValue }: RangeSliderProps) {
     </span>
   );
   // The handles show what the values are (their own tooltips); the track says what the field is.
-  return wrap(withTooltip(fieldTooltip(field, texts, false), !field.enabled, body, {
+  return wrap(withTooltip(fieldTooltip(tipField, texts, false), !field.enabled, body, {
     open: asking || onHandle ? false : undefined,
     width: style?.width,
   }));

@@ -330,7 +330,12 @@ variable.
 own, as `BoolCheckbox` does; the description as the label's info tooltip; the last commit's
 messages under the control, each a live region — an error an `alert`, the others a `status`). The
 messages show once: `<Field item>` silences the field's own `MessageSink` (which would otherwise
-also toast them under `VultusProvider`).
+also toast them under `VultusProvider`). So does the description: while the label's info sign
+shows it, the control's own tooltips leave it out and keep what the sign cannot say — the current
+state ("Current state: …") and, when disabled, the reason; a choice's own description (a segment's,
+a slider mark's) stays, and the control's accessible description keeps the field's. A widget that
+shows the label itself (`BoolCheckbox`: the item has no label, so no info sign) keeps the
+description in its tooltip.
 
 `<Field>`'s props are typed by the definition's `kind`: a `oneOf` definition's `<Field>` only
 accepts `oneOf`-shaped overrides and `OneOfSelect` / `OneOfSegmented` / `OneOfSlider` display

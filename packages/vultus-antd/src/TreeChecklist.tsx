@@ -4,7 +4,7 @@ import {
   filterTree, normalizeTreeValue, useSpinnerKey, useVultusComponents,
   type TreeFieldControls, type TreeNodeControls,
 } from 'vultus-core';
-import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useVultusTexts } from './texts.js';
 import { treeData, TreeSwitcherIcon } from './treeData.js';
 import { useTreeRequest } from './useTreeRequest.js';
@@ -97,6 +97,7 @@ function openOrder<T extends string>(nodes: TreeNodeControls<T>[], open: Set<T>)
  */
 export function TreeChecklist<T extends string>({ field, nested = false }: TreeChecklistProps<T> & InternalTreeChecklistProps) {
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { request, wrap, asking } = useTreeRequest(field);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
@@ -165,7 +166,7 @@ export function TreeChecklist<T extends string>({ field, nested = false }: TreeC
       aria-description={fieldAccessibleDescription(field, texts)}
     />
   );
-  const control = field.enabled ? tree : withTooltip(fieldTooltip(field, texts), true, tree, { block: true, open: asking ? false : undefined });
+  const control = field.enabled ? tree : withTooltip(fieldTooltip(tipField, texts), true, tree, { block: true, open: asking ? false : undefined });
   return wrap(
     <div
       data-field-id={nested ? undefined : field.id}

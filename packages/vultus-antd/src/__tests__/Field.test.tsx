@@ -521,3 +521,64 @@ describe('item: a labelled form item', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 });
+
+describe('item: the description shows once, behind the label\'s info sign', () => {
+  const DUPLEX: FieldDefinition = {
+    kind: 'boolean', id: 'duplex', label: 'Both sides', description: 'Print on **both** sides of the sheet',
+    valueDescriptions: { true: 'Printing on both sides', false: 'Printing on one side' },
+  };
+  const PAPER: FieldDefinition = {
+    kind: 'oneOf', id: 'paper', label: 'Paper', description: 'The sheet size', widget: 'segmented',
+    choices: [{ value: 'a4', label: 'A4', description: 'The usual size' }, { value: 'a3', label: 'A3' }],
+  };
+
+  /** Hovers the control's tooltip anchor (withTooltip's span) and returns the tooltip that opens. */
+  async function hover(element: Element): Promise<HTMLElement> {
+    fireEvent.mouseEnter(element.closest('span[style]')!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    return openTooltips()[0];
+  }
+
+  it('a switch\'s own tooltip leaves the description to the label, keeping the current state; its accessible description keeps it', async () => {
+    wrap(<Field item definition={DUPLEX} />);
+    const control = screen.getByRole('switch');
+    expect(control.getAttribute('aria-description')).toContain('Print on both sides of the sheet');
+    const tip = await hover(control);
+    expect(tip).toHaveTextContent('Current state: Printing on one side');
+    expect(tip.querySelector('[data-tooltip-part="description"]')).toBeNull();
+    expect(tip).not.toHaveTextContent('Print on both sides');
+  });
+
+  it('a disabled switch shows its reason, not the description', async () => {
+    wrap(<Field item definition={DUPLEX} enabled={denyWithReason('No duplex unit')} />);
+    const tip = await hover(screen.getByRole('switch'));
+    expect(tip.querySelector('[data-tooltip-part="reason"]')).toHaveTextContent('No duplex unit');
+    expect(tip.querySelector('[data-tooltip-part="description"]')).toBeNull();
+  });
+
+  it('with nothing else to say, the control has no tooltip of its own', () => {
+    const { valueDescriptions: _states, ...plain } = DUPLEX as FieldDefinition & { valueDescriptions?: unknown };
+    wrap(<Field item definition={plain as FieldDefinition} />);
+    expect(screen.getByRole('switch').closest('span[style*="inline-block"]')).toBeNull();
+  });
+
+  it('a segment\'s tooltip drops the field\'s description and keeps the choice\'s', async () => {
+    wrap(<Field item definition={PAPER} />);
+    const tip = await hover(screen.getByText('A4'));
+    expect(tip).toHaveTextContent('The usual size');
+    expect(tip).not.toHaveTextContent('The sheet size');
+  });
+
+  it('outside an item nothing changes: the control\'s tooltip shows the description', async () => {
+    wrap(<Field definition={DUPLEX} />);
+    const tip = await hover(screen.getByRole('switch'));
+    expect(tip.querySelector('[data-tooltip-part="description"]')).toHaveTextContent('Print on both sides of the sheet');
+    expect(tip).toHaveTextContent('Current state: Printing on one side');
+  });
+
+  it('the checkbox widget, which shows its own label (the item has none), keeps the description in its tooltip', async () => {
+    wrap(<Field item definition={{ ...DUPLEX, widget: 'checkbox' }} />);
+    const tip = await hover(screen.getByRole('checkbox'));
+    expect(tip.querySelector('[data-tooltip-part="description"]')).toHaveTextContent('Print on both sides of the sheet');
+  });
+});

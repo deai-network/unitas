@@ -2,7 +2,7 @@ import { Spin, Switch, theme } from 'antd';
 import { useSpinnerKey, useVultusComponents, type ManyOfChoiceControls, type ManyOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { ChoiceNote } from './ChoiceNote.js';
-import { choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { choiceTooltip, fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useManyOfRequest } from './useManyOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -70,6 +70,7 @@ function ChoiceSwitch<T extends string>({ choice, size, disabled, showTooltip, a
  */
 export function ManyOfSwitches<T extends string>({ field, vertical, size }: ManyOfSwitchesProps<T>) {
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { request, wrap, asking } = useManyOfRequest(field);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
@@ -104,7 +105,7 @@ export function ManyOfSwitches<T extends string>({ field, vertical, size }: Many
       ))}
     </div>
   );
-  const control = field.enabled ? rows : withTooltip(fieldTooltip(field, texts), true, rows);
+  const control = field.enabled ? rows : withTooltip(fieldTooltip(tipField, texts), true, rows);
   return wrap(
     <>
       {control}

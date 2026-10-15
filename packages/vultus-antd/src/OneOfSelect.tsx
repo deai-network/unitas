@@ -3,7 +3,7 @@ import { useState, type CSSProperties } from 'react';
 import { useSpinnerKey, useVultusComponents, type OneOfChoiceControls, type OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { ChoiceNote, ChoiceRow } from './ChoiceNote.js';
-import { choiceTooltip, fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { choiceTooltip, fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
 import { useVultusTexts } from './texts.js';
@@ -79,6 +79,7 @@ function InlineChoice<T extends string>({ choice }: { choice: OneOfChoiceControl
  */
 export function OneOfSelect<T extends string>({ field, size, style, inlineDescriptions }: Props<T>) {
   const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
   const { request, wrap, asking } = useOneOfRequest(field);
   const [open, setOpen] = useState(false);
   const { Spinner } = useVultusComponents();
@@ -91,7 +92,7 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
     ...field.choices.filter((c) => !c.group).map(option),
     ...groups.map((g) => ({ label: g, title: '', options: field.choices.filter((c) => c.group === g).map(option) })),
   ];
-  return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, (
+  return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, (
     <Select
       value={field.value}
       size={size}

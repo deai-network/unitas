@@ -1,7 +1,25 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import type { FieldControls } from 'vultus-core';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
 import type { VultusTexts } from './texts.js';
+
+/**
+ * @internal The id of the field whose description the label of its form item already shows
+ * (FieldItem's info sign): that field's widget leaves the description out of its tooltips.
+ */
+export const LabelShowsDescriptionContext = createContext<string | undefined>(undefined);
+
+/**
+ * The field as its widget's tooltips describe it (fieldTooltip, shownChoiceTooltip): without
+ * its description while the label of its form item shows it (FieldItem), so the description
+ * shows once; the current state and a disabled field's reason stay, and so do its choices' own
+ * descriptions. The accessible description (fieldAccessibleDescription) takes the field itself,
+ * description included. Outside such an item, the field as it is.
+ */
+export function useTooltipField<F extends { id: string; description: string | undefined }>(field: F): F {
+  const shownByLabel = useContext(LabelShowsDescriptionContext) === field.id;
+  return shownByLabel && field.description ? { ...field, description: undefined } : field;
+}
 
 type DescribedField = Pick<FieldControls<unknown, unknown>, 'enabled' | 'whyDisabled' | 'description' | 'valueDescription'>;
 
