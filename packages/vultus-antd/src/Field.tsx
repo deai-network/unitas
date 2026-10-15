@@ -51,6 +51,8 @@ export type FieldProps<D extends FieldDefinition = FieldDefinition> = {
     value?: FieldValueOf<D['kind']>;
     onChange?: (value: FieldRequestOf<D['kind']>) => void;
     commit?: FieldCommit<FieldRequestOf<D['kind']>>;
+    /** The link that requesting a value amounts to, where the render site has one (e.g. a URL store). */
+    hrefFor?: (value: FieldRequestOf<D['kind']>) => string | undefined;
   } & DefinitionOverridesOf<D['kind']>)
   | ({
     /** Keep the value in the nearest ArgStore (the URL, localStorage) under the definition's `id` (useStoredField). */
@@ -58,6 +60,7 @@ export type FieldProps<D extends FieldDefinition = FieldDefinition> = {
     value?: never;
     onChange?: never;
     commit?: never;
+    hrefFor?: never;
   } & Omit<DefinitionOverridesOf<D['kind']>, StoreKey>)
 );
 
@@ -68,7 +71,7 @@ const DEFINITION_KEYS = [
 ] as const;
 const IS_DEFINITION_KEY = new Set<string>(DEFINITION_KEYS);
 
-type Storage = { value?: unknown; onChange?: (value: any) => void; commit?: FieldCommit<any> };
+type Storage = { value?: unknown; onChange?: (value: any) => void; commit?: FieldCommit<any>; hrefFor?: (value: any) => string | undefined };
 
 interface InnerProps {
   definition: FieldDefinition;
@@ -150,14 +153,16 @@ const SILENT_SINK: MessageSink = () => {};
  * throws. A definition of another kind or id, or turning `stored` on or off, remounts the field.
  * With `stored`, the values the store reads (`initialValue`, `choices`, `nodes`, `selection`,
  * `min`, `max`, `integer`) come from the definition: overriding one throws (a context function
- * in the definition covers data that changes).
+ * in the definition covers data that changes). `hrefFor` goes with `value` / `onChange` / `commit`
+ * (the link a requested value amounts to, the render site's to give); with `stored` the ArgStore
+ * gives its own, so passing one throws.
  *
  * The props are typed by the definition's kind. In a component generic over
  * `<D extends FieldDefinition>`, they cannot resolve for the generic `D`: render
  * `<Field<FieldDefinition> definition={d} …>` there.
  */
 export function Field<D extends FieldDefinition>(props: FieldProps<D>) {
-  const { definition, stored = false, value, onChange, commit, registry, ...rest } = props as FieldProps & Record<string, unknown>;
+  const { definition, stored = false, value, onChange, commit, hrefFor, registry, ...rest } = props as FieldProps & Record<string, unknown>;
   const { id, kind } = definition;
   const outerSink = useMessageSink();
   pickWidget(id, kind, rest.widget as FieldProps['widget'], definition.widget);
@@ -165,11 +170,14 @@ export function Field<D extends FieldDefinition>(props: FieldProps<D>) {
   const widgetProps: Record<string, unknown> = {};
   for (const [key, prop] of Object.entries(rest)) (IS_DEFINITION_KEY.has(key) ? overrides : widgetProps)[key] = prop;
   const storage: Storage = Object.fromEntries(
-    Object.entries({ value, onChange, commit }).filter(([, v]) => v !== undefined),
+    Object.entries({ value, onChange, commit, hrefFor }).filter(([, v]) => v !== undefined),
   );
-  const outsideStorage = Object.keys(storage).length > 0;
+  const outsideStorage = value !== undefined || onChange !== undefined || commit !== undefined;
   if (stored && outsideStorage) {
     throw new Error(`Field '${id}': "stored" keeps the value in the ArgStore; it does not go together with "value", "onChange" or "commit"`);
+  }
+  if (stored && hrefFor !== undefined) {
+    throw new Error(`Field '${id}': "stored" keeps the value in the ArgStore, which gives its own "hrefFor"; the render site cannot pass one`);
   }
   if (overrides.initialValue !== undefined && (stored || outsideStorage)) {
     const where = stored ? 'stored' : commit ? 'commit' : onChange ? 'onChange' : 'value';

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { getReason, getVerdict, invertDecision } from './decision.js';
 import { useFieldContext } from './FieldContext.js';
 import { resolveIn } from './resolve.js';
@@ -78,11 +78,18 @@ export interface FieldBaseOptions<TValue, Ctx = any> {
  */
 export type FieldStorage<TValue, TRequest = TValue, RouteId extends string = string, Ctx = any> =
   /** Inside the field: its own state, starting at `initialValue` (resolved once, when the field mounts). */
-  | { initialValue?: ValueOrFn<TValue, Ctx>; value?: never; onChange?: never; commit?: never }
+  | { initialValue?: ValueOrFn<TValue, Ctx>; value?: never; onChange?: never; commit?: never; hrefFor?: never }
   /** Outside, changed locally: the caller owns the value and applies `onChange`. */
-  | { value: TValue; onChange: (value: TRequest) => void; initialValue?: never; commit?: never }
+  | {
+    value: TValue; onChange: (value: TRequest) => void; initialValue?: never; commit?: never;
+    /** The link that requesting `value` amounts to, where the caller has one (e.g. a URL store). */
+    hrefFor?: (value: TRequest) => string | undefined;
+  }
   /** Outside, committed immediately: `commit.fire` stores the change (pending, messages, confirmation). */
-  | { value: TValue; commit: FieldCommit<TRequest, RouteId>; initialValue?: never; onChange?: never };
+  | {
+    value: TValue; commit: FieldCommit<TRequest, RouteId>; initialValue?: never; onChange?: never;
+    hrefFor?: (value: TRequest) => string | undefined;
+  };
 
 export type FieldOptions<TValue, TRequest = TValue, RouteId extends string = string, Ctx = any> =
   FieldBaseOptions<TValue, Ctx> & FieldStorage<TValue, TRequest, RouteId, Ctx>;
@@ -110,6 +117,8 @@ export interface FieldControls<TValue, TRequest = TValue> {
   messages: Message[];
   /** The confirmation a widget must obtain before requesting `next`, if any. */
   confirmationFor(next: TRequest): ConfirmationSpec | undefined;
+  /** The link that requesting `value` amounts to, where whoever keeps the value gave one (a URL store does); `undefined` otherwise. */
+  hrefFor(value: TRequest): string | undefined;
   widget: WidgetHint | undefined;
 }
 
@@ -215,6 +224,9 @@ export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId e
     return typeof spec === 'function' ? spec(next) : spec;
   };
 
+  const { hrefFor: hrefForOpt } = opts as { hrefFor?: (value: TRequest) => string | undefined };
+  const hrefFor = useCallback((next: TRequest) => hrefForOpt?.(next), [hrefForOpt]);
+
   return {
     type,
     id: opts.id,
@@ -231,6 +243,7 @@ export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId e
     commits: mode === 'commit',
     messages: mode === 'commit' ? (setter.messages ?? []) : [],
     confirmationFor,
+    hrefFor,
     widget: opts.widget,
   };
 }

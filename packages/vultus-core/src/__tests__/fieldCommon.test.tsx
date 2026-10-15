@@ -84,6 +84,28 @@ describe('field: kind', () => {
   });
 });
 
+describe('field: hrefFor', () => {
+  it('with onChange: passed through', () => {
+    const { result } = renderHook(() => {
+      const [value, setValue] = useState(false);
+      return useBoolField({ id: 'f', value, onChange: setValue, hrefFor: (v) => `#?k=${v}` });
+    });
+    expect(result.current.hrefFor(true)).toBe('#?k=true');
+  });
+
+  it('with commit: passed through', () => {
+    const { result } = renderHook(() => useBoolField({
+      id: 'f', value: false, commit: { fire: () => {} }, hrefFor: (v) => `#?k=${v}`,
+    }));
+    expect(result.current.hrefFor(true)).toBe('#?k=true');
+  });
+
+  it('inside the field: undefined', () => {
+    const { result } = renderHook(() => useBoolField({ id: 'f' }));
+    expect(result.current.hrefFor(true)).toBeUndefined();
+  });
+});
+
 describe('one-of choices: note and dimmed', () => {
   it('carry note, default dimmed to false', () => {
     const { result } = renderHook(() => useOneOfField({

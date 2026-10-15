@@ -280,6 +280,29 @@ describe('useStoredField: value identity', () => {
   });
 });
 
+describe('useStoredField: hrefFor', () => {
+  /** An ArgStore whose hrefFor joins every change as `key=raw`. */
+  function storeWithHrefFor(initial: Record<string, string> = {}): ArgStore {
+    const base = memoryStore(initial);
+    return {
+      ...base,
+      hrefFor: (changes) => `#?${changes.map((c) => `${c.key}=${c.raw}`).join('&')}`,
+    };
+  }
+
+  it('comes from the store\'s hrefFor', () => {
+    const store = storeWithHrefFor();
+    const { result } = renderHook(() => useStoredField(QUERY), { wrapper: providing(store) });
+    expect(result.current.options.hrefFor('abc')).toBe('#?q=abc');
+  });
+
+  it('undefined when the store has none', () => {
+    const store = memoryStore();
+    const { result } = renderHook(() => useStoredField(QUERY), { wrapper: providing(store) });
+    expect(result.current.options.hrefFor('abc')).toBeUndefined();
+  });
+});
+
 describe('useStoredFields', () => {
   it('counts the fields changed from their defaults, and resets them all in one write', () => {
     const store = memoryStore();

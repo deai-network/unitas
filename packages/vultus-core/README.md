@@ -392,6 +392,13 @@ definitions), `changedCount`, and `resetAll(method)` (one write for every
 field). Being a summary, it never warns — only `useStoredField` on the
 field itself does.
 
+**Links.** Every field's controls carry `hrefFor(value)`: the link that requesting `value`
+amounts to, or `undefined` where nothing gives one. With `value` + `onChange` or `value` +
+`commit`, the caller passes it; inside the field it is always `undefined`. `useStoredField`
+wires its own from the store (`useArg`'s `hrefFor`, itself from the store's), so a field stored
+over a URL store (vultus-react-router's) links each value it could be set to, e.g.
+`field.hrefFor(field.choices[0].value)` next to the field's own widget.
+
 ```tsx
 const store = memoryStore();
 

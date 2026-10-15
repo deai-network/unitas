@@ -56,7 +56,9 @@ function showsDefault(arg: ArgDefinition<any>, stored: unknown, shown: () => unk
  */
 export interface StoredField<D extends FieldDefinition = FieldDefinition> {
   /** The definition in its outside form, for the kind's hook (`useManyOfField(stored.options)`). */
-  options: D extends any ? Omit<D, 'initialValue'> & { value: any; onChange(value: any): void } : never;
+  options: D extends any
+    ? Omit<D, 'initialValue'> & { value: any; onChange(value: any): void; hrefFor(value: any): string | undefined }
+    : never;
   isDefault: boolean;
   /** Removes the field's key from the store, so it shows its default again. */
   reset(method?: UpdateMethod): void;
@@ -96,7 +98,7 @@ export function useStoredField<D extends FieldDefinition>(definition: D): Stored
     : fresh;
   argRef.current = arg;
 
-  const { value: stored, set, reset } = useArg(arg);
+  const { value: stored, set, reset, hrefFor } = useArg(arg);
   // Called on the store, not passed detached: a store written as a class uses `this`.
   const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
   const read = useCallback(() => store.read(definition.id), [store, definition.id]);
@@ -119,8 +121,8 @@ export function useStoredField<D extends FieldDefinition>(definition: D): Stored
   const onChange = useCallback((next: unknown) => set(next, 'replace'), [set]);
   const options = useMemo(() => {
     const { initialValue: _inside, ...rest } = definition;
-    return { ...rest, value, onChange } as StoredField<D>['options'];
-  }, [definition, value, onChange]);
+    return { ...rest, value, onChange, hrefFor } as StoredField<D>['options'];
+  }, [definition, value, onChange, hrefFor]);
 
   return { options, isDefault: showsDefault(arg, stored, () => value), reset };
 }

@@ -6,8 +6,8 @@ import {
   type InitialEntry, type LoaderFunction, type Location, type NavigateFunction, type RouteObject,
 } from 'react-router';
 import {
-  setArg, stringSetType, stringType, useArg, useArgWriter,
-  type ArgControls, type ArgDefinition, type ArgStore,
+  setArg, stringSetType, stringType, useArg, useArgWriter, useOneOfField, useStoredField,
+  type ArgControls, type ArgDefinition, type ArgStore, type OneOfFieldControls,
 } from 'vultus-core';
 import { ReactRouterArgStore, useRouterArgStore } from '../index.js';
 
@@ -705,6 +705,27 @@ describe('ReactRouterArgStore: hrefFor', () => {
     await act(async () => {
       open();
     });
+  });
+});
+
+describe('ReactRouterArgStore: a stored field links its values', () => {
+  it('hrefFor follows the field\'s own default', () => {
+    const definition = { kind: 'oneOf' as const, id: 'paper', choices: [{ value: 'a4' }, { value: 'a3' }] };
+    let field!: OneOfFieldControls<string>;
+    function Probe() {
+      const stored = useStoredField(definition);
+      field = useOneOfField(stored.options);
+      return null;
+    }
+    const router = createMemoryRouter(
+      [{ path: '/print', element: <ReactRouterArgStore><Probe /></ReactRouterArgStore> }],
+      { initialEntries: ['/print'] },
+    );
+    disposers.push(() => router.dispose());
+    render(<RouterProvider router={router} />);
+
+    expect(field.hrefFor('a3')).toMatch(/\/print\?paper=a3$/);
+    expect(field.hrefFor('a4')).not.toMatch(/paper=/);
   });
 });
 

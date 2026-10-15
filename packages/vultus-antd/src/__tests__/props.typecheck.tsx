@@ -41,9 +41,12 @@ function fieldPropsAreTyped(
     <Field definition={oneOf} stored onChange={(next) => takesString(next)} />,
     // @ts-expect-error -- nor a commit.
     <Field definition={bool} stored commit={{ fire: (next: boolean) => { void next; } }} />,
+    // @ts-expect-error -- nor an hrefFor: the store gives its own.
+    <Field definition={oneOf} stored hrefFor={(next) => takesString(next)} />,
     // @ts-expect-error -- for a definition typed as the union too.
     <Field definition={wide} stored value="a" />,
     <Field definition={oneOf} stored={false} value="a" onChange={(next) => takesString(next)} />,
+    <Field definition={oneOf} value="a" onChange={(next) => takesString(next)} hrefFor={(next) => takesString(next)} />,
     <Field definition={wide} widget="search" onEnter={(typed) => takesString(typed)} />,
     <Field definition={wide} vertical style={{ width: 200 }} label="Rounds" />,
     <Field definition={oneOf} widget={{ name: 'segmented', iconOnly: true }} choices={[{ value: 'a' }]} />,
