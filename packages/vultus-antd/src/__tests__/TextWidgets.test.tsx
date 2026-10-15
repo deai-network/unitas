@@ -173,7 +173,7 @@ describe('TextInput', () => {
   });
 });
 
-function SearchInside(opts: Partial<Omit<TextFieldOptions, 'value' | 'onChange' | 'commit'>> & { onEnter?: () => void }) {
+function SearchInside(opts: Partial<Omit<TextFieldOptions, 'value' | 'onChange' | 'commit'>> & { onEnter?: (typed: string) => void }) {
   const { onEnter, ...rest } = opts;
   const field = useTextField({ id: 'query', label: 'Search', ...rest } as TextFieldOptions);
   return <><SearchInput field={field} onEnter={onEnter} /><output>{field.value}</output></>;
@@ -183,7 +183,7 @@ function SearchCommitted({ fire, confirmation, initial = '', onEnter }: {
   fire: (next: string) => Promise<void> | void;
   confirmation?: FieldCommit<string>['confirmation'];
   initial?: string;
-  onEnter?: () => void;
+  onEnter?: (typed: string) => void;
 }) {
   const [stored, setStored] = useState<string>(initial);
   const field = useTextField({
@@ -216,14 +216,14 @@ describe('SearchInput', () => {
     await waitFor(() => expect(shown()).toBe('cat'));
   });
 
-  it('commit: Enter requests the typed draft, then calls onEnter', async () => {
+  it('commit: Enter requests the typed draft, then calls onEnter with it (the value shows it only once committed)', async () => {
     const fire = vi.fn();
     const onEnter = vi.fn();
     wrap(<SearchCommitted fire={fire} onEnter={onEnter} />);
     type('cat');
     fireEvent.keyDown(input(), { key: 'Enter' });
+    expect(onEnter).toHaveBeenCalledWith('cat');
     await waitFor(() => expect(shown()).toBe('cat'));
-    expect(onEnter).toHaveBeenCalled();
   });
 
   it('inside the field: Enter calls onEnter (the value was already requested live)', () => {
@@ -231,7 +231,7 @@ describe('SearchInput', () => {
     wrap(<SearchInside initialValue="" onEnter={onEnter} />);
     type('cat');
     fireEvent.keyDown(input(), { key: 'Enter' });
-    expect(onEnter).toHaveBeenCalled();
+    expect(onEnter).toHaveBeenCalledWith('cat');
     expect(shown()).toBe('cat');
   });
 

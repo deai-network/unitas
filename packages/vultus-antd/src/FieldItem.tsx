@@ -9,8 +9,10 @@ import { ReasonMarkdown } from './ReasonMarkdown.js';
  * (`<Field item>`, `<FieldWidget item>`): the field's label (unless the widget shows its own,
  * as BoolCheckbox does), its description (markdown) as the label's info tooltip, and the last
  * commit's messages under the control, the item in the error status when one of them is an
- * error, in the warning status when one is a warning. A hidden field renders no item. It needs
- * no enclosing antd `Form`; inside one, it takes the form's layout.
+ * error, in the warning status when one is a warning. Each message is a live region (antd gives
+ * a help text none without a `name`): an error an alert, the others a status. A hidden field
+ * renders no item. It needs no enclosing antd `Form`; inside one, it takes the form's layout.
+ * The messages also go to the MessageSink unless the caller silences it (see FieldWidget).
  */
 export function FieldItem({ field, showLabel = true, children }: {
   field: FieldControls<any, any>;
@@ -30,7 +32,9 @@ export function FieldItem({ field, showLabel = true, children }: {
       tooltip={label && field.description
         ? { title: <ReasonMarkdown>{field.description}</ReasonMarkdown>, icon: <InfoCircleIcon /> }
         : undefined}
-      help={messages.length > 0 ? messages.map((m, i) => <div key={i}>{m.text}</div>) : undefined}
+      help={messages.length > 0
+        ? messages.map((m, i) => <div key={i} role={m.severity === 'error' ? 'alert' : 'status'}>{m.text}</div>)
+        : undefined}
       validateStatus={status}
     >
       {children}

@@ -1,5 +1,8 @@
 import type { ComponentType } from 'react';
-import type { FieldControls, FieldKind, WidgetHint } from 'vultus-core';
+import type {
+  BoolFieldControls, FieldControls, FieldKind, ManyOfFieldControls, MixedBoolFieldControls, NumericFieldControls,
+  OneOfFieldControls, RangeFieldControls, TextFieldControls, TreeFieldControls, WidgetHint,
+} from 'vultus-core';
 import { BoolCheckbox } from './BoolCheckbox.js';
 import { BoolSwitch } from './BoolSwitch.js';
 import { FieldItem } from './FieldItem.js';
@@ -14,27 +17,91 @@ import { OneOfSlider } from './OneOfSlider.js';
 import { RangeSlider } from './RangeSlider.js';
 import { SearchInput } from './SearchInput.js';
 import { TextInput } from './TextInput.js';
-import { TreeChecklist } from './TreeChecklist.js';
+import { TreeChecklist, type TreeChecklistProps } from './TreeChecklist.js';
 import { TreePicker } from './TreePicker.js';
 
-/** The widget names a hint can give (general UI terms; which of them a kind has, see WIDGETS). */
+/**
+ * Each kind's widgets by name (the spec's widget table). TreeChecklist is listed with its public
+ * props only, so its internal `nested` cannot be reached through a hint or a render-site prop.
+ */
+const WIDGETS = {
+  boolean: { switch: BoolSwitch, checkbox: BoolCheckbox },
+  'mixed-boolean': { switch: BoolSwitch, checkbox: BoolCheckbox },
+  oneOf: { select: OneOfSelect, segmented: OneOfSegmented, slider: OneOfSlider },
+  manyOf: { checkboxes: ManyOfCheckboxes, select: ManyOfSelect, switches: ManyOfSwitches },
+  numeric: { input: NumericInput, slider: NumericSlider },
+  range: { slider: RangeSlider },
+  tree: { picker: TreePicker, checklist: TreeChecklist as (props: TreeChecklistProps<string>) => ReturnType<typeof TreeChecklist> },
+  text: { input: TextInput, search: SearchInput },
+} satisfies Record<FieldKind, Record<string, ComponentType<any>>>;
+
+type Widgets = typeof WIDGETS;
+
+/** The widget names of kind `K` (of each kind, for a union of kinds). */
+export type WidgetNameOf<K extends FieldKind> = K extends FieldKind ? keyof Widgets[K] & string : never;
+
+/** The widget names a hint can give (general UI terms; which of them a kind has, see WidgetNameOf). */
 export type WidgetName =
   | 'switch' | 'checkbox' | 'select' | 'segmented' | 'slider' | 'checkboxes' | 'switches'
   | 'input' | 'picker' | 'checklist' | 'search';
 
-type Widget = ComponentType<any>;
-
-/** Each kind's widgets by name; the first is the kind's default. */
-const WIDGETS: Record<FieldKind, [WidgetName, Widget][]> = {
-  boolean: [['switch', BoolSwitch], ['checkbox', BoolCheckbox]],
-  'mixed-boolean': [['switch', BoolSwitch], ['checkbox', BoolCheckbox]],
-  oneOf: [['select', OneOfSelect], ['segmented', OneOfSegmented], ['slider', OneOfSlider]],
-  manyOf: [['checkboxes', ManyOfCheckboxes], ['select', ManyOfSelect], ['switches', ManyOfSwitches]],
-  numeric: [['input', NumericInput], ['slider', NumericSlider]],
-  range: [['slider', RangeSlider]],
-  tree: [['picker', TreePicker], ['checklist', TreeChecklist]],
-  text: [['input', TextInput], ['search', SearchInput]],
+const DEFAULT_WIDGETS: { [K in FieldKind]: WidgetNameOf<K> } = {
+  boolean: 'switch', 'mixed-boolean': 'switch', oneOf: 'select', manyOf: 'checkboxes',
+  numeric: 'input', range: 'slider', tree: 'picker', text: 'input',
 };
+
+/** A widget's display props: its props without `field`. */
+type DisplayProps<W> = W extends (props: infer P) => unknown ? Omit<P, 'field'> : never;
+
+/** One widget's hint: its name, or its name with its display props. */
+type HintFor<N, W> = N | ({ name: N } & DisplayProps<W>);
+
+/** The hint for kind `K` (of each kind, for a union): one of its widgets' names, or `{ name, ...that widget's display props }`. */
+export type WidgetHintOf<K extends FieldKind> = K extends FieldKind
+  ? { [N in keyof Widgets[K]]: HintFor<N, Widgets[K][N]> }[keyof Widgets[K]]
+  : never;
+
+/** The keys of each member of a union. */
+export type KeysOf<U> = U extends unknown ? keyof U : never;
+type ValueAt<U, P extends PropertyKey> = U extends unknown ? (P extends keyof U ? U[P] : never) : never;
+/** The members of a union as one object type: every key of any member, optional, typed as the union of the members' types for it. */
+export type Merged<U> = { [P in KeysOf<U>]?: ValueAt<U, P> };
+
+/** The display props of kind `K`'s widgets (of every kind, for a union), as one type: a widget ignores the others'. */
+export type DisplayPropsOf<K extends FieldKind> = Merged<
+  K extends FieldKind ? { [N in keyof Widgets[K]]: DisplayProps<Widgets[K][N]> }[keyof Widgets[K]] : never
+>;
+
+/** The controls each kind's hook returns. */
+export interface ControlsByKind {
+  boolean: BoolFieldControls;
+  'mixed-boolean': MixedBoolFieldControls;
+  oneOf: OneOfFieldControls;
+  manyOf: ManyOfFieldControls;
+  numeric: NumericFieldControls;
+  range: RangeFieldControls;
+  tree: TreeFieldControls;
+  text: TextFieldControls;
+}
+
+/** What a field of kind `K` shows (a union, for a union of kinds). */
+export type FieldValueOf<K extends FieldKind> = ControlsByKind[K]['value'];
+/** What a field of kind `K` can be asked for (a mixed-boolean shows 'mixed' but is asked for a boolean). */
+export type FieldRequestOf<K extends FieldKind> = K extends FieldKind ? Parameters<ControlsByKind[K]['setValue']>[0] : never;
+
+/**
+ * The kind of a hook's controls, read from their shape (FieldControls' `type` is the whole
+ * FieldKind union, so it cannot tell): every kind for controls of no known shape.
+ */
+export type KindOfControls<C> =
+  C extends TreeFieldControls<any> ? 'tree'
+  : C extends ManyOfFieldControls<any> ? 'manyOf'
+  : C extends OneOfFieldControls<any> ? 'oneOf'
+  : C extends RangeFieldControls ? 'range'
+  : C extends NumericFieldControls ? 'numeric'
+  : C extends TextFieldControls ? 'text'
+  : C extends MixedBoolFieldControls ? ('mixed' extends C['value'] ? 'mixed-boolean' : 'boolean')
+  : FieldKind;
 
 function nameOf(hint: WidgetHint | undefined): string | undefined {
   return typeof hint === 'string' ? hint : hint?.name;
@@ -64,38 +131,69 @@ export function pickWidget(
   renderSite: WidgetHint | undefined,
   definition: WidgetHint | undefined,
   props: Record<string, unknown> = {},
-): { name: WidgetName; Widget: Widget; options: Record<string, unknown> } {
-  const widgets = Object.hasOwn(WIDGETS, kind) ? WIDGETS[kind as FieldKind] : undefined;
-  const name = nameOf(renderSite) ?? nameOf(definition) ?? widgets?.[0][0] ?? 'default';
-  const found = widgets?.find(([n]) => n === name);
-  if (!found) throw new Error(`Field '${id}': no widget '${name}' for kind '${kind}'`);
+): { name: WidgetName; Widget: ComponentType<any>; options: Record<string, unknown> } {
+  const widgets: Record<string, ComponentType<any>> | undefined = Object.hasOwn(WIDGETS, kind) ? WIDGETS[kind as FieldKind] : undefined;
+  const name = nameOf(renderSite) ?? nameOf(definition) ?? (widgets ? DEFAULT_WIDGETS[kind as FieldKind] : 'default');
+  if (!widgets || !Object.hasOwn(widgets, name)) throw new Error(`Field '${id}': no widget '${name}' for kind '${kind}'`);
   const options = {
     ...(nameOf(definition) === name ? optionsOf(definition) : {}),
     ...optionsOf(renderSite),
     ...given(props),
   };
-  return { name: found[0], Widget: found[1], options };
+  return { name: name as WidgetName, Widget: widgets[name], options };
 }
 
-export type FieldWidgetProps = {
-  /** Controls from a field hook (useOneOfField, ...); the widget is picked by their `type`. */
-  field: FieldControls<any, any>;
-  /** The widget, over the controls' own hint (`field.widget`): a name or `{ name, ...displayOptions }`. */
-  widget?: WidgetHint;
-  /** In a labelled antd form item (FieldItem): label, description tooltip, the last commit's messages. */
+export type FieldWidgetProps<C extends FieldControls<any, any> = FieldControls<any, any>> = {
+  /** Controls from a field hook (useOneOfField, ...); the widget is picked by their kind. */
+  field: C;
+  /** The widget, over the controls' own hint (`field.widget`): one of the kind's names, or `{ name, ...displayProps }`. */
+  widget?: WidgetHintOf<KindOfControls<C>>;
+  /** In a labelled antd form item (label, description tooltip, the last commit's messages); see FieldWidget. */
   item?: boolean;
-} & Record<string, unknown>;
+} & DisplayPropsOf<KindOfControls<C>>;
 
 /**
  * The widget for controls a caller made with a field hook (sidedao's InputField): picked by the
  * controls' `type`, by the render-site `widget`, else the controls' hint, else the kind's
  * default (boolean and mixed-boolean `switch`, oneOf `select`, manyOf `checkboxes`, numeric
- * `input`, range `slider`, tree `picker`, text `input`). The other props are the widget's
- * display options (`vertical`, `iconOnly`, `panel`, `onEnter`, `style`, ...), over the hint's.
- * An unknown kind or widget name throws.
+ * `input`, range `slider`, tree `picker`, text `input`). The other props are the display props
+ * of the kind's widgets (`vertical`, `iconOnly`, `panel`, `onEnter`, `style`, ...), over the
+ * hint's. An unknown kind or widget name throws.
+ *
+ * With `item`, the last commit's messages show under the control. The action layer also sends
+ * them to the MessageSink (an antd message under VultusProvider), so they would show twice:
+ * `<Field item>` silences the sink for its field, and a caller of `<FieldWidget item>` does the
+ * same above its hook, `<MessageSinkContext.Provider value={() => {}}>` (a stable function).
  */
-export function FieldWidget({ field, widget, item, ...props }: FieldWidgetProps) {
-  const { name, Widget, options } = pickWidget(field.id, field.type, widget, field.widget, props);
+export function FieldWidget<C extends FieldControls<any, any>>({ field, widget, item, ...props }: FieldWidgetProps<C>) {
+  const { name, Widget, options } = pickWidget(field.id, field.type, widget as WidgetHint | undefined, field.widget, props);
   const control = <Widget {...options} field={field} />;
   return item ? <FieldItem field={field} showLabel={name !== 'checkbox'}>{control}</FieldItem> : control;
+}
+
+/** A compile-time check: every widget name of every kind is a WidgetName, and every WidgetName names a widget. */
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+type Assert<T extends true> = T;
+type WidgetNamesAreTheTable = Assert<Same<WidgetNameOf<FieldKind>, WidgetName>>;
+
+/** Compile-time checks of FieldWidget's props, keyed on the controls' kind. */
+function fieldWidgetPropsAreTyped(oneOf: OneOfFieldControls, tree: TreeFieldControls, text: TextFieldControls, any: FieldControls<any, any>) {
+  return [
+    <FieldWidget field={oneOf} widget="segmented" iconOnly />,
+    <FieldWidget field={oneOf} widget={{ name: 'segmented', iconOnly: true }} />,
+    <FieldWidget field={text} widget="search" onEnter={(typed) => typed.toUpperCase()} />,
+    <FieldWidget field={any} widget="checklist" vertical />,
+    // @ts-expect-error -- a one-of field has no checkboxes widget.
+    <FieldWidget field={oneOf} widget="checkboxes" />,
+    // @ts-expect-error -- a misspelled display prop.
+    <FieldWidget field={oneOf} iconOnyl />,
+    // @ts-expect-error -- vertical is a many-of widget's prop, not a one-of widget's.
+    <FieldWidget field={oneOf} vertical />,
+    // @ts-expect-error -- TreeChecklist's internal `nested` is not a display prop.
+    <FieldWidget field={tree} widget="checklist" nested />,
+    // @ts-expect-error -- nor can a hint reach it.
+    <FieldWidget field={tree} widget={{ name: 'checklist', nested: true }} />,
+    // @ts-expect-error -- onEnter receives the typed text, a string.
+    <FieldWidget field={text} widget="search" onEnter={(typed: number) => typed} />,
+  ];
 }

@@ -8,8 +8,8 @@ import { withTooltip } from './WithReason.js';
 
 interface Props {
   field: TextFieldControls;
-  /** Called on Enter, after the typed value has been requested (at once, or — when the field commits — the draft). */
-  onEnter?: () => void;
+  /** Called on Enter with the typed text, after it has been requested (at once, or — when the field commits — the draft). */
+  onEnter?: (typed: string) => void;
   style?: CSSProperties;
 }
 
@@ -27,7 +27,8 @@ interface Props {
  * via the same `clear` function. `onEnter` fires after Enter's request (if
  * the field commits — a non-committing field already requested live, on the
  * keystroke that produced the value), so a caller can run a search once the
- * field holds (or is about to hold) the typed text. Enter and Escape are
+ * field holds (or is about to hold) the typed text; it gets that text, which
+ * a committing field's `value` shows only once the commit is done. Enter and Escape are
  * both ignored mid-IME-composition (`e.nativeEvent.isComposing`), as
  * TextInput's `onPressEnter` already is by antd itself — composing text is
  * not done yet, so the value should not request and no shortcut should fire.
@@ -54,7 +55,7 @@ export function SearchInput({ field, onEnter, style }: Props) {
     if (e.key === 'Escape') clear();
     else if (e.key === 'Enter') {
       if (field.commits) commitDraft();
-      onEnter?.();
+      onEnter?.(value);
     }
   };
   const spinner = field.pending

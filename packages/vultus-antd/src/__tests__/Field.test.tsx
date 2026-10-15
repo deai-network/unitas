@@ -3,23 +3,25 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { App as AntApp } from 'antd';
 import { useState, type ReactNode } from 'react';
 import {
-  ArgStoreProvider, denyWithReason, memoryStore, useManyOfField, useOneOfField, useStoredField,
-  type ExecutionContext, type FieldDefinition, type FieldKind,
+  ArgStoreProvider, MessageSinkContext, denyWithReason, memoryStore, useBoolField, useManyOfField, useOneOfField,
+  useStoredField, type ErrorRoutesRegistry, type ExecutionContext, type FieldDefinition, type FieldKind,
 } from 'vultus-core';
 import { Field } from '../Field.js';
 import { FieldWidget } from '../FieldWidget.js';
 import { openTooltips } from './helpers/tooltips.js';
 
-// The real useStoredField, watched: <Field stored> must hand it the definition object itself
-// (Review Focus 4), never a per-render merge with the render-site overrides.
+// The real useStoredField and useBoolField, watched: <Field stored> must hand useStoredField
+// the definition object itself (Review Focus 4), never a per-render merge with the render-site
+// overrides; the kind's hook gets the render site's registry as its second argument.
 vi.mock('vultus-core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vultus-core')>();
-  return { ...actual, useStoredField: vi.fn(actual.useStoredField) };
+  return { ...actual, useStoredField: vi.fn(actual.useStoredField), useBoolField: vi.fn(actual.useBoolField) };
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.mocked(useStoredField).mockClear();
+  vi.mocked(useBoolField).mockClear();
 });
 
 const CHOICES = [{ value: 'a', label: 'Alpha' }, { value: 'b', label: 'Beta' }, { value: 'c', label: 'Gamma' }];
@@ -157,11 +159,30 @@ describe('Field: the widget for a definition', () => {
     expect(screen.queryByRole('switch')).toBeNull();
   });
 
-  it('remaining props go to the widget (SearchInput\'s onEnter)', () => {
+  it('remaining props go to the widget (SearchInput\'s onEnter, with the typed text)', () => {
     const onEnter = vi.fn();
     wrap(<Field definition={{ ...DEFINITIONS.text, widget: 'search' }} onEnter={onEnter} />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'prime' } });
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
     expect(onEnter).toHaveBeenCalledTimes(1);
+    expect(onEnter).toHaveBeenCalledWith('prime');
+  });
+
+  it('any definition value is overridable: choices', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.oneOf, widget: 'segmented' }} choices={[{ value: 'x', label: 'Ten' }, { value: 'y', label: 'Eleven' }]} />);
+    expect(screen.getByText('Ten')).toBeInTheDocument();
+    expect(screen.queryByText('Alpha')).toBeNull();
+  });
+
+  it('any definition value is overridable: a label as a function', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.boolean, widget: 'checkbox' }} label={() => 'Duplex'} />);
+    expect(screen.getByRole('checkbox', { name: 'Duplex' })).toBeInTheDocument();
+  });
+
+  it('any definition value is overridable: bounds', () => {
+    wrap(<Field definition={DEFINITIONS.numeric} max={3} initialValue={3} />);
+    expect(document.querySelector('[data-field-id="copies"]')).toHaveAttribute('data-value', '3');
+    expect(screen.getByRole('spinbutton')).toHaveAttribute('aria-valuemax', '3');
   });
 
   it('an unknown widget name throws, naming the field, the name and the kind', () => {
@@ -194,6 +215,14 @@ describe('Field: the widget for a definition', () => {
     expectWidget('text', 'input');
     rerender(<AntApp><Field definition={{ ...DEFINITIONS.boolean, id: 'q' }} /></AntApp>);
     expectWidget('boolean', 'switch');
+  });
+
+  it('a new id remounts: the inside value starts over', () => {
+    const { rerender } = wrap(<Field definition={{ ...DEFINITIONS.boolean, id: 'a' }} />);
+    fireEvent.click(screen.getByRole('switch'));
+    expect(screen.getByRole('switch')).toBeChecked();
+    rerender(<AntApp><Field definition={{ ...DEFINITIONS.boolean, id: 'b' }} /></AntApp>);
+    expect(screen.getByRole('switch')).not.toBeChecked();
   });
 });
 
@@ -231,9 +260,10 @@ describe('Field: storage', () => {
     expect(screen.getByRole('switch')).toBeChecked();
   });
 
-  it('stored: reads the store, with the render-site overrides applied', () => {
+  it('stored: reads the store, keeps the definition\'s widget hint, applies the render-site overrides', () => {
     const store = memoryStore({ paper: 'b' });
     wrap(<ArgStoreProvider store={store}><Field stored definition={{ ...DEFINITIONS.oneOf, widget: 'segmented' }} label="Sheet" /></ArgStoreProvider>);
+    expectWidget('oneOf', 'segmented');
     expect(document.querySelector('[data-field-id="paper"]')).toHaveAttribute('data-value', 'b');
     expect(document.querySelector('[data-field-id="paper"]')).toHaveAttribute('aria-label', 'Sheet');
   });
@@ -252,6 +282,46 @@ describe('Field: storage', () => {
     const calls = vi.mocked(useStoredField).mock.calls;
     expect(calls.length).toBeGreaterThanOrEqual(3);
     expect(calls.every(([d]) => d === definition)).toBe(true);
+  });
+
+  it('turning stored on and off remounts: the inside value starts over', () => {
+    const store = memoryStore({ duplex: '1' });
+    const at = (stored: boolean) => (
+      <AntApp><ArgStoreProvider store={store}><Field stored={stored} definition={DEFINITIONS.boolean} /></ArgStoreProvider></AntApp>
+    );
+    const { rerender } = render(at(false));
+    fireEvent.click(screen.getByRole('switch'));
+    expect(screen.getByRole('switch')).toBeChecked();
+    rerender(at(true));
+    expect(screen.getByRole('switch')).toBeChecked();
+    fireEvent.click(screen.getByRole('switch'));
+    expect(store.snapshot()).toEqual({});
+    rerender(at(false));
+    expect(screen.getByRole('switch')).not.toBeChecked();
+    fireEvent.click(screen.getByRole('switch'));
+    expect(store.snapshot()).toEqual({});
+  });
+
+  it('an initialValue override sets a value inside the field', () => {
+    wrap(<Field definition={DEFINITIONS.boolean} initialValue />);
+    expect(screen.getByRole('switch')).toBeChecked();
+  });
+
+  it('an initialValue override with stored, value or commit throws (the value lives outside)', () => {
+    quietRenderErrors();
+    const store = memoryStore();
+    expect(() => wrap(<ArgStoreProvider store={store}><Field stored definition={DEFINITIONS.boolean} initialValue /></ArgStoreProvider>))
+      .toThrow("Field 'duplex': an \"initialValue\" override is for a value inside the field; with \"stored\" it lives outside");
+    expect(() => wrap(<Field definition={DEFINITIONS.boolean} initialValue value={false} onChange={() => {}} />))
+      .toThrow("Field 'duplex': an \"initialValue\" override is for a value inside the field; with \"onChange\" it lives outside");
+    expect(() => wrap(<Field definition={DEFINITIONS.boolean} initialValue value={false} commit={{ fire: () => {} }} />))
+      .toThrow("Field 'duplex': an \"initialValue\" override is for a value inside the field; with \"commit\" it lives outside");
+  });
+
+  it('registry goes to the kind\'s hook as its second argument', () => {
+    const registry: ErrorRoutesRegistry<string> = { print: { 409: { i18nKey: 'print.busy' } } };
+    wrap(<Field definition={DEFINITIONS.boolean} registry={registry} />);
+    expect(vi.mocked(useBoolField).mock.calls.at(-1)?.[1]).toBe(registry);
   });
 
   it('stored together with value, onChange or commit throws', () => {
@@ -278,6 +348,17 @@ describe('FieldWidget: the widget for controls a caller made', () => {
     wrap(<Topics widget="checkboxes" />);
     expectWidget('manyOf', 'checkboxes');
     expect(document.querySelector('[data-field-id="rounds"]')).toHaveStyle({ flexDirection: 'row' });
+  });
+
+  it('item: a labelled form item around the widget', () => {
+    function Labelled() {
+      const field = useOneOfField({ id: 'paper', label: 'Paper', description: 'The **sheet** size', choices: CHOICES });
+      return <FieldWidget field={field} item />;
+    }
+    wrap(<Labelled />);
+    expect(document.querySelector('.ant-form-item-label')).toHaveTextContent('Paper');
+    expect(document.querySelector('.ant-form-item [data-field-id="paper"]')).not.toBeNull();
+    expect(document.querySelector('.ant-form-item-tooltip')).not.toBeNull();
   });
 
   it('the kind\'s default without a hint', () => {
@@ -319,18 +400,52 @@ describe('item: a labelled form item', () => {
     expect(openTooltips()[0].querySelector('strong')).toHaveTextContent('both');
   });
 
-  it('shows the last commit\'s error message under the control, with the error status', async () => {
-    wrap(<Committed fire={(_next, ctx) => ctx.error('Printer offline')} />);
+  it('an error message shows once, under the control, as an alert, with the error status; the sink does not get it', async () => {
+    const sink = vi.fn();
+    wrap(<MessageSinkContext.Provider value={sink}><Committed fire={(_next, ctx) => ctx.error('Printer offline')} /></MessageSinkContext.Provider>);
     fireEvent.click(screen.getByRole('switch'));
-    await waitFor(() => expect(screen.getByText('Printer offline')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Printer offline'));
+    expect(screen.getAllByText('Printer offline')).toHaveLength(1);
     expect(document.querySelector('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    expect(sink).not.toHaveBeenCalled();
   });
 
-  it('an info message is shown without the error status', async () => {
+  it('a thrown error shows once too, the sink not getting it', async () => {
+    const sink = vi.fn();
+    wrap(<MessageSinkContext.Provider value={sink}><Committed fire={() => { throw new Error('boom'); }} /></MessageSinkContext.Provider>);
+    fireEvent.click(screen.getByRole('switch'));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(sink).not.toHaveBeenCalled();
+  });
+
+  it('a warning shows once, as a status, with the warning status', async () => {
+    const sink = vi.fn();
+    wrap(<MessageSinkContext.Provider value={sink}><Committed fire={(_next, ctx) => ctx.warn('Low toner')} /></MessageSinkContext.Provider>);
+    fireEvent.click(screen.getByRole('switch'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Low toner'));
+    expect(screen.getAllByText('Low toner')).toHaveLength(1);
+    expect(document.querySelector('.ant-form-item')).toHaveClass('ant-form-item-has-warning');
+    expect(document.querySelector('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+    expect(sink).not.toHaveBeenCalled();
+  });
+
+  it('an info message shows as a status, without the error or warning status', async () => {
     wrap(<Committed fire={(_next, ctx) => ctx.info('Saved for this printer')} />);
     fireEvent.click(screen.getByRole('switch'));
-    await waitFor(() => expect(screen.getByText('Saved for this printer')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Saved for this printer'));
     expect(document.querySelector('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+    expect(document.querySelector('.ant-form-item')).not.toHaveClass('ant-form-item-has-warning');
+  });
+
+  it('without item, the sink gets the messages as before', async () => {
+    const sink = vi.fn();
+    function Bare() {
+      const [value, setValue] = useState(false);
+      return <Field definition={DUPLEX} value={value} commit={{ fire: (next, ctx) => { ctx.error('Printer offline'); setValue(next); } }} />;
+    }
+    wrap(<MessageSinkContext.Provider value={sink}><Bare /></MessageSinkContext.Provider>);
+    fireEvent.click(screen.getByRole('switch'));
+    await waitFor(() => expect(sink).toHaveBeenCalledWith('Printer offline', 'error'));
   });
 
   it('the checkbox widget shows its own label: the item has none', () => {
