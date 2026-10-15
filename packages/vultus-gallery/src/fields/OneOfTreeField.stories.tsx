@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Button, Space, Tag, Typography } from 'antd';
-import { useState, type MouseEvent } from 'react';
-import { Outlet, RouterProvider, createMemoryRouter, useLocation } from 'react-router';
+import { useEffect, useState, type MouseEvent } from 'react';
+import { Outlet, RouterProvider, createHashRouter, useLocation } from 'react-router';
 import {
   FieldWidget, OneOfTreeList, OneOfTreePicker, denyWithReason, useOneOfTreeField, useStoredField,
   type FieldDefinition, type TreeNode,
@@ -187,29 +187,38 @@ function TableOfContentsPanel() {
         </Button>
       </Space>
       <Typography.Paragraph style={{ marginTop: 16 }}>
-        URL: <Typography.Text code data-testid="url" style={{ wordBreak: 'break-all' }}>{`${location.pathname}${location.search}`}</Typography.Text>
+        URL hash: <Typography.Text code data-testid="url" style={{ wordBreak: 'break-all' }}>{`#${location.pathname}${location.search}`}</Typography.Text>
       </Typography.Paragraph>
     </div>
   );
 }
 
+/** The chapter the story opens at when the hash names no page (opened plainly, the hash empty). */
+const FIRST_PAGE = '/book?chapter=2.1';
+
 export const TableOfContents: StoryObj = {
   name: 'Table of contents (stored in the URL, real links)',
   render: function Render() {
-    const [router] = useState(() => createMemoryRouter(
-      [{
+    // A hash router over the story's own frame (iframe.html), so a link's href is
+    // `#/book?chapter=…` and a new tab opened from it shows this story at that chapter. Made and
+    // disposed in one effect: a hot reload re-runs effects, and must not keep a disposed router.
+    const [router, setRouter] = useState<ReturnType<typeof createHashRouter>>();
+    useEffect(() => {
+      const made = createHashRouter([{
         path: '/',
         element: <ReactRouterArgStore><Outlet /></ReactRouterArgStore>,
         children: [{ path: 'book', element: <TableOfContentsPanel /> }],
-      }],
-      { initialEntries: ['/book?chapter=2.1'] },
-    ));
+      }]);
+      if (made.state.location.pathname === '/') void made.navigate(FIRST_PAGE, { replace: true });
+      setRouter(made);
+      return () => made.dispose();
+    }, []);
     return (
       <Showcase
         title="A table of contents, kept in the URL"
-        note="useOneOfTreeField(useStoredField(toc).options): the chapter lives in the URL's query, under <ReactRouterArgStore> inside a memory router. Each chapter OneOfTreeList shows is a real <a href> (field.hrefFor, from the store); a plain click requests it in place, a click with Ctrl, Cmd, Shift or Alt (or the middle button) opens it in a new tab instead. The list follows the value: the chapter's part opens, and it scrolls into view. '‹ previous' / 'next ›' are plain antd Buttons, not a widget (the design's own choice): their href is field.hrefFor(field.previous / next.value), skipping the parts, never landing on one; their click requests it directly. The page opened on chapter 2.1 already."
+        note="useOneOfTreeField(useStoredField(toc).options): the chapter lives in the URL, in the query inside its hash (#/book?chapter=2.1), under <ReactRouterArgStore> inside a hash router over this story's frame. Each chapter OneOfTreeList shows is a real <a href> (field.hrefFor, from the store, asked again as the link is used); a plain click requests it in place, a click with Ctrl, Cmd, Shift or Alt (or the middle button) opens it in a new tab instead: the story alone (iframe.html), at that chapter. The list follows the value: the chapter's part opens, and it scrolls into view. '‹ previous' / 'next ›' are plain antd Buttons, not a widget (the design's own choice): their href is field.hrefFor(field.previous / next.value), rendered by a component that re-renders on every location change (useLocation), so it stays current; it skips the parts, never landing on one, and a plain click requests it directly. Opened with no page in the hash, the story goes to chapter 2.1."
       >
-        <RouterProvider router={router} />
+        {router && <RouterProvider router={router} />}
       </Showcase>
     );
   },
