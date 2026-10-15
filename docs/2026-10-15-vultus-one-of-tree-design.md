@@ -84,14 +84,20 @@ the many-of tree.
 - Field options: in both "outside" storage branches (`value` + `onChange`, `value` + `commit`),
   an optional `hrefFor(value: TRequest): string | undefined`, the link that requesting `value`
   amounts to.
-- Field controls: `hrefFor(value)` in every kind; `undefined` when the options gave none.
+- Field controls: `hrefFor?(value)` in every kind (optional in the type, so controls built by hand
+  for 0.5.2 still fit; the hooks always provide it), answering `undefined` when the options gave
+  none. An inside field ignores a passed `hrefFor` (nothing reads its value from a URL).
 - `useStoredField` passes its store's `hrefFor` (`useArg`'s, which answers `undefined` when the
   store has none: the memory and localStorage stores) into the options it returns, so a `stored`
   field over `ReactRouterArgStore` links each value (`#/…?toc=2.3` under a hash router).
 - `<Field>`: `hrefFor` belongs with `value` / `onChange` / `commit` (not a definition value); with
-  `stored` the render site cannot pass it.
+  `stored` the render site cannot pass it, and without `value` / `onChange` / `commit` it throws.
 - Today only `OneOfTreeList` uses it; an app's previous / next buttons can use
-  `field.hrefFor(field.next.value)`.
+  `field.hrefFor?.(field.next.value)`.
+- Freshness: an href computed at render is as fresh as that render, and another query key or the
+  path can change without re-rendering the field. OneOfTreeList asks `hrefFor` again when a link
+  is used (hover, focus, press, context menu, a modified click); an app's own links should live in
+  a component that re-renders on location changes, or be computed when used.
 
 ## Widgets (vultus-antd)
 
