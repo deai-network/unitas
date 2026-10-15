@@ -1,0 +1,143 @@
+import { TreeSelect, type TreeSelectProps } from 'antd';
+import { useMemo, useState, type CSSProperties } from 'react';
+import { useSpinnerKey, useVultusComponents, type OneOfTreeFieldControls } from 'vultus-core';
+import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { useVultusTexts } from './texts.js';
+import { labelMatches, treeData, TreeSwitcherIcon, type FieldTreeDataNode } from './treeData.js';
+import { useOneOfTreeRequest } from './useOneOfTreeRequest.js';
+import { withTooltip } from './WithReason.js';
+
+export interface OneOfTreePickerProps<T extends string> {
+  field: OneOfTreeFieldControls<T>;
+  size?: TreeSelectProps['size'];
+  style?: CSSProperties;
+  /** How high the open tree grows before it scrolls, in pixels (antd's `listHeight`); default 520, as ManyOfTreePicker's. */
+  listHeight?: number;
+  /** The open tree's width in pixels, or `true` to match the field's (antd's `popupMatchSelectWidth`); default 480, as ManyOfTreePicker's. */
+  popupMatchSelectWidth?: boolean | number;
+  /**
+   * How the closed field shows the value: `'label'` (default), the chosen
+   * node's label; `'path'`, the labels from its root down to it, joined by
+   * `texts.pathSeparator` ("Geometria › Síkgeometria › Kör").
+   */
+  summary?: 'label' | 'path';
+  /**
+   * Where the tree opens: `'dropdown'` (default) under the field, with its
+   * search; `'drawer'` is meant for a phone, a panel from the bottom of the
+   * screen. The drawer is not built yet: `'drawer'` opens the dropdown too.
+   */
+  panel?: 'dropdown' | 'drawer';
+}
+
+/** A tree data node with its `path`: the labels from its root down to it, joined. */
+type PathTreeDataNode<T extends string> = FieldTreeDataNode<T> & { path: string; children?: PathTreeDataNode<T>[] };
+
+/**
+ * The tree data with each node's path ("Geometria › Síkgeometria › Kör", joined by
+ * `separator`): what the closed field shows under `summary="path"` (TreeSelect's
+ * `treeNodeLabelProp`), the search still matching the label alone.
+ */
+function withPaths<T extends string>(nodes: FieldTreeDataNode<T>[], separator: string, above?: string): PathTreeDataNode<T>[] {
+  return nodes.map((node) => {
+    const path = above === undefined ? node.label : `${above}${separator}${node.label}`;
+    return { ...node, path, children: node.children && withPaths(node.children, separator, path) };
+  });
+}
+
+/**
+ * A one-of tree field (useOneOfTreeField) as antd's TreeSelect, single: a
+ * category picker. Closed, the field shows the chosen node's label, or with
+ * `summary="path"` its path ("Geometria › Síkgeometria › Kör",
+ * `texts.pathSeparator`); while no node is chosen (the value is empty, or
+ * names no node) it shows `field.placeholder`, never the raw value. An
+ * `optional` field has a clear button, requesting `''`. Open, the tree starts
+ * from `field.expandedKeys` (the field's `expand`), and each node shows its
+ * label (ChoiceLabel: in the description colour while dimmed) with its note
+ * right-aligned (ChoiceRow) and its own tooltip to the side (choiceTooltip: a
+ * disabled node's reason first, then its description). The tree is
+ * `listHeight` high at most and `popupMatchSelectWidth` wide (520 and 480, as
+ * ManyOfTreePicker's).
+ *
+ * Clicking a node that can be chosen (`choosable`) requests it, through the
+ * field's confirmation (useOneOfTreeRequest), and closes the tree; a node
+ * that cannot (a folder, a node with children under `choose: 'leaves'`) is
+ * not selectable: a click opens or closes it (`treeExpandAction="click"`),
+ * as it does a node with children that can be chosen, besides choosing it. A
+ * disabled node cannot be chosen.
+ *
+ * The search box filters by label, accent- and case-insensitive
+ * (normalizeText), keeping antd's rule, which vultus-core's filterTree
+ * follows: a match with its whole subtree, and its ancestors, every kept node
+ * open. The nodes it drops are not in the tree, so the keyboard (arrows,
+ * Enter choosing a node that can be chosen) moves over the shown ones only; a
+ * search hiding the chosen node keeps the value, shown again when the tree
+ * closes. The closed field's tooltip (fieldTooltip: disabled, its reason
+ * first) is held back while the tree is open or a confirmation is asking, as
+ * are the nodes'. The field's label is the accessible name; a pending commit
+ * disables the field and shows the lent Spinner as its suffix icon (else
+ * antd's loading icon).
+ */
+export function OneOfTreePicker<T extends string>({
+  field, size, style, listHeight = 520, popupMatchSelectWidth = 480, summary = 'label',
+}: OneOfTreePickerProps<T>) {
+  const texts = useVultusTexts();
+  const tipField = useTooltipField(field);
+  const { request, wrap, asking } = useOneOfTreeRequest(field);
+  const [open, setOpen] = useState(false);
+  const { Spinner } = useVultusComponents();
+  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
+  // The same tree data while the field stays the same, not new on each
+  // re-render of its own (the tree opening or closing): antd rebuilds its
+  // tree from new data.
+  const data = useMemo(() => {
+    const nodes = treeData(field.nodes, {
+      noteStyle: 'aside', tooltips: field.enabled, holdTooltips: asking, tooltipPlacement: 'right',
+    });
+    return summary === 'path' ? withPaths(nodes, texts.pathSeparator) : nodes;
+  }, [field.nodes, field.enabled, asking, summary, texts.pathSeparator]);
+  if (!field.visible) return null;
+
+  const select = (
+    <TreeSelect
+      treeData={data}
+      // `null` while no node is chosen (the value is empty, or names no node): the placeholder
+      // shows, not the raw value.
+      value={field.current ? field.current.value : null}
+      // A choice, or clearing (no value).
+      onChange={(next: T | null | undefined) => request(next ?? '')}
+      // `treeNodeFilterProp` only drives antd's highlight of the matches,
+      // which ignores case but not accents; the filtering is labelMatches'.
+      showSearch={{ filterTreeNode: labelMatches, treeNodeFilterProp: 'label' }}
+      onOpenChange={setOpen}
+      treeNodeLabelProp={summary === 'path' ? 'path' : 'label'}
+      treeDefaultExpandedKeys={field.expandedKeys}
+      treeExpandAction="click"
+      switcherIcon={<TreeSwitcherIcon />}
+      allowClear={field.optional}
+      placeholder={field.placeholder}
+      listHeight={listHeight}
+      popupMatchSelectWidth={popupMatchSelectWidth}
+      size={size}
+      style={{ minWidth: 200, ...style }}
+      loading={field.pending}
+      // See OneOfSelect: `suffixIcon` is the one loading-related prop antd
+      // strips before forwarding the rest to @rc-component/select.
+      suffixIcon={Spinner && field.pending ? <Spinner spinnerKey={spinnerKey} size="small" /> : undefined}
+      disabled={!field.enabled || field.pending}
+      // As OneOfSelect's: an empty title keeps antd from putting the label in a native tooltip on
+      // the closed select, where it would compete with ours.
+      title=""
+      aria-label={field.label || undefined}
+      aria-description={fieldAccessibleDescription(field, texts)}
+      data-field-id={field.id}
+      data-value={field.value}
+    />
+  );
+  return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, select, {
+    open: open || asking ? false : undefined,
+    // Without a width the span is a block, so the select fills a form item (antd's ant-select-in-form-item); elsewhere it keeps its natural width.
+    style,
+    block: style?.width === undefined,
+    stable: true,
+  }));
+}

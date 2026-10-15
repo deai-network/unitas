@@ -1,14 +1,14 @@
 import { Button, Drawer, TreeSelect, type TreeSelectProps } from 'antd';
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
-  normalizeText, normalizeTreeValue, toggleTreeValue, useSpinnerKey, useVultusComponents,
+  normalizeTreeValue, toggleTreeValue, useSpinnerKey, useVultusComponents,
   type ManyOfTreeFieldControls, type TreeSelection,
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { firstWords } from './firstWords.js';
 import { useVultusTexts } from './texts.js';
 import { ManyOfTreeChecklist } from './ManyOfTreeChecklist.js';
-import { treeData, TreeSwitcherIcon } from './treeData.js';
+import { labelMatches, treeData, TreeSwitcherIcon } from './treeData.js';
 import { useManyOfTreeRequest } from './useManyOfTreeRequest.js';
 import { withTooltip } from './WithReason.js';
 
@@ -55,11 +55,6 @@ const STRATEGY: Record<TreeSelection, TreeSelectProps['showCheckedStrategy']> = 
   leaves: TreeSelect.SHOW_CHILD,
   independent: TreeSelect.SHOW_ALL,
 };
-
-/** Whether a node's label holds the search, accent- and case-insensitive, ignoring the search's surrounding spaces (as vultus-core's filterTree). */
-function labelMatches(search: string, node: Record<string, unknown>): boolean {
-  return normalizeText(String(node.label ?? '')).includes(normalizeText(search.trim()));
-}
 
 /**
  * A many-of tree field (useManyOfTreeField) as antd's TreeSelect, `treeCheckable`: the

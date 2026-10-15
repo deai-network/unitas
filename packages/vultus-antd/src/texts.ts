@@ -30,6 +30,10 @@ export interface VultusTexts {
   from: string;
   /** Names a range field's upper-end handle to assistive tech, after its label: "School years, to". */
   to: string;
+  /** Joins the labels of a one-of tree node's path (OneOfTreePicker `summary="path"`): "Geometria › Síkgeometria". */
+  pathSeparator: string;
+  /** Names the empty value of an optional one-of tree field where a widget lists it as a row of its own and the field has no placeholder. */
+  none: string;
 }
 
 export const defaultVultusTexts: VultusTexts = {
@@ -40,6 +44,8 @@ export const defaultVultusTexts: VultusTexts = {
   joiningWords: ['and', 'of', 'the'],
   from: 'from',
   to: 'to',
+  pathSeparator: ' › ',
+  none: 'None',
 };
 
 export const VultusTextsContext = createContext<VultusTexts>(defaultVultusTexts);

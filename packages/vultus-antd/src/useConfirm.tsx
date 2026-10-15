@@ -3,8 +3,17 @@ import { Modal, Popconfirm } from 'antd';
 import type { ConfirmationSpec } from 'vultus-core';
 import { ConfirmTypingModal } from './ConfirmTypingModal.js';
 
-/** Obtains a confirmation, then runs; runs at once without one. */
-export type Confirm = (confirmation: ConfirmationSpec | undefined, run: () => void) => void;
+/**
+ * Obtains a confirmation, then runs; runs at once without one. `labels` label this one
+ * confirmation's OK, over the hook's (the choice a widget asks about, known only when it asks).
+ */
+export type Confirm = (confirmation: ConfirmationSpec | undefined, run: () => void, labels?: ConfirmLabels) => void;
+
+/** How a confirmation's OK is labelled: its text, and whether it is a danger button. */
+export interface ConfirmLabels {
+  okText?: string;
+  danger?: boolean;
+}
 
 /**
  * Obtains ConfirmationSpec confirmations for a control (ActionButton,
@@ -14,7 +23,10 @@ export type Confirm = (confirmation: ConfirmationSpec | undefined, run: () => vo
  * popconfirm's anchor around the control and renders the dialogs (cascade
  * modal, typing confirmation) next to it. `asking` is true while a
  * confirmation is open: the control holds back its own tooltips meanwhile,
- * which would otherwise cover the popconfirm.
+ * which would otherwise cover the popconfirm. `okText` and `danger` label the
+ * OK of every confirmation, unless `confirm` is given labels of its own: a
+ * cascade modal takes them when it opens, so a label the control learns only
+ * then (the choice it is asking about) has to come with the call.
  */
 export function useConfirm({ okText, danger }: { okText: string; danger?: boolean }): {
   confirm: Confirm;
@@ -26,13 +38,18 @@ export function useConfirm({ okText, danger }: { okText: string; danger?: boolea
   const [question, setQuestion] = useState<string | null>(null);
   const [typing, setTyping] = useState<Extract<ConfirmationSpec, { kind: 'typing' }> | null>(null);
   const runRef = useRef<() => void>(() => {});
+  /** The open confirmation's own labels (see Confirm). */
+  const [asked, setAsked] = useState<ConfirmLabels>({});
+  const okLabel = asked.okText ?? okText;
+  const okDanger = asked.danger ?? danger;
 
-  const confirm: Confirm = (confirmation, run) => {
+  const confirm: Confirm = (confirmation, run, labels = {}) => {
     if (!confirmation) {
       run();
       return;
     }
     runRef.current = run;
+    setAsked(labels);
     if (confirmation.kind === 'popconfirm') setQuestion(confirmation.question);
     else if (confirmation.kind === 'typing') setTyping(confirmation);
     else {
@@ -40,8 +57,8 @@ export function useConfirm({ okText, danger }: { okText: string; danger?: boolea
       modal.confirm({
         title: confirmation.title,
         content: confirmation.content,
-        okText,
-        okButtonProps: { danger },
+        okText: labels.okText ?? okText,
+        okButtonProps: { danger: labels.danger ?? danger },
         onOk: () => run(),
         afterClose: () => setModalOpen(false),
       });
@@ -57,7 +74,7 @@ export function useConfirm({ okText, danger }: { okText: string; danger?: boolea
         title={<div style={{ maxWidth: 280, whiteSpace: 'normal' }}>{question}</div>}
         onConfirm={() => { setQuestion(null); runRef.current(); }}
         onCancel={() => setQuestion(null)}
-        okButtonProps={{ danger }}
+        okButtonProps={{ danger: okDanger }}
       >
         {control}
       </Popconfirm>
@@ -68,8 +85,8 @@ export function useConfirm({ okText, danger }: { okText: string; danger?: boolea
           entityName={typing.entityName}
           description={typing.description}
           prompt={typing.prompt}
-          okText={okText}
-          danger={danger}
+          okText={okLabel}
+          danger={okDanger}
           onConfirm={() => { setTyping(null); runRef.current(); }}
           onCancel={() => setTyping(null)}
         />

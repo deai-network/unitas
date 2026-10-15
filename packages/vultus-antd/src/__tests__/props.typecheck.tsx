@@ -2,13 +2,13 @@
 // not shipped (src/**/__tests__ is outside the build and the package's files): tsconfig.typecheck.json
 // type-checks it — `pnpm typecheck` in this package, beside `tsc -p tsconfig.json`.
 import type {
-  FieldControls, FieldDefinition, OneOfFieldControls, TextFieldControls, ManyOfTreeFieldControls,
+  FieldControls, FieldDefinition, OneOfFieldControls, TextFieldControls, ManyOfTreeFieldControls, OneOfTreeFieldControls,
 } from 'vultus-core';
 import {
   ChoiceLabel, Field, FieldWidget,
   type ManyOfCheckboxesProps, type ManyOfSelectProps, type ManyOfSwitchesProps, type NumericInputProps,
   type NumericSliderProps, type RangeSliderProps, type RequestableField, type SearchInputProps, type TextInputProps,
-  type ManyOfTreeChecklistProps, type ManyOfTreePickerProps,
+  type ManyOfTreeChecklistProps, type ManyOfTreePickerProps, type OneOfTreePickerProps,
 } from '../index.js';
 
 /** The definition of kind `K` (FieldDefinition's member). */
@@ -17,7 +17,7 @@ type DefinitionOf<K extends FieldDefinition['kind']> = Extract<FieldDefinition, 
 /** Compile-time checks of Field's props: typed by the definition's kind, and by every kind for the FieldDefinition union. */
 function fieldPropsAreTyped(
   wide: FieldDefinition, bool: DefinitionOf<'boolean'>, oneOf: DefinitionOf<'oneOf'>, range: DefinitionOf<'range'>,
-  tree: DefinitionOf<'manyOfTree'>, mixed: DefinitionOf<'mixed-boolean'>,
+  tree: DefinitionOf<'manyOfTree'>, mixed: DefinitionOf<'mixed-boolean'>, oneOfTree: DefinitionOf<'oneOfTree'>,
 ) {
   const takesString = (typed: string) => typed;
   function Wrapper<W extends FieldDefinition>({ definition, flag }: { definition: W; flag: boolean }) {
@@ -55,6 +55,13 @@ function fieldPropsAreTyped(
     <Field definition={mixed} value="mixed" onChange={(next: boolean) => next} />,
     <Field definition={range} widget="slider" showValue min={() => 2010} label={() => 'Years'} />,
     <Field definition={tree} panel="drawer" summary="firstWords" />,
+    <Field definition={oneOfTree} summary="path" choose="leaves" optional />,
+    // @ts-expect-error -- with stored, choose comes from the definition (the store sanitizes against it).
+    <Field definition={oneOfTree} stored choose="leaves" />,
+    // @ts-expect-error -- and so does optional.
+    <Field definition={oneOfTree} stored optional />,
+    // @ts-expect-error -- a one-of tree's summary is its label or path, not the many-of tree's tags.
+    <Field definition={oneOfTree} summary="tags" />,
     <Field definition={bool} initialValue />,
     <Field definition={{ kind: 'manyOf', id: 'rounds', choices: [] }} vertical label="Rounds" value={['a']} onChange={(next) => next.join()} />,
     // @ts-expect-error -- an inline definition is typed by its kind too: iconOnly is a one-of widget's prop.
@@ -85,8 +92,14 @@ function fieldPropsAreTyped(
 }
 
 /** Compile-time checks of FieldWidget's props, keyed on the controls' kind. */
-function fieldWidgetPropsAreTyped(oneOf: OneOfFieldControls, tree: ManyOfTreeFieldControls, text: TextFieldControls, any: FieldControls<any, any>) {
+function fieldWidgetPropsAreTyped(
+  oneOf: OneOfFieldControls, tree: ManyOfTreeFieldControls, text: TextFieldControls, any: FieldControls<any, any>,
+  oneOfTree: OneOfTreeFieldControls,
+) {
   return [
+    <FieldWidget field={oneOfTree} widget="picker" summary="path" />,
+    // @ts-expect-error -- one-of tree controls are read as their own kind (not as of every kind): no search widget.
+    <FieldWidget field={oneOfTree} widget="search" />,
     <FieldWidget field={oneOf} widget="segmented" iconOnly />,
     <FieldWidget field={oneOf} widget={{ name: 'segmented', iconOnly: true }} />,
     <FieldWidget field={text} widget="search" onEnter={(typed) => typed.toUpperCase()} />,
@@ -118,7 +131,7 @@ function choiceLabelTakesAChoiceWithoutDimmed() {
 type WidgetPropsAreExported = [
   ManyOfCheckboxesProps<string>, ManyOfSwitchesProps<string>, ManyOfSelectProps<string>, NumericInputProps,
   NumericSliderProps, RangeSliderProps, ManyOfTreeChecklistProps<string>, ManyOfTreePickerProps<string>, TextInputProps,
-  SearchInputProps, RequestableField<string>,
+  SearchInputProps, RequestableField<string>, OneOfTreePickerProps<string>,
 ];
 
 export {

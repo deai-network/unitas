@@ -4,7 +4,7 @@ export { defaultVultusTexts, useVultusTexts, VultusTextsContext, type VultusText
 export { ActionButton } from './ActionButton.js';
 export { BoolCheckbox } from './BoolCheckbox.js';
 export { BoolSwitch } from './BoolSwitch.js';
-export { useConfirm, type Confirm } from './useConfirm.js';
+export { useConfirm, type Confirm, type ConfirmLabels } from './useConfirm.js';
 export { CombinedActionButton } from './CombinedActionButton.js';
 export { FormSubmitButton } from './FormSubmitButton.js';
 export { FormPanel } from './FormPanel.js';
@@ -27,6 +27,7 @@ export { RangeSlider, type RangeSliderProps } from './RangeSlider.js';
 export { ManyOfTreeChecklist, type ManyOfTreeChecklistProps } from './ManyOfTreeChecklist.js';
 export { ManyOfTreePicker, type ManyOfTreePickerProps } from './ManyOfTreePicker.js';
 export { useManyOfTreeRequest } from './useManyOfTreeRequest.js';
+export { OneOfTreePicker, type OneOfTreePickerProps } from './OneOfTreePicker.js';
 export { TextInput, type TextInputProps } from './TextInput.js';
 export { SearchInput, type SearchInputProps } from './SearchInput.js';
 export { FieldWidget, type FieldWidgetProps, type WidgetNameOf, type WidgetHintOf } from './FieldWidget.js';
