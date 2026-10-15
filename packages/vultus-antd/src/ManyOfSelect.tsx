@@ -7,7 +7,7 @@ import { useManyOfRequest } from './useManyOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
 
-interface Props<T extends string> {
+export interface ManyOfSelectProps<T extends string> {
   field: ManyOfFieldControls<T>;
   size?: SelectProps['size'];
   style?: CSSProperties;
@@ -31,7 +31,7 @@ interface Props<T extends string> {
  * normalizes it to the field's choice order. The field's label is the
  * accessible name; a pending commit shows a loading select.
  */
-export function ManyOfSelect<T extends string>({ field, size, style }: Props<T>) {
+export function ManyOfSelect<T extends string>({ field, size, style }: ManyOfSelectProps<T>) {
   const texts = useVultusTexts();
   const { request, wrap, asking } = useManyOfRequest(field);
   const [open, setOpen] = useState(false);

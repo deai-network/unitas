@@ -7,7 +7,7 @@ import { sliderStyle, useSliderMove } from './useSliderMove.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
 
-interface Props {
+export interface NumericSliderProps {
   field: NumericFieldControls;
   style?: CSSProperties;
   /** Shows the field's formatted value (field.valueText) before the slider. */
@@ -30,7 +30,7 @@ interface Props {
  * moved-to value stays shown while the confirmation is open or the commit
  * is pending (useSliderMove, shared with RangeSlider).
  */
-export function NumericSlider({ field, style, showValue }: Props) {
+export function NumericSlider({ field, style, showValue }: NumericSliderProps) {
   const texts = useVultusTexts();
   const { request, wrap, asking } = useNumericRequest(field);
   const move = useSliderMove<number>({ value: field.value, pending: field.pending, asking, request });

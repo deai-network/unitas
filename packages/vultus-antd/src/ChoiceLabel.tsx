@@ -13,7 +13,8 @@ import type { OneOfChoiceControls } from 'vultus-core';
  * icon, the label becoming its accessible name.
  */
 export function ChoiceLabel({ choice, iconOnly }: {
-  choice: Pick<OneOfChoiceControls, 'label' | 'enabled' | 'variant' | 'icon' | 'dimmed'>;
+  /** A choice's controls, or one built by hand: `dimmed` may be left out (not dimmed). */
+  choice: Pick<OneOfChoiceControls, 'label' | 'enabled' | 'variant' | 'icon'> & { dimmed?: boolean };
   iconOnly?: boolean;
 }) {
   const { token } = theme.useToken();

@@ -53,6 +53,14 @@ describe('ChoiceLabel dimmed', () => {
     expect(label.style.color).not.toBe(probe.style.color);
   });
 
+  it('a choice built without dimmed (as before dimmed existed) is not dimmed: the variant colour applies', () => {
+    render(<><ChoiceLabel choice={base} /><DescriptionColorProbe /></>);
+    const label = screen.getByText('Idle');
+    expect(label.style.color).not.toBe('');
+    expect(label.style.color).not.toBe(screen.getByTestId('probe').style.color);
+    expect(label.style.fontWeight).toBe('600');
+  });
+
   it('a dimmed, disabled choice is still in the description colour', () => {
     render(<><ChoiceLabel choice={{ ...base, enabled: false, dimmed: true }} /><DescriptionColorProbe /></>);
     const label = screen.getByText('Idle');

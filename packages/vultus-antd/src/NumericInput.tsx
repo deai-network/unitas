@@ -6,7 +6,7 @@ import { useNumericRequest } from './useNumericRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
 
-interface Props {
+export interface NumericInputProps {
   field: NumericFieldControls;
   style?: CSSProperties;
 }
@@ -25,7 +25,7 @@ interface Props {
  * which useNumericRequest already turns into a no-op, so it still requests
  * only once.
  */
-export function NumericInput({ field, style }: Props) {
+export function NumericInput({ field, style }: NumericInputProps) {
   const texts = useVultusTexts();
   const { request, wrap, asking } = useNumericRequest(field);
   const [draft, setDraft] = useState<number | null>(field.value);

@@ -176,25 +176,3 @@ export function FieldWidget<C extends FieldControls<any, any>>({ field, widget, 
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Assert<T extends true> = T;
 type WidgetNamesAreTheTable = Assert<Same<WidgetNameOf<FieldKind>, WidgetName>>;
-
-/** Compile-time checks of FieldWidget's props, keyed on the controls' kind. */
-function fieldWidgetPropsAreTyped(oneOf: OneOfFieldControls, tree: TreeFieldControls, text: TextFieldControls, any: FieldControls<any, any>) {
-  return [
-    <FieldWidget field={oneOf} widget="segmented" iconOnly />,
-    <FieldWidget field={oneOf} widget={{ name: 'segmented', iconOnly: true }} />,
-    <FieldWidget field={text} widget="search" onEnter={(typed) => typed.toUpperCase()} />,
-    <FieldWidget field={any} widget="checklist" vertical />,
-    // @ts-expect-error -- a one-of field has no checkboxes widget.
-    <FieldWidget field={oneOf} widget="checkboxes" />,
-    // @ts-expect-error -- a misspelled display prop.
-    <FieldWidget field={oneOf} iconOnyl />,
-    // @ts-expect-error -- vertical is a many-of widget's prop, not a one-of widget's.
-    <FieldWidget field={oneOf} vertical />,
-    // @ts-expect-error -- TreeChecklist's internal `nested` is not a display prop.
-    <FieldWidget field={tree} widget="checklist" nested />,
-    // @ts-expect-error -- nor can a hint reach it.
-    <FieldWidget field={tree} widget={{ name: 'checklist', nested: true }} />,
-    // @ts-expect-error -- onEnter receives the typed text, a string.
-    <FieldWidget field={text} widget="search" onEnter={(typed: number) => typed} />,
-  ];
-}

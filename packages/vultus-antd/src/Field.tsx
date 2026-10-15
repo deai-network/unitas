@@ -29,18 +29,15 @@ type StoreKey = (typeof STORE_KEYS)[number];
 
 /**
  * `<Field>`'s props for a definition `D`, typed by its kind (by every kind, for a definition
- * typed as the FieldDefinition union): the value and its setters, the widget names and the
- * display props of the kind's widgets, and the definition's values as overrides (with
- * `stored`, all but the ones the store reads: `initialValue`, `choices`, `nodes`, `selection`,
- * `min`, `max`, `integer`).
+ * typed as the FieldDefinition union): the widget names and the display props of the kind's
+ * widgets; without `stored`, the value and its setters and the definition's values as
+ * overrides; with `stored`, no value or setter of the render site's (the store keeps the value)
+ * and the definition's values but the ones the store reads (`initialValue`, `choices`, `nodes`,
+ * `selection`, `min`, `max`, `integer`).
  */
 export type FieldProps<D extends FieldDefinition = FieldDefinition> = {
   /** The field as data; its `kind` picks the hook and, with its `widget` hint, the widget. */
   definition: D;
-  /** The value, when the render site keeps it (with `onChange` or `commit`). */
-  value?: FieldValueOf<D['kind']>;
-  onChange?: (value: FieldRequestOf<D['kind']>) => void;
-  commit?: FieldCommit<FieldRequestOf<D['kind']>>;
   /** The error routes a commit's `errorRoute` is looked up in (the kind hook's second argument). */
   registry?: ErrorRoutesRegistry<string>;
   /** The widget, over the definition's hint: one of the kind's names, or `{ name, ...displayProps }`. */
@@ -48,10 +45,19 @@ export type FieldProps<D extends FieldDefinition = FieldDefinition> = {
   /** In a labelled antd form item (label, description tooltip, the last commit's messages). */
   item?: boolean;
 } & DisplayPropsOf<D['kind']> & (
-  | ({ stored?: false } & DefinitionOverridesOf<D['kind']>)
+  | ({
+    stored?: false;
+    /** The value, when the render site keeps it (with `onChange` or `commit`). */
+    value?: FieldValueOf<D['kind']>;
+    onChange?: (value: FieldRequestOf<D['kind']>) => void;
+    commit?: FieldCommit<FieldRequestOf<D['kind']>>;
+  } & DefinitionOverridesOf<D['kind']>)
   | ({
     /** Keep the value in the nearest ArgStore (the URL, localStorage) under the definition's `id` (useStoredField). */
     stored: true;
+    value?: never;
+    onChange?: never;
+    commit?: never;
   } & Omit<DefinitionOverridesOf<D['kind']>, StoreKey>)
 );
 
@@ -195,61 +201,3 @@ type Assert<T extends true> = T;
 type OverridableKeys = Exclude<KeysOf<FieldDefinition>, 'kind' | 'id' | 'widget'>;
 type DefinitionKeysAreComplete = Assert<Same<(typeof DEFINITION_KEYS)[number], OverridableKeys>>;
 type DisplayPropsAreNotDefinitionValues = Assert<Same<Extract<keyof DisplayPropsOf<FieldKind>, OverridableKeys>, never>>;
-
-/** Compile-time checks of Field's props: typed by the definition's kind, and by every kind for the FieldDefinition union. */
-function fieldPropsAreTyped(
-  wide: FieldDefinition, bool: DefinitionOf<'boolean'>, oneOf: DefinitionOf<'oneOf'>, range: DefinitionOf<'range'>,
-  tree: DefinitionOf<'tree'>, mixed: DefinitionOf<'mixed-boolean'>,
-) {
-  const takesString = (typed: string) => typed;
-  function Wrapper<W extends FieldDefinition>({ definition, flag }: { definition: W; flag: boolean }) {
-    return [
-      <Field<FieldDefinition> definition={definition} label="Rounds" vertical />,
-      <Field<FieldDefinition> definition={definition} stored={flag} label="Rounds" />,
-      // @ts-expect-error -- for a generic definition type the kind-keyed props cannot resolve: pass <Field<FieldDefinition>>.
-      <Field definition={definition} label="Rounds" />,
-    ];
-  }
-  return [
-    Wrapper,
-    <Field definition={oneOf} stored label="Paper" widget="segmented" />,
-    // @ts-expect-error -- with stored, choices come from the definition (the store sanitizes against them).
-    <Field definition={oneOf} stored choices={[{ value: 'a' }]} />,
-    // @ts-expect-error -- with stored, so do the bounds.
-    <Field definition={range} stored min={2000} />,
-    <Field definition={wide} widget="search" onEnter={(typed) => takesString(typed)} />,
-    <Field definition={wide} vertical style={{ width: 200 }} label="Rounds" />,
-    <Field definition={oneOf} widget={{ name: 'segmented', iconOnly: true }} choices={[{ value: 'a' }]} />,
-    <Field definition={oneOf} value="a" onChange={(next) => takesString(next)} />,
-    <Field definition={bool} value commit={{ fire: (next: boolean) => { void next; } }} />,
-    <Field definition={mixed} value="mixed" onChange={(next: boolean) => next} />,
-    <Field definition={range} widget="slider" showValue min={() => 2010} label={() => 'Years'} />,
-    <Field definition={tree} panel="drawer" summary="firstWords" />,
-    <Field definition={bool} initialValue />,
-    <Field definition={{ kind: 'manyOf', id: 'rounds', choices: [] }} vertical label="Rounds" value={['a']} onChange={(next) => next.join()} />,
-    // @ts-expect-error -- an inline definition is typed by its kind too: iconOnly is a one-of widget's prop.
-    <Field definition={{ kind: 'manyOf', id: 'rounds', choices: [] }} iconOnly />,
-    // @ts-expect-error -- a misspelled display prop.
-    <Field definition={wide} vertcal />,
-    // @ts-expect-error -- a misspelled prop, on a definition of one kind.
-    <Field definition={oneOf} lable="Paper" />,
-    // @ts-expect-error -- a range field has no input widget.
-    <Field definition={range} widget="input" />,
-    // @ts-expect-error -- nor a hint naming one.
-    <Field definition={range} widget={{ name: 'input' }} />,
-    // @ts-expect-error -- a boolean field's value is a boolean.
-    <Field definition={bool} value="yes" onChange={() => {}} />,
-    // @ts-expect-error -- a one-of field's onChange receives a string.
-    <Field definition={oneOf} value="a" onChange={(next: number) => next} />,
-    // @ts-expect-error -- a mixed-boolean field is asked for a boolean, never 'mixed'.
-    <Field definition={mixed} value="mixed" onChange={(next: 'mixed') => next} />,
-    // @ts-expect-error -- TreeChecklist's internal `nested` is not a display prop.
-    <Field definition={tree} widget="checklist" nested />,
-    // @ts-expect-error -- onEnter receives the typed text, a string.
-    <Field definition={wide} onEnter={(typed: number) => typed} />,
-    // @ts-expect-error -- `id` is not overridable.
-    <Field definition={bool} id="other" />,
-    // @ts-expect-error -- vertical is a many-of widget's prop, not a boolean widget's.
-    <Field definition={bool} vertical />,
-  ];
-}

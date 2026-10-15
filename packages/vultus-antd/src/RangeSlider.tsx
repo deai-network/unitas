@@ -7,7 +7,7 @@ import { sliderStyle, useSliderMove } from './useSliderMove.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
 
-interface Props {
+export interface RangeSliderProps {
   field: RangeFieldControls;
   style?: CSSProperties;
   /** Shows the field's formatted value (field.valueText) before the slider. */
@@ -32,7 +32,7 @@ const equalRange = (a: NumberRange, b: NumberRange): boolean => a[0] === b[0] &&
  * while the confirmation is open or the commit is pending (useSliderMove,
  * shared with NumericSlider).
  */
-export function RangeSlider({ field, style, showValue }: Props) {
+export function RangeSlider({ field, style, showValue }: RangeSliderProps) {
   const texts = useVultusTexts();
   const { request, wrap, asking } = useFieldRequest<NumberRange>(field, { equal: equalRange });
   const move = useSliderMove<NumberRange>({ value: field.value, pending: field.pending, asking, request });
