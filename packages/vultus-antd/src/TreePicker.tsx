@@ -1,11 +1,13 @@
-import { TreeSelect, type TreeSelectProps } from 'antd';
+import { Button, Drawer, TreeSelect, type TreeSelectProps } from 'antd';
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   normalizeText, normalizeTreeValue, useSpinnerKey, useVultusComponents,
   type TreeFieldControls, type TreeSelection,
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip } from './fieldTooltip.js';
+import { firstWords } from './firstWords.js';
 import { useVultusTexts } from './texts.js';
+import { TreeChecklist } from './TreeChecklist.js';
 import { treeData, TreeSwitcherIcon } from './treeData.js';
 import { useTreeRequest } from './useTreeRequest.js';
 import { withTooltip } from './WithReason.js';
@@ -18,7 +20,27 @@ export interface TreePickerProps<T extends string> {
   listHeight?: number;
   /** The open tree's width in pixels, or `true` to match the field's (antd's `popupMatchSelectWidth`); default 480, as Taskmaster's. */
   popupMatchSelectWidth?: boolean | number;
+  /**
+   * Where the tree opens: `'dropdown'` (default) under the field, with its
+   * search; `'drawer'` in a panel from the bottom of the screen instead, for
+   * a phone (Taskmaster's): a TreeChecklist of the field (its search box,
+   * notes in brackets) under the field's label and a Done button
+   * (`texts.done`). The app decides when (on a narrow screen).
+   */
+  panel?: 'dropdown' | 'drawer';
+  /**
+   * How the closed field shows the value: `'tags'` (default), as many as
+   * fit; `'firstWords'`, one line of each selected node's first words
+   * ("Osztók, legnagyobb…, Feltételes…", firstWords), for a phone.
+   */
+  summary?: 'tags' | 'firstWords';
 }
+
+/** About how many characters of each selected label the first-words summary shows: fewer when it lists more than one. */
+const SUMMARY_CHARS = { one: 40, each: 16 };
+
+/** The parts of the closed field that act on their own (clearing, removing a tag): a tap on them does not open the drawer. */
+const OWN_ACTIONS = '.ant-select-clear, .ant-select-selection-item-remove';
 
 /**
  * Which of the checked nodes antd lists (as tags, and in what it reports) for
@@ -66,18 +88,34 @@ function labelMatches(search: string, node: Record<string, unknown>): boolean {
  * The search box filters by label, accent- and case-insensitive
  * (normalizeText), keeping antd's rule, which vultus-core's filterTree
  * follows: a match with its whole subtree, and its ancestors, every kept node
- * open. The closed field's tooltip (fieldTooltip: disabled, its reason first)
- * is held back while the tree is open or a confirmation is asking, as are the
- * nodes'. The field's label is the accessible name; a pending commit disables
- * the field and shows the lent Spinner as its suffix icon (else antd's
- * loading icon).
+ * open. The search stays after a check (antd would clear it), so several
+ * matches can be checked in a row; a check that commits disables the field
+ * while pending, which closes the tree and clears the search (antd's rule
+ * for a select losing focus). The closed field's tooltip (fieldTooltip:
+ * disabled, its reason first) is held back while the tree is open or a
+ * confirmation is asking, as are the nodes'. The field's label is the
+ * accessible name; a pending commit disables the field and shows the lent
+ * Spinner as its suffix icon (else antd's loading icon).
+ *
+ * On a phone (Taskmaster's): `panel="drawer"` keeps the closed field to
+ * showing the choice (no dropdown, no search in it); a tap on it (or Enter
+ * or Space while it has focus), except on its clear and remove icons, opens
+ * an antd Drawer from the bottom, 88% high, titled with the field's
+ * label, Done (`texts.done`) closing it, holding a TreeChecklist of the same
+ * field: its search box, notes in brackets, each check requested at once
+ * through the field's confirmation. A disabled or pending field does not open
+ * it. `summary="firstWords"` shows no tags but one line: each selected node's
+ * first words (firstWords: about 16 characters each when more than one is
+ * selected, else 40, never ending on one of `texts.joiningWords`), joined
+ * with ", ".
  */
 export function TreePicker<T extends string>({
-  field, size, style, listHeight = 520, popupMatchSelectWidth = 480,
+  field, size, style, listHeight = 520, popupMatchSelectWidth = 480, panel = 'dropdown', summary = 'tags',
 }: TreePickerProps<T>) {
   const texts = useVultusTexts();
   const { request, wrap, asking } = useTreeRequest(field);
   const [open, setOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   /** Set by the clear icon, just before antd reports the emptied list (which would otherwise keep the values naming no node). */
@@ -91,8 +129,26 @@ export function TreePicker<T extends string>({
   if (!field.visible) return null;
 
   const strict = field.selection === 'independent';
+  const disabled = !field.enabled || field.pending;
   const known = field.value.filter((v) => field.byValue.has(v));
   const unknown = field.value.filter((v) => !field.byValue.has(v));
+  const openDrawer = () => { if (!disabled) setDrawerOpen(true); };
+  const opening: Partial<TreeSelectProps> = panel === 'drawer'
+    ? {
+      open: false,
+      showSearch: false,
+      onOpenChange: (next) => { if (next) openDrawer(); },
+      // A focused select may report no new opening on a second tap (as
+      // Taskmaster found): any tap opens the drawer, except on the field's
+      // own actions.
+      onClick: (e) => { if (!(e.target as HTMLElement).closest(OWN_ACTIONS)) openDrawer(); },
+    }
+    : {
+      // `treeNodeFilterProp` only drives antd's highlight of the matches,
+      // which ignores case but not accents; the filtering is labelMatches'.
+      showSearch: { filterTreeNode: labelMatches, treeNodeFilterProp: 'label', autoClearSearchValue: false },
+      onOpenChange: setOpen,
+    };
 
   const select = (
     <TreeSelect
@@ -112,13 +168,16 @@ export function TreePicker<T extends string>({
       treeCheckStrictly={strict}
       showCheckedStrategy={STRATEGY[field.selection]}
       treeNodeLabelProp="label"
-      // `treeNodeFilterProp` only drives antd's highlight of the matches,
-      // which ignores case but not accents; the filtering is labelMatches'.
-      showSearch={{ filterTreeNode: labelMatches, treeNodeFilterProp: 'label' }}
+      {...opening}
       treeDefaultExpandedKeys={field.expandedKeys}
       switcherIcon={<TreeSwitcherIcon />}
       allowClear
-      maxTagCount="responsive"
+      maxTagCount={summary === 'firstWords' ? 0 : 'responsive'}
+      maxTagPlaceholder={summary === 'firstWords'
+        ? (omitted) => omitted.map((o) => firstWords(
+          String(o.label), omitted.length > 1 ? SUMMARY_CHARS.each : SUMMARY_CHARS.one, texts.joiningWords,
+        )).join(', ')
+        : undefined}
       placeholder={field.placeholder}
       listHeight={listHeight}
       popupMatchSelectWidth={popupMatchSelectWidth}
@@ -128,13 +187,30 @@ export function TreePicker<T extends string>({
       // See OneOfSelect: `suffixIcon` is the one loading-related prop antd
       // strips before forwarding the rest to @rc-component/select.
       suffixIcon={Spinner && field.pending ? <Spinner spinnerKey={spinnerKey} size="small" /> : undefined}
-      disabled={!field.enabled || field.pending}
-      onOpenChange={setOpen}
+      disabled={disabled}
       aria-label={field.label || undefined}
       aria-description={fieldAccessibleDescription(field, texts)}
       data-field-id={field.id}
       data-value={field.value.join(',')}
     />
   );
-  return wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, select, { open: open || asking ? false : undefined }));
+  const closed = wrap(withTooltip(fieldTooltip(field, texts), !field.enabled, select, {
+    open: open || drawerOpen || asking ? false : undefined,
+  }));
+  if (panel !== 'drawer') return closed;
+  return (
+    <>
+      {closed}
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        placement="bottom"
+        size="88%"
+        title={field.label || undefined}
+        extra={<Button type="primary" onClick={() => setDrawerOpen(false)}>{texts.done}</Button>}
+      >
+        <TreeChecklist field={field} />
+      </Drawer>
+    </>
+  );
 }

@@ -7,31 +7,8 @@ import {
 } from 'vultus-core';
 import { TreePicker } from '../TreePicker.js';
 import { VultusProvider } from '../VultusProvider.js';
+import { measureTags, stopMeasuring } from './helpers/measureTags.js';
 import { openTooltips } from './helpers/tooltips.js';
-
-/**
- * jsdom lays nothing out, so antd's responsive tags (`maxTagCount="responsive"`)
- * never learn the select's width and show no tag at all, only "+ N ...". While
- * `measuring` is on, every element observed reports its size at once, and
- * measureTags() makes that size a 1000px wide select with 60px wide tags, so
- * every tag fits. The observer is installed before the first render: antd's
- * resize observer is created once, lazily, from the global.
- */
-let measuring = false;
-class MeasuringResizeObserver {
-  constructor(private readonly callback: ResizeObserverCallback) {}
-  observe(target: Element) {
-    if (measuring) queueMicrotask(() => this.callback([{ target } as ResizeObserverEntry], this as unknown as ResizeObserver));
-  }
-  unobserve() {}
-  disconnect() {}
-}
-(globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = MeasuringResizeObserver;
-function measureTags() {
-  measuring = true;
-  vi.spyOn(Element.prototype, 'clientWidth', 'get').mockReturnValue(1000);
-  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(60);
-}
 
 type Cat = 'alg' | 'egy' | 'egyl' | 'ossz' | 'komb' | 'graf' | 'lesz' | 'geo';
 
@@ -130,7 +107,7 @@ async function search(query: string) {
 }
 
 afterEach(() => {
-  measuring = false;
+  stopMeasuring();
   vi.restoreAllMocks();
 });
 
@@ -345,6 +322,18 @@ describe('TreePicker: search', () => {
     await waitFor(() => expect(treeLabels()).toEqual(['Algebra', 'Egyenletek']));
     fireEvent.click(treeRow('Egyenletek')!.querySelector('.ant-select-tree-checkbox')!);
     await waitFor(() => expect(shown()).toBe('egy,komb'));
+  });
+
+  it('the search stays after a check, so several matches can be checked in a row', async () => {
+    wrap(<Inside />);
+    await search('egyenl');
+    await waitFor(() => expect(treeLabels()).toEqual(['Algebra', 'Egyenletek', 'Egyenlőtlenségek']));
+    fireEvent.click(treeRow('Egyenletek')!.querySelector('.ant-select-tree-checkbox')!);
+    await waitFor(() => expect(shown()).toBe('egy'));
+    expect(screen.getByRole('combobox')).toHaveValue('egyenl');
+    expect(treeLabels()).toEqual(['Algebra', 'Egyenletek', 'Egyenlőtlenségek']);
+    fireEvent.click(treeRow('Egyenlőtlenségek')!.querySelector('.ant-select-tree-checkbox')!);
+    await waitFor(() => expect(shown()).toBe('egy,egyl'));
   });
 });
 
