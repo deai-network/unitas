@@ -14,7 +14,12 @@ export interface VultusTexts {
   switchTo: string;
   /** Closes a many-of field's open list of choices, and a tree picker's phone panel (TreePicker `panel="drawer"`). */
   done: string;
-  /** A many-of field's search box placeholder, filtering its choices. */
+  /**
+   * A tree widget's search box placeholder, filtering its nodes by label
+   * (TreeChecklist's own search box; TreePicker `panel="drawer"`'s, which
+   * holds a TreeChecklist). No many-of widget has a search box of its own
+   * today (ManyOfSelect's is antd's unlabelled one).
+   */
   search: string;
   /**
    * Joins the chosen choices' labels in a many-of field's summary, e.g. "A, B and C"; also filtered out of a free-text search,
