@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Space, Tag } from 'antd';
 import { useState } from 'react';
-import { ManyOfCheckboxes, ManyOfSwitches, denyWithReason, useManyOfField, type OneOfChoice } from 'vultus-antd';
+import { ManyOfCheckboxes, ManyOfSelect, ManyOfSwitches, denyWithReason, useManyOfField, type OneOfChoice } from 'vultus-antd';
 import { Example, Showcase, delay } from '../Showcase.js';
 
 /**
@@ -9,8 +9,9 @@ import { Example, Showcase, delay } from '../Showcase.js';
  * Each choice has a label, an optional note (e.g. a count) and may be
  * disabled with a reason, or dimmed (still selectable, in the description
  * colour). The same field renders as ManyOfCheckboxes (one checkbox per
- * choice, its note after the label) or ManyOfSwitches (a small switch and
- * its clickable label per choice).
+ * choice, its note after the label), ManyOfSwitches (a small switch and its
+ * clickable label per choice) or ManyOfSelect (antd's multiple Select, with
+ * grouped choices and search).
  */
 const meta: Meta = { title: 'Fields/Many of' };
 export default meta;
@@ -56,6 +57,39 @@ export const NotificationChannels: StoryObj<ChannelsArgs> = {
         <Space size={32} align="start" wrap>
           <Example label="ManyOfCheckboxes"><ManyOfCheckboxes field={field} vertical={vertical} /></Example>
           <Example label="ManyOfSwitches"><ManyOfSwitches field={field} vertical={vertical} /></Example>
+          <Example label="ManyOfSelect"><ManyOfSelect field={field} /></Example>
+          <Example label="field.value"><Tag>{field.value.join(', ') || '(none)'}</Tag></Example>
+        </Space>
+      </Showcase>
+    );
+  },
+};
+
+type ModelId = 'opus' | 'sonnet' | 'claude-opus-5' | 'claude-opus-4-8' | 'claude-sonnet-5';
+
+export const GroupedChoices: StoryObj = {
+  name: 'Grouped choices with search (select)',
+  render: function Render() {
+    const field = useManyOfField<ModelId>({
+      id: 'session.models',
+      label: 'Models',
+      description: 'Which models may this task use?',
+      initialValue: ['opus'],
+      choices: [
+        { value: 'opus', label: 'Opus 5.5', description: 'For complex work and everyday tasks' },
+        { value: 'sonnet', label: 'Sonnet 5.5', description: 'Most efficient for simpler tasks' },
+        { value: 'claude-opus-5', label: 'Opus 5', description: 'Best for everyday, complex tasks', group: 'Older versions' },
+        { value: 'claude-opus-4-8', label: 'Opus 4.8', description: 'Best for everyday, complex tasks', group: 'Older versions' },
+        { value: 'claude-sonnet-5', label: 'Sonnet 5', description: 'Efficient for routine tasks', group: 'Older versions' },
+      ],
+    });
+    return (
+      <Showcase
+        title="Grouped choices with search"
+        note="ManyOfSelect lists the choices without a group first, then each group under its heading, as OneOfSelect does. The search box filters by label, accent- and case-insensitive. Many selections collapse behind a '+N ...' tag (the responsive maxTagCount) instead of overflowing the control; clearing removes every choice at once."
+      >
+        <Space size={32} align="start" wrap>
+          <Example label="ManyOfSelect"><ManyOfSelect field={field} /></Example>
           <Example label="field.value"><Tag>{field.value.join(', ') || '(none)'}</Tag></Example>
         </Space>
       </Showcase>

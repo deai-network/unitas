@@ -18,3 +18,4 @@ export { ChoiceNote } from './ChoiceNote.js';
 export { useManyOfRequest } from './useManyOfRequest.js';
 export { ManyOfCheckboxes, type ManyOfCheckboxesProps } from './ManyOfCheckboxes.js';
 export { ManyOfSwitches, type ManyOfSwitchesProps } from './ManyOfSwitches.js';
+export { ManyOfSelect } from './ManyOfSelect.js';
