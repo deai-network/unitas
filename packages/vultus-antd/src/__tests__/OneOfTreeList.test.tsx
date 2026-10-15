@@ -257,6 +257,80 @@ describe('OneOfTreeList: the keyboard', () => {
     expect(shown()).toBe('alg');
   });
 
+  it("Enter on a row's link, focused by a click, is the tree's: it chooses the active row, a node with children staying open", async () => {
+    const onChange = vi.fn();
+    wrap(<Linked onChange={onChange} />);
+    const focused = link('Síkgeometria')!;
+    // A click focuses the link (tabIndex -1), rc-tree activating no row.
+    fireEvent.mouseDown(focused);
+    act(() => focused.focus());
+    expect(document.activeElement).toBe(focused);
+    fireEvent.keyDown(focused, { key: 'Home' });
+    fireEvent.keyDown(focused, { key: 'ArrowDown' });
+    await expectActive('Síkgeometria');
+    expect(fireEvent.keyDown(focused, { key: 'Enter' })).toBe(false);
+    await waitFor(() => expect(shown()).toBe('sik'));
+    await settled();
+    expect(row('Kör')).toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("Enter on the current node's link chooses it again, the browser not following the link", async () => {
+    const onChosen = vi.fn();
+    wrap(<Linked onChosen={onChosen} />);
+    const current = link('Algebra')!;
+    act(() => current.focus());
+    await expectActive('Algebra');
+    expect(fireEvent.keyDown(current, { key: 'Enter' })).toBe(false);
+    expect(onChosen).toHaveBeenCalledTimes(1);
+    expect(shown()).toBe('alg');
+  });
+
+  it("Enter on a link while a disabled node or a folder is active: the browser does not follow it; the folder opens or closes", async () => {
+    const onChange = vi.fn();
+    wrap(<Linked onChange={onChange} />);
+    const focused = link('Kör')!;
+    fireEvent.mouseDown(focused);
+    act(() => focused.focus());
+    fireEvent.keyDown(focused, { key: 'End' });
+    fireEvent.keyDown(focused, { key: 'ArrowUp' });
+    await expectActive('Térgeometria');
+    expect(fireEvent.keyDown(focused, { key: 'Enter' })).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.keyDown(focused, { key: 'Home' });
+    await expectActive('Geometria');
+    expect(fireEvent.keyDown(focused, { key: 'Enter' })).toBe(false);
+    await settled();
+    expect(rowTexts()).toEqual(['Geometria', 'Algebra']);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(shown()).toBe('alg');
+  });
+
+  it('Enter chooses nothing while the active row is one a search has since hidden', async () => {
+    const onChosen = vi.fn();
+    wrap(<Inside initialValue="kor" expand="all" search onChosen={onChosen} />);
+    focusTree();
+    await expectActive('Kör');
+    press('End');
+    await expectActive('Algebra');
+    search('kor'); // the focus stays on the tree
+    await waitFor(() => expect(row('Algebra')).toBeNull());
+    press('Enter');
+    expect(onChosen).not.toHaveBeenCalled();
+    expect(shown()).toBe('kor');
+  });
+
+  it("optional: Home reaches the empty value's row, and Enter chooses it", async () => {
+    wrap(<Inside optional initialValue="alg" expand="all" />);
+    focusTree();
+    await expectActive('Algebra');
+    press('Home');
+    await expectActive('None');
+    press('Enter');
+    await waitFor(() => expect(shown()).toBe(''));
+    expect(isSelected('None')).toBe(true);
+  });
+
   it('Enter in the search box chooses nothing', async () => {
     wrap(<Inside initialValue="alg" expand="all" search />);
     focusTree();
@@ -542,6 +616,20 @@ describe('OneOfTreeList: field conventions', () => {
     await act(async () => { finish(); });
     await waitFor(() => expect(row('Algebra')).not.toHaveAttribute('aria-disabled', 'true'));
     expect(document.querySelector('.ant-spin')).toBeNull();
+  });
+
+  it('a disabled field can still be browsed: a click on any node with children opens or closes it, choosing nothing', async () => {
+    wrap(<Inside initialValue="alg" expand="all" enabled={denyWithReason('Read-only here')} />);
+    fireEvent.click(label('Síkgeometria'));
+    await settled();
+    expect(row('Kör')).toBeNull();
+    fireEvent.click(label('Síkgeometria'));
+    await waitFor(() => expect(row('Kör')).toBeInTheDocument());
+    await settled();
+    fireEvent.click(label('Geometria'));
+    await settled();
+    expect(rowTexts()).toEqual(['Geometria', 'Algebra']);
+    expect(shown()).toBe('alg');
   });
 
   it('a disabled field: every node disabled, its reason on hover, no change', async () => {

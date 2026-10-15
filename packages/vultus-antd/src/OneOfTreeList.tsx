@@ -50,7 +50,8 @@ type ListDataNode<T extends string> = Omit<FieldTreeDataNode<T | ''>, 'children'
  * is the browser's (a new tab or window, which reads the value from its URL): it stops at the
  * link, so nothing is requested. The middle button fires no click, only the browser's
  * auxclick. The link is out of the tab order (the tree is one tab stop, its keyboard choosing)
- * and in the tree's text colour.
+ * and in the tree's text colour; a click still focuses it, and Enter there is the tree's (see
+ * OneOfTreeList's root), never the link's.
  */
 function rowLink(href: string, title: ReactNode): ReactNode {
   return (
@@ -104,9 +105,12 @@ function listRows<T extends string>(
  * naming no node selects nothing. Clicking a node that can be chosen (`choosable`) requests
  * it, through the field's confirmation (useOneOfTreeRequest), and opens it if it has children
  * (that click never closes it); clicking a node that cannot (a folder, a node with children
- * under `choose: 'leaves'`) opens or closes it. The keyboard is antd Tree's: the arrows move
- * and open or close; Enter or Space chooses the active row as a click does (opening a node
- * with children), and Enter opens or closes a folder. An `optional` field has a first row, the
+ * under `choose: 'leaves'`) opens or closes it. While the field is disabled the list can still
+ * be browsed: a click on any node with children opens or closes it, and nothing is chosen.
+ * The keyboard is antd Tree's: the arrows move and open or close; Enter or Space chooses the
+ * active row as a click does (opening a node with children), and Enter opens or closes a
+ * folder. Enter is the tree's even while a row's link has the focus (as after a click on it):
+ * it acts on the active row, never following the link. An `optional` field has a first row, the
  * definition's `placeholder` (else `texts.none`), that requests `''` and shows selected while
  * the value is empty.
  *
@@ -234,10 +238,11 @@ export function OneOfTreeList<T extends string>({
       onExpand={(keys) => setExpandedKeys(keys as T[])}
       // A click on a row that can be chosen, the row selected or not, and Enter or Space on one.
       onSelect={(_, { node }) => choose(node.key as T | '')}
-      // A click on any row, before the selection: a node that cannot be chosen opens or closes.
+      // A click on any row, before the selection: a node with children that cannot be chosen
+      // opens or closes, and while the field is disabled any node with children does (browsing).
       onClick={(_, { key }) => {
         const node = field.byValue.get(key as T);
-        if (!node || node.choosable || !node.children?.length) return;
+        if (!node?.children?.length || (node.choosable && field.enabled)) return;
         setExpandedKeys(expandedKeys.includes(node.value)
           ? expandedKeys.filter((k) => k !== node.value)
           : [...expandedKeys, node.value]);
@@ -257,15 +262,18 @@ export function OneOfTreeList<T extends string>({
       onFocusCapture={() => { travel.current = 1; }}
       onKeyDownCapture={(e) => {
         travel.current = e.key === 'ArrowUp' || e.key === 'End' ? -1 : 1;
-        // Enter on the tree chooses its active row as a click does: rc-tree's own Enter would
-        // open or close a node with children instead, and skip the row already chosen. A
-        // folder's Enter stays rc-tree's (it opens or closes).
-        const choosable = active === '' || (active !== null && !!field.byValue.get(active)?.choosable);
-        if (e.key === 'Enter' && !disabled && choosable && (e.target as Element).getAttribute('role') === 'tree') {
-          e.preventDefault();
-          e.stopPropagation();
-          choose(active!);
-        }
+        // Enter in the tree is the tree's, wherever the focus is in it: on the tree, or on a
+        // row's link, which keeps the focus after a click (the browser does not follow that
+        // link: the keys move the active row, not the focus). It chooses the active row as a
+        // click does; rc-tree's own Enter would open or close a node with children instead, and
+        // skip the row already chosen. Enter on a folder (or with no shown row active) stays
+        // rc-tree's: it opens or closes the folder.
+        if (e.key !== 'Enter' || !(e.target as Element).closest('[role="tree"]')) return;
+        e.preventDefault();
+        if (disabled || active === null || !isShown(active)) return;
+        if (active !== '' && !field.byValue.get(active)?.choosable) return;
+        e.stopPropagation();
+        choose(active);
       }}
     >
       {search && (
