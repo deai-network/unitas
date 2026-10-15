@@ -27,6 +27,15 @@ describe('useOneOfField: value inside the field', () => {
     }));
     expect(result.current.value).toBe('b');
   });
+
+  it('an initialValue function that returns undefined falls back to the first enabled choice too', () => {
+    const { result } = renderHook(() => useOneOfField({
+      id: 'mode',
+      choices: [{ value: 'a', disabled: true }, { value: 'b' }],
+      initialValue: () => undefined as unknown as Mode,
+    }));
+    expect(result.current.value).toBe('b');
+  });
 });
 
 describe('useOneOfField: choices', () => {

@@ -21,8 +21,12 @@ export {
   useMixedBoolField, aggregateBool, type MixedBool, type MixedBoolFieldControls, type MixedBoolFieldOptions,
 } from './useMixedBoolField.js';
 export {
-  useOneOfField, type OneOfFieldControls, type OneOfFieldOptions,
+  useOneOfField, oneOfInitialValue, type OneOfFieldControls, type OneOfFieldOptions, type OneOfOwnOptions,
 } from './useOneOfField.js';
+export {
+  useManyOfField, manyOfInitialValue,
+  type ManyOfFieldControls, type ManyOfFieldOptions, type ManyOfOwnOptions, type ManyOfChoiceControls,
+} from './useManyOfField.js';
 export { InternalLinkContext, useInternalLink, type InternalLinkComponent } from './LinkContext.js';
 export { MessageSinkContext, useMessageSink, type MessageSink } from './MessageSink.js';
 export {
