@@ -20,3 +20,9 @@ A recurring keystone: capability compatibility between layers (intent↔engine, 
 Pre-implementation. Vision and architecture captured; prior-art and build-vs-adopt research complete (see [`research/`](research/) — verdict: **build the unifying intent + presentation layers, adopt where prior art fits**). Patterns are proven in existing personal projects ("seeds") not yet pulled in. No app code yet.
 
 *Names are Latin and all point at unity — single-source discipline applied even to the naming layer.*
+
+## TODO
+
+- **vultus-window-history**: an `ArgStore` over the plain browser History API (`window.location`, `pushState` / `replaceState`), for apps that don't route through react-router. The same shape as vultus-react-router's store — batched writes, one navigation per tick, a readable query — just without a router underneath it.
+- **The stellar-router port**: a full location manager, ported from moxb's `stellar-router-core`, next to vultus-react-router's lighter query-only store. URL schemas built from path tokens, `permanent` arguments that survive navigation, interceptors (`try...`) that can hold a navigation back, links and `BoundLink`, `NavRef`s, and redirects.
+- **The form layer**: validation, layout as data (so a form's shape is declared rather than hand-assembled from individual fields), and labels or actions in a field list. vultus's definitions and widgets stop at a single field; a form composing several of them is what this layer will own.

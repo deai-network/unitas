@@ -38,7 +38,7 @@ export {
   type Range, type RangeFieldControls, type RangeFieldOptions, type RangeOwnOptions,
 } from './useRangeField.js';
 export {
-  normalizeTreeValue, coveredNodes, filterTree,
+  normalizeTreeValue, coveredNodes, toggleTreeValue, expandedTreeKeys, filterTree,
   type TreeNode, type TreeNodeControls, type TreeSelection, type TreeExpand,
 } from './tree.js';
 export {

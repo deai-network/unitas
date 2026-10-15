@@ -20,12 +20,22 @@ npm install vultus-core
 
 - `.` — the action model, exporting: the core `types`, `decision`, `resolve`,
   `parseApiError`, `routeApiError`, `ActionErrorContext` / `useActionErrorCtx`,
-  `useAction`, `useActionList`, the fields (`useBoolField`, `useFieldCore` and
-  their types), `InternalLinkContext` / `useInternalLink` /
-  `InternalLinkComponent`, `MessageSinkContext` / `useMessageSink` /
-  `MessageSink`, and `VultusComponentsContext` / `useVultusComponents` /
-  `SpinnerScope` / `useSpinnerKey` / `VultusComponents` / `SpinnerProps` /
-  `SpinnerComponent`.
+  `useAction`, `useActionList`; the field context (`FieldContextProvider`,
+  `createFieldContext`, `useFieldContext`, `NO_FIELD_CONTEXT`); every field
+  kind's hook (`useBoolField`, `useMixedBoolField`, `useOneOfField`,
+  `useManyOfField`, `useNumericField`, `useRangeField`, `useTreeField`,
+  `useTextField`, `useFieldCore` and their types) and their shared helpers
+  (`resolveChoice`, `normalizeText`, `clamp`, `resolveNumeric`, the tree
+  helpers `normalizeTreeValue` / `coveredNodes` / `toggleTreeValue` /
+  `expandedTreeKeys` / `filterTree`); definitions as data (`FieldDefinition`,
+  `initialValueOf`, `valueTypeOf`, `sanitizeStored`); the argument layer
+  (the value types, `memoryStore`, `localStorageStore`, `ArgStoreProvider` /
+  `useArgStore`, `useArg`, `useArgWriter`, `setArg` / `resetArg`,
+  `useStoredField` / `useStoredFields`); `InternalLinkContext` /
+  `useInternalLink` / `InternalLinkComponent`, `MessageSinkContext` /
+  `useMessageSink` / `MessageSink`, and `VultusComponentsContext` /
+  `useVultusComponents` / `SpinnerScope` / `useSpinnerKey` /
+  `VultusComponents` / `SpinnerProps` / `SpinnerComponent`.
 - `./link` — `InternalLinkContext`, `useInternalLink`, and the
   `InternalLinkComponent` type on their own, for consumers that only need the
   link-injection seam.
@@ -72,6 +82,272 @@ Requesting a disabled or unknown choice is ignored with a warning. Storage is as
 boolean field (inside: `initialValue`, default the first enabled choice); `confirmation` may
 depend on the requested choice. vultus-antd's `OneOfSelect` and `OneOfSegmented` take the
 same field.
+
+## Field context
+
+A field's options may depend on something only the app knows — a translation
+function, the data a page is showing. `createFieldContext<Ctx>()` returns a
+typed `Provider` (it's `FieldContextProvider` itself, just typed); the hooks
+read the nearest one. Nested providers merge, the inner value winning, so an
+app can provide `t` near the root and `items` further down the tree.
+
+Every option that takes a `ValueOrFn<T, Ctx>` (`T | ((ctx: Ctx) => T)`) may be
+a plain value or a function of the context. A function with no declared
+parameter (`() => ...`) runs without needing a provider at all; one that
+declares a parameter (`(ctx) => ...`) is resolved against the nearest
+provider's value — this goes by the function's declared parameter count, so a
+default parameter (`(ctx = {}) => ...`) escapes the check and runs unresolved.
+A missing provider under a context-taking function is a loud failure: an
+error naming the field, the option, and that no `FieldContextProvider` is
+above it. A function that returns `undefined` counts as an absent option
+too, and falls back to the option's own default exactly as leaving it out
+would (useful for a lookup that misses, e.g. `(ctx) => ctx.items[id]`).
+
+The provided value is wrapped so that reading a key no provider gave throws,
+naming the key and the keys that are present — a forgotten value fails
+loudly instead of silently becoming `undefined`. A key explicitly provided
+as `undefined` is fine. The wrapper lets test tooling and printers probe the
+object without tripping the guard (`then`, `toJSON`, `asymmetricMatch`,
+`$$typeof`, `nodeType`, `tagName`, `hasAttribute`, `_isMockFunction`, any key
+starting with `@@`, and all symbol keys), so a context value can be logged,
+pattern-matched or passed around during tests without the guard misfiring.
+
+```tsx
+const { Provider: ModuleContext } = createFieldContext<{ items: Item[] }>();
+
+function Filters({ items }: { items: Item[] }) {
+  return (
+    <ModuleContext value={{ items }}>
+      <Categories />
+    </ModuleContext>
+  );
+}
+
+function Categories() {
+  const field = useManyOfField({ id: 'categories', choices: (ctx) => categoriesOf(ctx.items) });
+  // ...
+}
+```
+
+## More kinds
+
+Next to `useBoolField` and `useOneOfField`, the other field kinds. Each is
+built the same way (`useFieldCore`, the same inside / local / commit
+storage), so everything the Fields section above says about storage,
+visibility, enabling and commits applies to all of them too.
+
+### many-of (`useManyOfField`)
+
+The value is a list of choices (`OneOfChoice`, as one-of's), kept as a set:
+order and duplicates don't matter to its meaning, and every request (through
+`setValue` or `toggle`) is normalized to choice order without duplicates,
+followed by whatever values the field already holds that are no longer
+among the choices (kept, in their current order, so a stored value naming a
+removed choice isn't silently dropped). Controls add `choices` (each with
+`selected`), `isSelected(value)` and `toggle(value)`. A request naming
+an unknown choice, or flipping a disabled one, is refused with a
+`console.warn` — the hook itself polices this, as `useOneOfField` already
+does for its own `setValue`, not just the widget. Implicit initial value
+(with no `initialValue` and no outside storage): the empty list.
+
+```ts
+const field = useManyOfField({
+  id: 'tags',
+  choices: [{ value: 'urgent' }, { value: 'archived', disabled: true }],
+});
+field.toggle('urgent'); // field.isSelected('urgent') === true
+```
+
+### numeric (`useNumericField`)
+
+The value is a single number. `min`, `max`, `step`, `integer` (moxb's
+`onlyInteger`) and `unit` may each be a context function; `format(n, ctx)`
+overrides the default display (the number followed by the unit, if any).
+The shown value is always clamped into the bounds, since a value from
+outside — a passed-in `value`, a stored one — may fall outside them even
+though every request the hook itself makes stays inside; a non-finite
+request (a widget that parsed `''`) is refused with a warning. `valueText`
+carries the formatted value. Implicit initial value: `min` (or `0` if there
+is none), clamped into the bounds.
+
+```ts
+const field = useNumericField({ id: 'count', min: 0, max: 10, unit: 'pcs' });
+field.valueText; // '0pcs'
+```
+
+### range (`useRangeField`)
+
+The value is `[from, to]` with `min <= from <= to <= max`; it shares
+numeric's bounds and formatting, but `min` and `max` are required here and
+`step` defaults to `1`. `valueText` joins the formatted ends with an en dash
+("2010/11–2025/26"), so a layout can put the whole range in the field's
+label instead of next to it. A value from outside is clamped into the
+bounds end by end, then ordered. Implicit initial value: `[min, max]`.
+
+```ts
+const field = useRangeField({ id: 'years', min: 2010, max: 2026 });
+field.valueText; // '2010–2026'
+```
+
+### tree (`useTreeField`)
+
+The value is a list of node ids (`nodes`: `TreeNode`, a choice with
+`children`), kept as a set. `selection` says which of the covered nodes the
+value names: `'topmost'` (default; antd's `SHOW_PARENT`: a checked node
+stands for its whole subtree), `'all'`, `'leaves'` (`SHOW_CHILD`), or
+`'independent'` (`checkStrictly`, moxb's `strictSelect`: nodes are chosen on
+their own, with no cascading). The hook normalizes the value under
+`selection` on every render — with `'topmost'`, a node and all its checked
+children collapse to the node alone — and exposes `expandedKeys` (which
+nodes a widget opens at first, controlled by `expand`: `'top'` (default),
+`'none'`, `'selected'`, `'all'`) and `toggle(value)` (refused, with a
+warning, for an unknown or disabled node, as many-of's does).
+`coveredNodes(nodes, value, selection)` expands a value to every node it
+stands for — what a module matches an item's categories against. Search
+over labels is accent- and case-insensitive (`normalizeText`); the matching
+`filterTree(nodes, query)` keeps a node if its own label matches or one of
+its descendants does, trimming the rest and leaving the nodes given
+unchanged. Implicit initial value: the empty list.
+
+```ts
+const field = useTreeField({
+  id: 'categories',
+  nodes: [{ value: 'a', children: [{ value: 'a1' }, { value: 'a2' }] }],
+});
+field.toggle('a'); // field.value === ['a'] — 'topmost' collapses the subtree to the parent
+```
+
+### text (`useTextField`)
+
+The value is a string. `control: 'input' | 'textarea'` (default `'input'`)
+is a hint for the widget, nothing else. A field inside the field or changed
+locally (`onChange`) requests on every keystroke, as moxb's, sidedao's and
+Taskmaster's text fields do; a field that `commits` holds requests back
+until the widget decides (blur or Enter) — any commit-mode field does this,
+not something specific to text. Highlighting the search words in a result
+list is the app's job (e.g. quaesitor's `WithSearch`), not this hook's.
+Implicit initial value: the empty string.
+
+```ts
+const field = useTextField({ id: 'search', control: 'input' });
+```
+
+## Definitions as data
+
+A `FieldDefinition` is a field's options in their "inside" form (no `value`
+plus `onChange` or `commit`), tagged with a required `kind` — one of
+`'boolean'`, `'mixed-boolean'`, `'oneOf'`, `'manyOf'`, `'numeric'`,
+`'range'`, `'tree'`, `'text'` (the same strings `FieldControls.type` already
+carries). `kind` stays optional on each hook's own options — a hook knows
+its own kind, and throws if a definition names a different one — but is
+required once a field becomes plain data: a module declares its filters as a
+list of `FieldDefinition`s, independent of which hook or widget ends up
+running each one.
+
+A definer who doesn't care where the value lives gives only `initialValue`
+(or nothing, for the kind's implicit default); whoever runs the field — a
+hook directly, or `useStoredField` (see Arguments, below) — chooses the
+storage. `initialValueOf(definition, ctx)` is every kind's default in one
+place: what a definition with no `initialValue` starts at, what a reset
+restores, and what "is it changed?" compares against — `false`; the first
+enabled choice; the empty list; `min` (or `0`) clamped into the bounds;
+`[min, max]`; the empty string for text; for a tree, the value normalized
+under its `selection`.
+
+The `widget` hint (`WidgetHint = string | { name: string; [option]: unknown
+}`) names which widget renders the field — `'segmented'`, or `{ name:
+'segmented', iconOnly: true }` with its display options — without
+vultus-core knowing what a "segmented control" is; it's vultus-antd that
+turns the name into a component, applying render-site overrides on top.
+Each kind has a default widget when none is given; an unknown widget name
+throws, in vultus-antd.
+
+```ts
+const definitions: FieldDefinition[] = [
+  { kind: 'boolean', id: 'showArchived' },
+  { kind: 'numeric', id: 'count', min: 0, max: 10, widget: 'slider' },
+];
+initialValueOf(definitions[0], {}); // false
+```
+
+## Arguments
+
+Storage outside a field hook — a URL, localStorage — lives in vultus-core as
+its own layer (ported from moxb's `url-arg`, without mobx), independent of
+the field hooks: an argument is `{ key, valueType, default }`, kept in
+whatever `ArgStore` is nearest.
+
+**Value types** (`ValueType<T>`: `parse(raw)`, `format(value)`, `isEqual(a,
+b)`) say how a value is kept as a string and compared; equality is the
+type's own meaning (a list as a set, a range by both ends), used everywhere
+two values of that type are compared — including whether a value is the
+default, so it's left out of the store. `valueTypeOf(kind)` gives each field
+kind's: `booleanType` (`'1'` / `'0'`), `stringType` (one-of, text),
+`stringSetType` (many-of, tree — a sorted comma list; a *present but empty*
+value reads as the empty list, which differs from the key being absent
+altogether), `numberType`, `rangeType` (`from..to`). A mixed-boolean field
+shows an aggregate of other data and has no value type:
+`valueTypeOf('mixed-boolean')` throws, and so does storing one. A choice
+value containing `,`, or an empty one, cannot be written to a list and
+throws — that's the definer's mistake, not outside input. A stored string
+that doesn't parse, or names a choice or node that no longer exists, *is*
+outside input (an edited or stale URL): it never throws, it falls back to
+the default (or is dropped from a list), with a `console.warn`.
+
+**Stores.** `ArgStore` is `read(key)`, `write(changes, method)` (`method`:
+`'push'` or `'replace'`; a store without history ignores it),
+`subscribe(listener)`, and optionally `hrefFor(changes)`. vultus-core ships
+`memoryStore()` (tests, demos) and `localStorageStore(prefix)` (keys
+namespaced as `${prefix}.${key}`, guarded for SSR so creating one outside a
+browser is a safe no-op); a URL store comes from a router package.
+`<ArgStoreProvider store={...}>` gives a subtree its store — nest providers
+to put the URL around a page and localStorage around a dialog inside it. A
+hook with no `ArgStoreProvider` above it throws, rather than silently
+reading nothing.
+
+**`useArg(definition)`** reads and writes one argument: `value`,
+`isDefault`, `set(value, method?)`, `reset(method?)` and `hrefFor(value)`
+(where the store supports it). An absent key reads as the default; writing a
+value that equals the default removes the key instead of storing it.
+
+**Batches.** `useArgWriter()` returns `apply(changes, method)` where each
+change is `setArg(definition, value)` or `resetArg(definition)` — several
+arguments change in one store write, one history entry (a "clear all"
+button, a filter chip that also closes a detail view).
+
+**Fields over arguments.** `useStoredField(definition)` runs a
+`FieldDefinition` as a stored field: the argument's key is the definition's
+`id`, its value type comes from the kind, its default is `initialValueOf`.
+It returns `{ options, isDefault, reset }` — `options` is the definition in
+its outside form (`value` plus `onChange`, ready for the kind's hook), with
+the stored raw value made to fit the definition as it is now
+(`sanitizeStored`: unknown choices or nodes dropped, numbers and ranges
+clamped). A value that needed fixing up warns once per field and per raw
+value — not again on every render, and not at all when the key is simply
+absent (then the default applies, and an absent key is not outside input).
+`useStoredFields(definitions)` answers for several definitions over one
+store subscription: `isDefault(id)` (throws for an id not among the
+definitions), `changedCount`, and `resetAll(method)` (one write for every
+field). Being a summary, it never warns — only `useStoredField` on the
+field itself does.
+
+```tsx
+const store = memoryStore();
+
+function Filters() {
+  return (
+    <ArgStoreProvider store={store}>
+      <Category />
+    </ArgStoreProvider>
+  );
+}
+
+function Category() {
+  const { options, reset } = useStoredField({ kind: 'manyOf', id: 'tags', choices: [{ value: 'urgent' }] });
+  const field = useManyOfField(options);
+  // ...
+}
+```
 
 ## Components
 
