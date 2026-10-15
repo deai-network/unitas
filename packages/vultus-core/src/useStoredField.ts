@@ -97,7 +97,10 @@ export function useStoredField<D extends FieldDefinition>(definition: D): Stored
   argRef.current = arg;
 
   const { value: stored, set, reset } = useArg(arg);
-  const raw = useSyncExternalStore(store.subscribe, () => store.read(definition.id));
+  // Called on the store, not passed detached: a store written as a class uses `this`.
+  const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
+  const read = useCallback(() => store.read(definition.id), [store, definition.id]);
+  const raw = useSyncExternalStore(subscribe, read);
 
   const warnedRef = useRef<string | undefined>(undefined);
   const sanitized = useMemo(() => {
@@ -157,7 +160,10 @@ function readsAsDefault(definition: FieldDefinition, raw: string | null, ctx: Fi
 export function useStoredFields(definitions: FieldDefinition[]): StoredFields {
   const store = useArgStore();
   const ctx = useFieldContext();
-  const snapshot = useSyncExternalStore(store.subscribe, () => JSON.stringify(definitions.map((d) => store.read(d.id) ?? null)));
+  // Called on the store, not passed detached: a store written as a class uses `this`.
+  const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
+  const readAll = useCallback(() => JSON.stringify(definitions.map((d) => store.read(d.id) ?? null)), [store, definitions]);
+  const snapshot = useSyncExternalStore(subscribe, readAll);
 
   const readingsRef = useRef(new Map<string, FieldReading>());
   const changed = useMemo(() => {

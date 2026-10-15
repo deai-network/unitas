@@ -43,7 +43,10 @@ export function useArg<T>(definition: ArgDefinition<T>): ArgControls<T> {
   const { key, valueType, default: defaultOrFn } = definition;
   const store = useArgStore();
   const ctx = useFieldContext();
-  const raw = useSyncExternalStore(store.subscribe, () => store.read(key));
+  // Called on the store, not passed detached: a store written as a class uses `this`.
+  const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
+  const read = useCallback(() => store.read(key), [store, key]);
+  const raw = useSyncExternalStore(subscribe, read);
   const defaultValue = resolveIn<T>(defaultOrFn, undefined as T, ctx, `Argument '${key}': option 'default'`);
 
   const parsed = useMemo<T | undefined>(() => {

@@ -1,9 +1,4 @@
-/**
- * A store for argument values kept as strings (moxb's url-arg backends, batched): a URL query,
- * localStorage, or (here) memory. `read` and `write` move raw strings only — parsing, defaults
- * and equality live in the value type and in useArg, not here. `method` says whether a write
- * should push a new history entry or replace the current one; a store without history ignores it.
- */
+/** Whether a write pushes a new history entry or replaces the current one; a store without history ignores it. */
 export type UpdateMethod = 'push' | 'replace';
 
 /** One key's new raw value, or `undefined` to remove it (the key reads back as its default). */
@@ -12,6 +7,12 @@ export interface RawChange {
   raw: string | undefined;
 }
 
+/**
+ * A store for argument values kept as strings (moxb's url-arg backends, batched): a URL query,
+ * localStorage, or (here) memory. `read` and `write` move raw strings only — parsing, defaults
+ * and equality live in the value type and in useArg, not here. The hooks call its methods on
+ * the store, never detached, so a store may be a class whose methods use `this`.
+ */
 export interface ArgStore {
   read(key: string): string | undefined;
   /** Applies every change, then notifies subscribers once — several keys changed together are one history entry. */

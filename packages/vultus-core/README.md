@@ -300,7 +300,12 @@ the default (or is dropped from a list), with a `console.warn`.
 `subscribe(listener)`, and optionally `hrefFor(changes)`. vultus-core ships
 `memoryStore()` (tests, demos) and `localStorageStore(prefix)` (keys
 namespaced as `${prefix}.${key}`, guarded for SSR so creating one outside a
-browser is a safe no-op); a URL store comes from a router package.
+browser is a safe no-op; where the browser blocks storage or refuses a
+write, a failing read reads as absent and a failing write is skipped, with
+one `console.warn` per store); a URL store comes from a router package.
+Create a store once — outside render, or in `useMemo` — not on every
+render: each store is a new subscription target, so a fresh one per render
+makes every hook below resubscribe.
 `<ArgStoreProvider store={...}>` gives a subtree its store — nest providers
 to put the URL around a page and localStorage around a dialog inside it. A
 hook with no `ArgStoreProvider` above it throws, rather than silently

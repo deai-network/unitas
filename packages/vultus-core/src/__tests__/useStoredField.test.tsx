@@ -1,11 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { memoryStore, type ArgStore } from '../argStore.js';
+import { memoryStore, type ArgStore, type RawChange, type UpdateMethod } from '../argStore.js';
 import { ArgStoreProvider } from '../ArgStoreContext.js';
 import { FieldContextProvider, NO_FIELD_CONTEXT } from '../FieldContext.js';
 import type { FieldDefinition } from '../kinds.js';
-import { stringSetType } from '../valueTypes.js';
+import { stringSetType, stringType } from '../valueTypes.js';
+import { useArg } from '../useArg.js';
 import { useOneOfField } from '../useOneOfField.js';
 import { useManyOfField } from '../useManyOfField.js';
 import { useRangeField } from '../useRangeField.js';
@@ -375,5 +376,64 @@ describe('useStoredFields', () => {
     expect(quietly(() => renderHook(() => useStoredFields([LEVEL, ALL_DONE]), { wrapper: providing(store) }))).toThrow(
       `Field 'allDone': a mixed-boolean field is an aggregate of other data and cannot be stored`,
     );
+  });
+});
+
+/** An ArgStore written as a class: its methods use `this`, so a hook must call them on the store, not detached. */
+class ClassStore implements ArgStore {
+  private data = new Map<string, string>();
+  private listeners = new Set<() => void>();
+
+  read(key: string): string | undefined {
+    return this.data.get(key);
+  }
+
+  write(changes: RawChange[], _method: UpdateMethod): void {
+    for (const { key, raw } of changes) {
+      if (raw === undefined) this.data.delete(key);
+      else this.data.set(key, raw);
+    }
+    this.listeners.forEach((listener) => listener());
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+}
+
+describe('an ArgStore written as a class', () => {
+  it('works with useArg: reads, writes, and follows a write from outside', () => {
+    const store = new ClassStore();
+    const { result } = renderHook(() => useArg({ key: 'name', valueType: stringType, default: 'Ada' }), { wrapper: providing(store) });
+    expect(result.current.value).toBe('Ada');
+    act(() => result.current.set('Bob'));
+    expect(result.current.value).toBe('Bob');
+    act(() => store.write([{ key: 'name', raw: 'Cy' }], 'replace'));
+    expect(result.current.value).toBe('Cy');
+  });
+
+  it('works with useStoredField', () => {
+    const store = new ClassStore();
+    const { result } = renderHook(() => {
+      const stored = useStoredField(LEVEL);
+      return { stored, field: useOneOfField(stored.options) };
+    }, { wrapper: providing(store) });
+    expect(result.current.field.value).toBe('medium');
+    act(() => result.current.field.setValue('hard'));
+    expect(result.current.field.value).toBe('hard');
+    expect(store.read('level')).toBe('hard');
+  });
+
+  it('works with useStoredFields', () => {
+    const store = new ClassStore();
+    const { result } = renderHook(() => useStoredFields([LEVEL, QUERY]), { wrapper: providing(store) });
+    expect(result.current.changedCount).toBe(0);
+    act(() => store.write([{ key: 'q', raw: 'x' }], 'replace'));
+    expect(result.current.changedCount).toBe(1);
+    act(() => result.current.resetAll());
+    expect(result.current.changedCount).toBe(0);
   });
 });
