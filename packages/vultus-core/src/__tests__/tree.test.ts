@@ -106,7 +106,23 @@ describe('disabled nodes (as antd conducts checks)', () => {
     ];
     expect(normalizeTreeValue(nodes, ['D'], 'topmost')).toEqual(['D']);
     expect(coveredNodes(nodes, ['D'])).toEqual(['D']);
-    expect(toggleTreeValue(nodes, ['P', 'D'], 'P', 'topmost')).toEqual(['D']);
+    // Checking P keeps D (P does not cover it, so topmost names it beside P); unchecking P keeps it too.
+    const checked = toggleTreeValue(nodes, ['D'], 'P', 'topmost');
+    expect(checked).toEqual(['P', 'D']);
+    expect(toggleTreeValue(nodes, checked, 'P', 'topmost')).toEqual(['D']);
+  });
+
+  it('leaves: a parent whose children are all disabled can be checked (it names itself)', () => {
+    const nodes: TreeNode[] = [{ value: 'P', children: [{ value: 'd1', disabled: true }, { value: 'd2', disabled: true }] }];
+    expect(toggleTreeValue(nodes, [], 'P', 'leaves')).toEqual(['P']);
+    expect(toggleTreeValue(nodes, ['P'], 'P', 'leaves')).toEqual([]);
+  });
+
+  it('topmost: a disabled parent in the value does not swallow its checked children', () => {
+    const nodes: TreeNode[] = [{ value: 'D', disabled: true, children: [{ value: 'e1' }, { value: 'e2' }] }];
+    expect(toggleTreeValue(nodes, ['D'], 'e1', 'topmost')).toEqual(['D', 'e1']);
+    expect(normalizeTreeValue(nodes, ['D', 'e1', 'e2'], 'topmost')).toEqual(['D', 'e1', 'e2']);
+    expect(normalizeTreeValue(nodes, ['D', 'e1', 'e2'], 'leaves')).toEqual(['D', 'e1', 'e2']);
   });
 
   it('coverage does not pass through a disabled node: its subtree is not covered through a checked ancestor', () => {
@@ -139,6 +155,48 @@ describe('disabled nodes (as antd conducts checks)', () => {
     ];
     expect(normalizeTreeValue(controls, ['sikgeometria'], 'topmost')).toEqual(['geometria']);
     expect(coveredNodes(controls, ['geometria'])).toEqual(['geometria', 'sikgeometria']);
+  });
+});
+
+describe('normalizing keeps what the value covers (all subsets of a tree with disabled nodes)', () => {
+  // R1(a, b⊘(b1, b2), c(c1⊘)), R2⊘(x, y), R3(z⊘)
+  const nodes: TreeNode[] = [
+    {
+      value: 'R1', children: [
+        { value: 'a' },
+        { value: 'b', disabled: true, children: [{ value: 'b1' }, { value: 'b2' }] },
+        { value: 'c', children: [{ value: 'c1', disabled: true }] },
+      ],
+    },
+    { value: 'R2', disabled: true, children: [{ value: 'x' }, { value: 'y' }] },
+    { value: 'R3', children: [{ value: 'z', disabled: true }] },
+  ];
+  const all = ['R1', 'a', 'b', 'b1', 'b2', 'c', 'c1', 'R2', 'x', 'y', 'R3', 'z'];
+  const disabled = new Set(['b', 'c1', 'R2', 'z']);
+  const subsets = Array.from({ length: 1 << all.length }, (_, mask) => all.filter((_, i) => mask & (1 << i)));
+  const covered = (value: string[]) => new Set(coveredNodes(nodes, value));
+  const SELECTIONS = ['topmost', 'all', 'leaves'] as const;
+
+  it.each(SELECTIONS)('%s: the normalized value covers exactly what the value does, and is its own normal form', (selection) => {
+    for (const value of subsets) {
+      const normal = normalizeTreeValue(nodes, value, selection);
+      expect(covered(normal), `${selection} ${value.join(',')} -> ${normal.join(',')}`).toEqual(covered(value));
+      expect(normalizeTreeValue(nodes, normal, selection)).toEqual(normal);
+    }
+  });
+
+  it.each(SELECTIONS)('%s: toggling an enabled node flips it alone among the disabled ones: theirs stay as they were', (selection) => {
+    for (const value of subsets) {
+      const before = covered(value);
+      for (const node of all.filter((v) => !disabled.has(v))) {
+        const next = toggleTreeValue(nodes, value, node, selection);
+        const after = covered(next);
+        const where = `${selection} ${value.join(',')} toggle ${node} -> ${next.join(',')}`;
+        expect(after.has(node), where).toBe(!before.has(node));
+        for (const d of disabled) expect(after.has(d), `${where}: ${d}`).toBe(before.has(d));
+        expect(normalizeTreeValue(nodes, next, selection), where).toEqual(next);
+      }
+    }
   });
 });
 

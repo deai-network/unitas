@@ -91,6 +91,22 @@ describe('TreeChecklist: disabled nodes, as antd and the hook both conduct', () 
     expect(checkbox('Térgeometria')).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByTestId('covered').textContent).toBe('geometria,sik');
   });
+
+  it('checking a parent keeps its checked disabled child checked (topmost names it beside the parent)', async () => {
+    function Kept() {
+      const field = useTreeField<Geo>({
+        id: 'cats', label: 'Categories', initialValue: ['ter'],
+        nodes: [{ value: 'geometria', label: 'Geometria', children: [{ value: 'sik', label: 'Síkgeometria' }, { value: 'ter', label: 'Térgeometria', disabled: true }] }],
+      });
+      return <><TreeChecklist field={field} /><output>{field.value.join(',')}</output></>;
+    }
+    wrap(<Kept />);
+    expect(checkbox('Térgeometria')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(checkbox('Geometria'));
+    await waitFor(() => expect(shown()).toBe('geometria,ter'));
+    expect(checkbox('Térgeometria')).toHaveAttribute('aria-checked', 'true');
+    expect(checkbox('Síkgeometria')).toHaveAttribute('aria-checked', 'true');
+  });
 });
 
 describe('TreeChecklist: rendering', () => {

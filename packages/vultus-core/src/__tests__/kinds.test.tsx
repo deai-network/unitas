@@ -300,6 +300,19 @@ describe('sanitizeStored', () => {
       expect(warn).not.toHaveBeenCalled();
     });
 
+    it('keeps a stored disabled node (its parent does not cover it), in every selection', () => {
+      const geometria: TreeNode[] = [
+        { value: 'geometria', children: [{ value: 'sikgeometria' }, { value: 'tergeometria', disabled: true }] },
+      ];
+      const stored = ['geometria', 'tergeometria'];
+      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: geometria }, stored, NO_FIELD_CONTEXT)).toEqual(['geometria', 'tergeometria']);
+      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: geometria, selection: 'all' }, stored, NO_FIELD_CONTEXT))
+        .toEqual(['geometria', 'sikgeometria', 'tergeometria']);
+      expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: geometria, selection: 'leaves' }, stored, NO_FIELD_CONTEXT))
+        .toEqual(['sikgeometria', 'tergeometria']);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
     it('drops values not among the nodes, then normalizes, with a warning naming the field and them', () => {
       expect(sanitizeStored({ kind: 'tree', id: 'topics', nodes: NODES }, ['A1', 'A2', 'gone'], NO_FIELD_CONTEXT)).toEqual(['A']);
       expect(warn).toHaveBeenCalledTimes(1);

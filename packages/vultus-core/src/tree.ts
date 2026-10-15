@@ -24,6 +24,11 @@ export interface TreeNodeControls<T extends string = string> extends OneOfChoice
  * - `'all'` (`SHOW_ALL`): every covered node;
  * - `'leaves'` (`SHOW_CHILD`): the covered leaves.
  *
+ * Where a disabled node breaks the cascade, the value also names what the others would not
+ * cover, as antd TreeSelect does: `'topmost'` a covered disabled node under a covered parent,
+ * and a covered node under a covered disabled parent; `'leaves'` a covered node with children
+ * that is disabled or has no enabled child.
+ *
  * `'independent'` (`checkStrictly`, moxb's `strictSelect`): each node is chosen on its own.
  */
 export type TreeSelection = 'topmost' | 'all' | 'leaves' | 'independent';
@@ -94,14 +99,28 @@ function cascade<T extends string>(nodes: TreeNode<T>[], value: T[]): Set<T> {
   return covered;
 }
 
-/** The covered nodes the value names under `selection` (see TreeSelection), in pre-order. */
+/**
+ * The covered nodes the value names under `selection` (see TreeSelection), in pre-order, by
+ * rc-tree-select's formatStrategyValues, so that the named nodes cover exactly what `covered`
+ * does (`cascade` of them gives it back) also where disabled nodes break the cascade:
+ * - `'topmost'`: a covered node unless its parent is covered and neither of the two is
+ *   disabled (only then does the parent cover it);
+ * - `'leaves'`: the covered leaves, and a covered node with children that is disabled, has
+ *   no enabled child, or has an enabled child not covered (its children would not cover it);
+ * - `'all'`: every covered node.
+ */
 function namedNodes<T extends string>(order: TreeNode<T>[], parent: Map<T, T>, covered: Set<T>, selection: TreeSelection): T[] {
+  const enabled = new Map(order.map((node) => [node.value, nodeEnabled(node)]));
   const named = order.filter((node) => {
     if (!covered.has(node.value)) return false;
-    if (selection === 'leaves') return !hasChildren(node);
     if (selection === 'topmost') {
       const up = parent.get(node.value);
-      return up === undefined || !covered.has(up);
+      return up === undefined || !covered.has(up) || !enabled.get(node.value) || !enabled.get(up);
+    }
+    if (selection === 'leaves') {
+      if (!hasChildren(node) || !enabled.get(node.value)) return true;
+      const counted = node.children!.filter((child) => enabled.get(child.value));
+      return counted.length === 0 || !counted.every((child) => covered.has(child.value));
     }
     return true;
   });
