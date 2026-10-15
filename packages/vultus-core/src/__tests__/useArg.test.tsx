@@ -65,6 +65,37 @@ describe('useArg: reading', () => {
     expect(result.current.value).toBe(first);
   });
 
+  it('value keeps its identity across a re-render when the default builds a fresh value', () => {
+    const store = memoryStore();
+    const definition: ArgDefinition<string[]> = { key: 'tags', valueType: stringSetType, default: () => [] };
+    const { result, rerender } = renderHook(() => useArg(definition), { wrapper: providing(store) });
+    const first = result.current.value;
+    rerender();
+    expect(result.current.value).toBe(first);
+  });
+
+  it('a context-function default follows a context change while the raw stays unparseable', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const store = memoryStore({ n: 'abc' });
+    let n = 5;
+    const wrapper = ({ children }: { children?: ReactNode }) => (
+      <FieldContextProvider value={{ n }}>
+        <ArgStoreProvider store={store}>{children}</ArgStoreProvider>
+      </FieldContextProvider>
+    );
+    const definition: ArgDefinition<number> = { key: 'n', valueType: numberType, default: (ctx: { n: number }) => ctx.n };
+    const { result, rerender } = renderHook(() => useArg(definition), { wrapper });
+    expect(result.current.value).toBe(5);
+    expect(result.current.isDefault).toBe(true);
+
+    n = 7;
+    rerender();
+    expect(result.current.value).toBe(7);
+    expect(result.current.isDefault).toBe(true);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
   it('no ArgStoreProvider above throws', () => {
     const definition: ArgDefinition<string> = { key: 'name', valueType: stringType, default: 'Ada' };
     expect(quietly(() => renderHook(() => useArg(definition)))).toThrow(/No ArgStoreProvider/);

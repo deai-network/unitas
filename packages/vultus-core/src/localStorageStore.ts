@@ -11,7 +11,9 @@ export function localStorageStore(prefix: string): ArgStore {
   const hasWindow = typeof window !== 'undefined';
   const listeners = new Set<() => void>();
   const storageKey = (key: string) => `${prefix}.${key}`;
-  const isOwnStorageKey = (key: string | null) => key !== null && key.startsWith(`${prefix}.`);
+  // `null` means "another tab cleared the whole storage" (localStorage.clear()): every key under
+  // the prefix may have changed, so this counts as ours too.
+  const isOwnStorageKey = (key: string | null) => key === null || key.startsWith(`${prefix}.`);
 
   if (hasWindow) {
     window.addEventListener('storage', (event) => {

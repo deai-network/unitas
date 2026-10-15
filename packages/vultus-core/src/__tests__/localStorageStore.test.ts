@@ -42,6 +42,15 @@ describe('localStorageStore', () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it('notifies a subscriber on a storage event with key null (another tab cleared the whole storage)', () => {
+    const store = localStorageStore('p');
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    window.dispatchEvent(new StorageEvent('storage', { key: null }));
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
   it('does not crash outside a browser: reads give undefined, writes are no-ops', () => {
     const originalWindow = globalThis.window;
     // @ts-expect-error -- simulating SSR/Node, where `window` does not exist.

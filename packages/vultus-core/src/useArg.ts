@@ -1,4 +1,4 @@
-import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import type { RawChange, UpdateMethod } from './argStore.js';
 import { useArgStore } from './ArgStoreContext.js';
 import { useFieldContext } from './FieldContext.js';
@@ -29,10 +29,15 @@ function rawFor<T>(value: T, defaultValue: T, valueType: ValueType<T>): string |
 
 /**
  * An argument read from and written to the nearest ArgStore. An absent key reads as the default;
- * writing the default removes the key. The parsed value keeps its identity across renders while
- * the store's raw string for this key does not change, so effects keyed on it do not re-run on
- * every render; a raw value that does not parse falls back to the default and warns once per raw
- * value (both follow from caching the parse on the raw string, below).
+ * writing the default removes the key.
+ *
+ * `parse(raw)` is memoized on `[raw, key, valueType]` (not the default, which may be a context
+ * function with its own, independently changing inputs): re-rendering with the same raw value
+ * does not re-parse and does not re-warn; a raw value that does not parse warns once per such
+ * change and the default is used instead. `value` itself then keeps its previous identity
+ * whenever it is still `isEqual` to the freshly computed one (parsed-or-default), so a default
+ * that builds a fresh value every render (`() => []`) does not change `value`'s identity either —
+ * effects keyed on `value` do not re-run just because nothing meaningful changed.
  */
 export function useArg<T>(definition: ArgDefinition<T>): ArgControls<T> {
   const { key, valueType, default: defaultOrFn } = definition;
@@ -41,22 +46,20 @@ export function useArg<T>(definition: ArgDefinition<T>): ArgControls<T> {
   const raw = useSyncExternalStore(store.subscribe, () => store.read(key));
   const defaultValue = resolveIn<T>(defaultOrFn, undefined as T, ctx, `Argument '${key}': option 'default'`);
 
-  const cacheRef = useRef<{ raw: string; value: T } | undefined>(undefined);
-  let value: T;
-  if (raw === undefined) {
-    value = defaultValue;
-  } else if (cacheRef.current !== undefined && cacheRef.current.raw === raw) {
-    value = cacheRef.current.value;
-  } else {
-    const parsed = valueType.parse(raw);
-    if (parsed === undefined) {
-      console.warn(`Argument '${key}': cannot read '${raw}', using the default`);
-      value = defaultValue;
-    } else {
-      value = parsed;
-    }
-    cacheRef.current = { raw, value };
-  }
+  const parsed = useMemo<T | undefined>(() => {
+    if (raw === undefined) return undefined;
+    const p = valueType.parse(raw);
+    if (p === undefined) console.warn(`Argument '${key}': cannot read '${raw}', using the default`);
+    return p;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw, key, valueType]);
+  const candidate = parsed ?? defaultValue;
+
+  const previousRef = useRef<{ value: T } | undefined>(undefined);
+  const value = previousRef.current !== undefined && valueType.isEqual(previousRef.current.value, candidate)
+    ? previousRef.current.value
+    : candidate;
+  previousRef.current = { value };
 
   const set = useCallback(
     (next: T, method: UpdateMethod = 'replace') => {
