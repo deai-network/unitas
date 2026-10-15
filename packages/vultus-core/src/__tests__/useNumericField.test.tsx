@@ -103,5 +103,8 @@ describe('useNumericField: shown value is clamped', () => {
     expect(result.current.valueText).toBe('3');
     const clamped = renderHook(() => useNumericField({ id: 'n', value: 12.7, onChange, integer: true, max: 10.4 }));
     expect(clamped.result.current.value).toBe(10);
+    // Rounding stays inside fractional bounds.
+    const inside = renderHook(() => useNumericField({ id: 'n', value: 12.7, onChange, integer: true, max: 9.5 }));
+    expect(inside.result.current.value).toBe(9);
   });
 });

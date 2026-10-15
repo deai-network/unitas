@@ -49,6 +49,11 @@ describe('useRangeField: shown value is clamped and ordered', () => {
     }));
     expect(result.current.value).toEqual([3, 10]);
     expect(result.current.valueText).toBe('3–10');
+    // Rounding stays inside fractional bounds.
+    const inside = renderHook(() => useRangeField({
+      id: 'r', value: [0.2, 12.7], onChange, min: 0.5, max: 9.5, integer: true,
+    }));
+    expect(inside.result.current.value).toEqual([1, 9]);
   });
 });
 

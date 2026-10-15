@@ -37,13 +37,15 @@ export function clamp(n: number, min?: number, max?: number): number {
 }
 
 /**
- * `n` clamped into [min, max], then rounded when `integer` is true: the rule a numeric or range
- * field's shown value and requests are fit by (useNumericField, useRangeField), and the one
- * `sanitizeStored` fits a stored value by.
+ * `n` clamped into [min, max], then, when `integer` is true, rounded and kept to the whole numbers
+ * inside the bounds ([ceil(min), floor(max)]: with `max: 9.5`, 9.7 is 9, not 10): the rule a
+ * numeric or range field's shown value and requests are fit by (useNumericField, useRangeField),
+ * and the one `sanitizeStored` fits a stored value by.
  */
 export function fit(n: number, min: number | undefined, max: number | undefined, integer: boolean): number {
   const clamped = clamp(n, min, max);
-  return integer ? Math.round(clamped) : clamped;
+  if (!integer) return clamped;
+  return clamp(Math.round(clamped), min === undefined ? undefined : Math.ceil(min), max === undefined ? undefined : Math.floor(max));
 }
 
 /**

@@ -134,13 +134,14 @@ function warnDropped(id: string, among: 'choices' | 'nodes', dropped: string[], 
  * now: choices, nodes and bounds follow the data, and an old URL may not. A one-of value that is
  * not a choice becomes the initial value; many-of and tree values that are not choices or nodes
  * are dropped; numbers and ranges are clamped into the bounds, then rounded when the field is
- * `integer` (so a stored `2.5` reads `3`), with one warning for whichever of the two actually
- * changed the value: "outside its bounds" when clamping did (whether or not rounding also did),
- * "not a whole number" (plural for a range) when only rounding did. Each such change warns,
- * naming the field: the value came from outside, so it is not an error. Reordering is silent:
- * lists come back in choice order or normalized under the tree's selection (a store keeps them
- * sorted, so a warning would come on every read), and a range's ends in order. The warnings go
- * to `warn`, console.warn unless a caller that only summarizes (useStoredFields) silences them.
+ * `integer` (so a stored `2.5` reads `3`; a whole number inside the bounds, see `fit`), with one
+ * warning for whichever of the two actually changed the value: "outside its bounds" when
+ * clamping did (whether or not rounding also did), "not a whole number" ("has ends that are not
+ * whole numbers" for a range) when only rounding did. Each such change warns, naming the
+ * field: the value came from outside, so it is not an error. Reordering is silent: lists come
+ * back in choice order or normalized under the tree's selection (a store keeps them sorted, so a
+ * warning would come on every read), and a range's ends in order. The warnings go to `warn`,
+ * console.warn unless a caller that only summarizes (useStoredFields) silences them.
  */
 export function sanitizeStored(
   definition: FieldDefinition,
@@ -197,7 +198,7 @@ export function sanitizeStored(
         if (clampedChanged) {
           warn(`Field '${id}': stored range ${rangeType.format(stored)} is outside its bounds, using ${rangeType.format(sanitized)}`);
         } else {
-          warn(`Field '${id}': stored range ${rangeType.format(stored)} is not whole numbers, using ${rangeType.format(sanitized)}`);
+          warn(`Field '${id}': stored range ${rangeType.format(stored)} has ends that are not whole numbers, using ${rangeType.format(sanitized)}`);
         }
       }
       return sanitized;

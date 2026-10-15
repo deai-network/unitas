@@ -177,7 +177,8 @@ The value is a single number. `min`, `max`, `step`, `integer` (moxb's
 `onlyInteger`) and `unit` may each be a context function; `format(n, ctx)`
 overrides the default display (the number followed by the unit, if any).
 The shown value is always clamped into the bounds, then rounded when
-`integer` (a stored `2.5` shows `3`), since a value from outside — a
+`integer` to a whole number inside them (a stored `2.5` shows `3`; with
+`max: 9.5`, `9.7` shows `9`), since a value from outside — a
 passed-in `value`, a stored one — may fall outside them or be fractional
 even though every request the hook itself makes fits; a non-finite request
 (a widget that parsed `''`) is refused with a warning. `valueText` carries
@@ -321,7 +322,8 @@ the default (or is dropped from a list), with a `console.warn`.
 namespaced as `${prefix}.${key}`, guarded for SSR so creating one outside a
 browser is a safe no-op; where the browser blocks storage or refuses a
 write, a failing read reads as absent and a failing write is skipped, with
-one `console.warn` per store); a URL store comes from a router package.
+one `console.warn` per store); a URL store comes from a router package —
+vultus-react-router for react-router.
 Create a store once — outside render, or in `useMemo` — not on every
 render: each store is a new subscription target, so a fresh one per render
 makes every hook below resubscribe.
@@ -350,9 +352,10 @@ is `initialValueOf`. It returns `{ options, isDefault, reset }` — `options`
 is the definition in its outside form (`value` plus `onChange`, ready for
 the kind's hook), with the stored raw value made to fit the definition as
 it is now (`sanitizeStored`: unknown choices or nodes dropped, numbers and
-ranges clamped). A value that needed fixing up warns once per field and per raw
-value — not again on every render, and not at all when the key is simply
-absent (then the default applies, and an absent key is not outside input).
+ranges clamped, and rounded when `integer`). A value that needed fixing up
+warns once per field and per raw value — not again on every render, and not
+at all when the key is simply absent (then the default applies, and an
+absent key is not outside input).
 `useStoredFields(definitions)` answers for several definitions over one
 store subscription: `isDefault(id)` (throws for an id not among the
 definitions), `changedCount`, and `resetAll(method)` (one write for every
