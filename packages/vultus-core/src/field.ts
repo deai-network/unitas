@@ -22,6 +22,12 @@ import type {
  * Design notes: unitas docs/2026-10-05-vultus-field-model-design.md.
  */
 
+/** The field kinds (FieldControls.type and a FieldDefinition's `kind`). */
+export type FieldKind = 'boolean' | 'mixed-boolean' | 'oneOf' | 'manyOf' | 'numeric' | 'range' | 'tree' | 'text';
+
+/** The widget to render a field with: a name, or a name with display options overriding its defaults. */
+export type WidgetHint = string | { name: string; [option: string]: unknown };
+
 /** How an immediately committing field stores a change: an action that receives the requested value. */
 export interface FieldCommit<TRequest, RouteId extends string = string> {
   fire: (next: TRequest, ctx: ExecutionContext) => Promise<void> | void;
@@ -39,8 +45,18 @@ export type ValueKey<T> = T extends boolean ? `${T}` : T extends string | number
  */
 export interface FieldBaseOptions<TValue, Ctx = any> {
   id: string;
+  /**
+   * The field's kind, as a FieldDefinition carries it (optional here: a hook knows its own
+   * kind). Given and different from the hook's own kind, it throws — a defence against passing
+   * the wrong definition to a kind-specific hook.
+   */
+  kind?: FieldKind;
   label?: ValueOrFn<string, Ctx>;
   description?: ValueOrFn<string | undefined, Ctx>;
+  /** Shown while the field is empty (moxb's Value); a widget that has no notion of "empty" ignores it. */
+  placeholder?: ValueOrFn<string | undefined, Ctx>;
+  /** The widget to render this field with: a name, or a name with its display options. Each kind has a default; vultus-antd's `<Field>` applies render-site overrides on top of this. */
+  widget?: WidgetHint;
   /** Shown? Default true. Use `visible` or `hidden`, not contradicting each other. */
   visible?: ValueOrFn<boolean, Ctx>;
   hidden?: ValueOrFn<boolean, Ctx>;
@@ -73,10 +89,11 @@ export type FieldOptions<TValue, TRequest = TValue, RouteId extends string = str
 
 /** What a field widget receives: everything it shows, and the one way to change the value. */
 export interface FieldControls<TValue, TRequest = TValue> {
-  type: string;
+  type: FieldKind;
   id: string;
   label: string;
   description: string | undefined;
+  placeholder: string | undefined;
   /** What the current value means (from `valueDescriptions`). */
   valueDescription: string | undefined;
   visible: boolean;
@@ -87,10 +104,13 @@ export interface FieldControls<TValue, TRequest = TValue> {
   setValue(next: TRequest): void;
   /** A commit is running. */
   pending: boolean;
+  /** The field stores through `commit` — true exactly in commit storage mode, so a widget can hold back requests while typing. */
+  commits: boolean;
   /** Messages of the last commit. */
   messages: Message[];
   /** The confirmation a widget must obtain before requesting `next`, if any. */
   confirmationFor(next: TRequest): ConfirmationSpec | undefined;
+  widget: WidgetHint | undefined;
 }
 
 export type FieldStorageMode = 'inside' | 'local' | 'commit';
@@ -132,10 +152,13 @@ export function calculateEnabled(id: string, enabled: Decision | undefined, disa
  * `initialValue` once, when the field mounts.
  */
 export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId extends string = string, Ctx = any>(
-  type: string,
+  type: FieldKind,
   opts: FieldOptions<TValue, TRequest, RouteId, Ctx>,
   registry?: ErrorRoutesRegistry<RouteId>,
 ): FieldControls<TValue, TRequest> {
+  if (opts.kind !== undefined && opts.kind !== type) {
+    throw new Error(`Field '${opts.id}': a definition of kind '${opts.kind}' was passed to the '${type}' hook`);
+  }
   const mode = fieldStorageMode(opts.id, opts as FieldStorage<unknown, unknown, string>);
   const ctx = useFieldContext();
   const where = (name: string) => `Field '${opts.id}': option '${name}'`;
@@ -145,6 +168,7 @@ export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId e
 
   const label = resolveIn(opts.label, '', ctx, where('label'));
   const description = resolveIn<string | undefined>(opts.description, undefined, ctx, where('description'));
+  const placeholder = resolveIn<string | undefined>(opts.placeholder, undefined, ctx, where('placeholder'));
   const visible = calculateVisible(
     opts.id,
     resolveIn<boolean | undefined>(opts.visible, undefined, ctx, where('visible')),
@@ -195,6 +219,7 @@ export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId e
     id: opts.id,
     label,
     description,
+    placeholder,
     valueDescription,
     visible,
     enabled,
@@ -202,7 +227,9 @@ export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId e
     value,
     setValue,
     pending,
+    commits: mode === 'commit',
     messages: mode === 'commit' ? (setter.messages ?? []) : [],
     confirmationFor,
+    widget: opts.widget,
   };
 }

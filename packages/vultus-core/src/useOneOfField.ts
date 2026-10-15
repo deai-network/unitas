@@ -1,39 +1,12 @@
-import type { ReactNode } from 'react';
-import { calculateEnabled, useFieldCore, type FieldControls, type FieldOptions } from './field.js';
-import { getReason, getVerdict } from './decision.js';
+import { useFieldCore, type FieldControls, type FieldOptions } from './field.js';
+import { resolveChoice, type OneOfChoice, type OneOfChoiceControls } from './choices.js';
 import { useFieldContext } from './FieldContext.js';
 import { resolveIn } from './resolve.js';
-import type { Decision, ErrorRoutesRegistry, ValueOrFn } from './types.js';
+import type { ErrorRoutesRegistry, ValueOrFn } from './types.js';
 
-/** One choice of a one-of field (moxb's BindOneOfChoice). */
-export interface OneOfChoice<T extends string = string> {
-  value: T;
-  /** Shown for the choice; default: the value. */
-  label?: string;
-  /** What choosing it does (moxb's `help`), markdown; also the field's current state when it is chosen. */
-  description?: string;
-  /** Shown before the label (or instead of it, for an icon-only widget), like an action's icon. */
-  icon?: ReactNode;
-  /** Choosable? Default true, optionally with a reason. Use `enabled` or `disabled`, not contradicting each other. */
-  enabled?: Decision;
-  disabled?: Decision;
-  /** Shown as the main or a dangerous choice, like an action's variant. Default 'default'. */
-  variant?: 'default' | 'primary' | 'danger';
-  /** A heading the choice is listed under, after the choices without one (OneOfSelect); default none. */
-  group?: string;
-}
-
-/** A choice as the widgets get it. */
-export interface OneOfChoiceControls<T extends string = string> {
-  value: T;
-  label: string;
-  description: string | undefined;
-  icon: ReactNode | undefined;
-  enabled: boolean;
-  whyDisabled: string | undefined;
-  variant: 'default' | 'primary' | 'danger';
-  group: string | undefined;
-}
+// Re-exported so today's callers (`import { type OneOfChoice } from 'vultus-core'`, and tests
+// importing from this file) keep working now that the choice types live in choices.ts.
+export type { OneOfChoice, OneOfChoiceControls };
 
 export type OneOfFieldOptions<T extends string = string, RouteId extends string = string, Ctx = any> =
   FieldOptions<T, T, RouteId, Ctx> & {
@@ -45,21 +18,6 @@ export interface OneOfFieldControls<T extends string = string> extends FieldCont
   choices: OneOfChoiceControls<T>[];
   /** The choice the value is, if it is one of them. */
   current: OneOfChoiceControls<T> | undefined;
-}
-
-function resolveChoice<T extends string>(fieldId: string, choice: OneOfChoice<T>): OneOfChoiceControls<T> {
-  const decision = calculateEnabled(`${fieldId}.${choice.value}`, choice.enabled, choice.disabled);
-  const enabled = getVerdict(decision, true);
-  return {
-    value: choice.value,
-    label: choice.label ?? choice.value,
-    description: choice.description,
-    icon: choice.icon,
-    enabled,
-    whyDisabled: enabled ? undefined : getReason(decision),
-    variant: choice.variant ?? 'default',
-    group: choice.group,
-  };
 }
 
 /**

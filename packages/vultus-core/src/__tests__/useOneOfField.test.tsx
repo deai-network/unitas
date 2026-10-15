@@ -33,9 +33,9 @@ describe('useOneOfField: choices', () => {
   it('resolves each choice: label (default: the value), description, enabled with a reason', () => {
     const { result } = renderHook(() => useOneOfField({ id: 'mode', choices: CHOICES, initialValue: 'manual' }));
     expect(result.current.choices).toEqual([
-      { value: 'manual', label: 'Manual', description: 'Asks before acting', enabled: true, whyDisabled: undefined, variant: 'default' },
-      { value: 'plan', label: 'Plan', description: 'Plans without editing', enabled: true, whyDisabled: undefined, variant: 'default' },
-      { value: 'bypass', label: 'bypass', description: 'Runs everything', enabled: false, whyDisabled: 'Not allowed for this task', variant: 'default' },
+      { value: 'manual', label: 'Manual', description: 'Asks before acting', enabled: true, whyDisabled: undefined, variant: 'default', dimmed: false },
+      { value: 'plan', label: 'Plan', description: 'Plans without editing', enabled: true, whyDisabled: undefined, variant: 'default', dimmed: false },
+      { value: 'bypass', label: 'bypass', description: 'Runs everything', enabled: false, whyDisabled: 'Not allowed for this task', variant: 'default', dimmed: false },
     ]);
     expect(result.current.current?.value).toBe('manual');
   });
