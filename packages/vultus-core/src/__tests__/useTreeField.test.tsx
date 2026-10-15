@@ -50,6 +50,13 @@ describe('useTreeField: value inside the field', () => {
     rerender();
     expect(result.current.value).toBe(first);
   });
+
+  it('falls back to [] when a context-function initialValue resolves to undefined', () => {
+    const { result } = renderHook(() => useTreeField({
+      id: 'topics', nodes: NODES, initialValue: (ctx: { preset?: Id[] }) => ctx.preset as Id[],
+    }), { wrapper: providing({ preset: undefined }) });
+    expect(result.current.value).toEqual([]);
+  });
 });
 
 describe('useTreeField: the other selections', () => {

@@ -13,17 +13,13 @@ export interface MixedBoolFieldControls extends FieldControls<MixedBool, boolean
   toggle(): void;
 }
 
-/**
- * The implicit initial value for a mixed-boolean field: `initialValue` resolved, else false.
- * Checked against `undefined` after resolving, not just before it, as boolInitialValue is.
- */
+/** The implicit initial value for a mixed-boolean field: `initialValue` resolved, else false. */
 export function mixedBoolInitialValue(
   opts: { initialValue?: ValueOrFn<MixedBool> },
   ctx: FieldCtx,
   id: string,
 ): MixedBool {
-  const resolved = resolveIn<MixedBool | undefined>(opts.initialValue, undefined, ctx, `Field '${id}': option 'initialValue'`);
-  return resolved ?? false;
+  return resolveIn<MixedBool>(opts.initialValue, false, ctx, `Field '${id}': option 'initialValue'`);
 }
 
 /**

@@ -67,6 +67,13 @@ describe('field context: functions in the options', () => {
     expect(result.current.label).toBe('undefined');
   });
 
+  it('a function that returns undefined counts as an absent option, and falls back', () => {
+    const { result } = renderHook(() => useBoolField({ id: 'sec', label: (ctx) => ctx.missing }), {
+      wrapper: providing({ missing: undefined }),
+    });
+    expect(result.current.label).toBe('');
+  });
+
   it('probing the context does not throw', () => {
     const { result } = renderHook(() => useBoolField({
       id: 'sec',

@@ -13,19 +13,13 @@ export interface BoolFieldControls extends FieldControls<boolean, boolean> {
   toggle(): void;
 }
 
-/**
- * The implicit initial value for a boolean field: `initialValue` resolved, else false. Checked
- * against `undefined` after resolving, not just before it, so a context function that returns
- * `undefined` (e.g. a lookup that missed) still falls back instead of leaving the field with no
- * value at all.
- */
+/** The implicit initial value for a boolean field: `initialValue` resolved, else false. */
 export function boolInitialValue(
   opts: { initialValue?: ValueOrFn<boolean> },
   ctx: FieldCtx,
   id: string,
 ): boolean {
-  const resolved = resolveIn<boolean | undefined>(opts.initialValue, undefined, ctx, `Field '${id}': option 'initialValue'`);
-  return resolved ?? false;
+  return resolveIn<boolean>(opts.initialValue, false, ctx, `Field '${id}': option 'initialValue'`);
 }
 
 /**

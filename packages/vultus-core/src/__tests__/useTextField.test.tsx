@@ -27,6 +27,13 @@ describe('useTextField: value inside the field', () => {
     const { result } = renderHook(() => useTextField({ id: 'name', initialValue: 'Ada' }));
     expect(result.current.value).toBe('Ada');
   });
+
+  it('falls back to \'\' when a context-function initialValue resolves to undefined', () => {
+    const { result } = renderHook(() => useTextField({
+      id: 'name', initialValue: (ctx: { name?: string }) => ctx.name as string,
+    }), { wrapper: providing({ name: undefined }) });
+    expect(result.current.value).toBe('');
+  });
 });
 
 describe('useTextField: value outside, committed immediately', () => {

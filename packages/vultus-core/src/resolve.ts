@@ -10,15 +10,17 @@ export function resolve<T>(v: ValueOrFn<T> | undefined, fallback: T): T {
  * Resolves a field's option with its context: a function that declares a parameter receives
  * `ctx`; one without parameters is called with nothing, so it works without a provider. A
  * function of the context with no provider above throws, `where` (`Field '<id>': option
- * '<name>'`) saying whose it is.
+ * '<name>'`) saying whose it is. A function that returns `undefined` counts as an absent option
+ * too, and yields `fallback` — a context lookup that misses (e.g. `(ctx) => ctx.items[id]`) should
+ * fall back exactly as leaving the option out would, not leave the field with no value at all.
  */
 export function resolveIn<T>(v: ValueOrFn<T> | undefined, fallback: T, ctx: FieldCtx, where: string): T {
   if (v === undefined) return fallback;
   if (typeof v !== 'function') return v;
   const fn = v as (ctx?: object) => T;
-  if (fn.length === 0) return fn();
+  if (fn.length === 0) return fn() ?? fallback;
   if (ctx === NO_FIELD_CONTEXT) {
     throw new Error(`${where} is a function of the field context, but no FieldContextProvider is above it`);
   }
-  return fn(ctx);
+  return fn(ctx) ?? fallback;
 }

@@ -118,4 +118,12 @@ describe('useManyOfField: choices and initialValue as context functions', () => 
     expect(result.current.value).toEqual(['a', 'b']);
     expect(result.current.choices.map((c) => c.value)).toEqual(['a', 'b']);
   });
+
+  it('falls back to [] when a context-function initialValue resolves to undefined', () => {
+    const { result } = renderHook(() => useManyOfField({
+      id: 'letters', choices: CHOICES,
+      initialValue: (ctx: { preset?: Letter[] }) => ctx.preset as Letter[],
+    }), { wrapper: providing({ preset: undefined }) });
+    expect(result.current.value).toEqual([]);
+  });
 });
