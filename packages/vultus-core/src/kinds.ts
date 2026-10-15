@@ -1,7 +1,7 @@
 import { resolveChoice, type OneOfChoice, type OneOfChoiceControls } from './choices.js';
 import type { FieldBaseOptions, FieldKind } from './field.js';
 import type { FieldCtx } from './FieldContext.js';
-import { fit, resolveNumeric } from './numeric.js';
+import { clamp, fit, resolveNumeric } from './numeric.js';
 import { resolveIn } from './resolve.js';
 import { normalizeTreeValue, type TreeNode } from './tree.js';
 import type { Fits, ValueOrFn } from './types.js';
@@ -134,12 +134,13 @@ function warnDropped(id: string, among: 'choices' | 'nodes', dropped: string[], 
  * now: choices, nodes and bounds follow the data, and an old URL may not. A one-of value that is
  * not a choice becomes the initial value; many-of and tree values that are not choices or nodes
  * are dropped; numbers and ranges are clamped into the bounds, then rounded when the field is
- * `integer` (so a stored `2.5` reads `3`), with one combined warning when either or both change
- * the value. Each such change warns, naming the field: the value came from outside, so it is not
- * an error. Reordering is silent: lists come back in choice order or normalized under the tree's
- * selection (a store keeps them sorted, so a warning would come on every read), and a range's
- * ends in order. The warnings go to `warn`, console.warn unless a caller that only summarizes
- * (useStoredFields) silences them.
+ * `integer` (so a stored `2.5` reads `3`), with one warning for whichever of the two actually
+ * changed the value: "outside its bounds" when clamping did (whether or not rounding also did),
+ * "not a whole number" (plural for a range) when only rounding did. Each such change warns,
+ * naming the field: the value came from outside, so it is not an error. Reordering is silent:
+ * lists come back in choice order or normalized under the tree's selection (a store keeps them
+ * sorted, so a warning would come on every read), and a range's ends in order. The warnings go
+ * to `warn`, console.warn unless a caller that only summarizes (useStoredFields) silences them.
  */
 export function sanitizeStored(
   definition: FieldDefinition,
@@ -177,18 +178,27 @@ export function sanitizeStored(
     case 'numeric': {
       const stored = value as number;
       const { min, max, integer } = resolveNumeric(id, definition, ctx);
+      const clamped = clamp(stored, min, max);
       const fitted = fit(stored, min, max, integer);
-      if (fitted !== stored) warn(`Field '${id}': stored value ${stored} is outside its bounds, using ${fitted}`);
+      if (fitted !== stored) {
+        if (clamped !== stored) warn(`Field '${id}': stored value ${stored} is outside its bounds, using ${fitted}`);
+        else warn(`Field '${id}': stored value ${stored} is not a whole number, using ${fitted}`);
+      }
       return fitted;
     }
     case 'range': {
       const stored = value as NumberRange;
       const { min, max, integer } = resolveNumeric(id, definition, ctx);
+      const clampedChanged = clamp(stored[0], min, max) !== stored[0] || clamp(stored[1], min, max) !== stored[1];
       const from = fit(stored[0], min, max, integer);
       const to = fit(stored[1], min, max, integer);
       const sanitized: NumberRange = [Math.min(from, to), Math.max(from, to)];
       if (from !== stored[0] || to !== stored[1]) {
-        warn(`Field '${id}': stored range ${rangeType.format(stored)} is outside its bounds, using ${rangeType.format(sanitized)}`);
+        if (clampedChanged) {
+          warn(`Field '${id}': stored range ${rangeType.format(stored)} is outside its bounds, using ${rangeType.format(sanitized)}`);
+        } else {
+          warn(`Field '${id}': stored range ${rangeType.format(stored)} is not whole numbers, using ${rangeType.format(sanitized)}`);
+        }
       }
       return sanitized;
     }

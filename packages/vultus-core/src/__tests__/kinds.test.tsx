@@ -309,10 +309,16 @@ describe('sanitizeStored', () => {
       expect(warn).toHaveBeenNthCalledWith(1, "Field 'count': stored value 15 is outside its bounds, using 10");
     });
 
-    it('rounds an integer value, after clamping, with one warning naming the field', () => {
+    it('rounds an integer value inside the bounds, with a warning that it is not a whole number', () => {
       expect(sanitizeStored({ kind: 'numeric', id: 'count', min: 0, max: 10, integer: true }, 2.5, NO_FIELD_CONTEXT)).toBe(3);
       expect(warn).toHaveBeenCalledTimes(1);
-      expect(warn).toHaveBeenCalledWith("Field 'count': stored value 2.5 is outside its bounds, using 3");
+      expect(warn).toHaveBeenCalledWith("Field 'count': stored value 2.5 is not a whole number, using 3");
+    });
+
+    it('clamps and rounds an integer value, with one warning for the bounds', () => {
+      expect(sanitizeStored({ kind: 'numeric', id: 'count', min: 0, max: 9.5, integer: true }, 15.7, NO_FIELD_CONTEXT)).toBe(10);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith("Field 'count': stored value 15.7 is outside its bounds, using 10");
     });
 
     it('leaves a non-integer value as is, even when fractional', () => {
@@ -347,11 +353,18 @@ describe('sanitizeStored', () => {
       expect(warn).toHaveBeenCalledWith("Field 'years': stored range 2040..1990 is outside its bounds, using 2000..2030");
     });
 
-    it('rounds an integer range, after clamping, with one combined warning naming the field', () => {
+    it('rounds an integer range inside the bounds, with a warning that it is not whole numbers', () => {
       const definition: FieldDefinition = { kind: 'range', id: 'count', min: 0, max: 20, integer: true };
       expect(sanitizeStored(definition, [2.5, 9.6], NO_FIELD_CONTEXT)).toEqual([3, 10]);
       expect(warn).toHaveBeenCalledTimes(1);
-      expect(warn).toHaveBeenCalledWith("Field 'count': stored range 2.5..9.6 is outside its bounds, using 3..10");
+      expect(warn).toHaveBeenCalledWith("Field 'count': stored range 2.5..9.6 is not whole numbers, using 3..10");
+    });
+
+    it('clamps and rounds an integer range, with one warning for the bounds', () => {
+      const definition: FieldDefinition = { kind: 'range', id: 'count', min: 0, max: 9.5, integer: true };
+      expect(sanitizeStored(definition, [15.7, 20], NO_FIELD_CONTEXT)).toEqual([10, 10]);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith("Field 'count': stored range 15.7..20 is outside its bounds, using 10..10");
     });
 
     it('leaves a non-integer range as is, even when fractional', () => {
