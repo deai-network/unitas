@@ -25,12 +25,23 @@ interface Props<T extends string> {
 /** The open list's least width with inline descriptions, so they wrap readably. */
 const INLINE_LIST_WIDTH = 320;
 
-/** A choice in the open list with its description: the label as a bold heading, the description (markdown) under it. */
+/**
+ * A choice in the open list with its description: the label as a bold
+ * heading (its note, if any, right-aligned on that same line, in normal
+ * weight so it doesn't inherit the heading's boldness), the description
+ * (markdown) under it.
+ */
 function InlineChoice<T extends string>({ choice }: { choice: OneOfChoiceControls<T> }) {
   const { token } = theme.useToken();
   return (
     <div style={{ whiteSpace: 'normal' }}>
-      <div data-choice-part="label" style={{ fontWeight: token.fontWeightStrong }}><ChoiceLabel choice={choice} /></div>
+      <div
+        data-choice-part="label"
+        style={{ fontWeight: token.fontWeightStrong, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}
+      >
+        <ChoiceLabel choice={choice} />
+        <span style={{ fontWeight: 'normal' }}><ChoiceNote note={choice.note} /></span>
+      </div>
       {choice.description && (
         <div
           data-choice-part="description"

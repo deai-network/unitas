@@ -93,10 +93,14 @@ describe('OneOfSelect notes and dimmed choices', () => {
   });
 
   it('a dimmed choice is shown in the description colour and is still selectable', async () => {
-    wrap(<BucketField />);
+    wrap(<><BucketField /><DescriptionColorProbe /></>);
     await openList();
     const option = Array.from(document.querySelectorAll<HTMLElement>('.ant-select-item-option'))
       .find((o) => o.textContent === 'Doing1')!;
+    const row = option.querySelector<HTMLElement>('[style*="justify-content"]')!;
+    const [label] = Array.from(row.children) as HTMLElement[];
+    const probe = screen.getByTestId('probe');
+    expect(label.style.color).toBe(probe.style.color);
     fireEvent.click(option);
     await waitFor(() => expect(screen.getByRole('combobox')).toBeInTheDocument());
     expect(document.querySelector('[data-field-id="bucket"]')).toHaveAttribute('data-value', 'doing');
@@ -108,6 +112,26 @@ describe('OneOfSelect notes and dimmed choices', () => {
     const option = Array.from(document.querySelectorAll<HTMLElement>('.ant-select-item-option'))
       .find((o) => o.textContent === 'Done')!;
     expect(option).toBeTruthy();
+  });
+});
+
+function BucketFieldInline() {
+  const field = useOneOfField<Bucket>({ id: 'bucket', label: 'Bucket', choices: BUCKET_CHOICES, initialValue: 'todo' } as OneOfFieldOptions<Bucket>);
+  return <OneOfSelect field={field} inlineDescriptions />;
+}
+
+describe('OneOfSelect inlineDescriptions notes', () => {
+  it("shows each choice's note, right-aligned on the label line (the spec: choices show their note in the widgets that list them)", async () => {
+    wrap(<BucketFieldInline />);
+    await openList();
+    const label = Array.from(document.querySelectorAll<HTMLElement>('[data-choice-part="label"]'))
+      .find((el) => el.textContent === 'Todo3')!;
+    expect(label).toBeTruthy();
+    expect(label.style.display).toBe('flex');
+    expect(label.style.justifyContent).toBe('space-between');
+    const [labelPart, notePart] = Array.from(label.children) as HTMLElement[];
+    expect(labelPart.textContent).toBe('Todo');
+    expect(notePart.textContent).toBe('3');
   });
 });
 

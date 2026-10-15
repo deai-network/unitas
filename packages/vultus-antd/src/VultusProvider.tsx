@@ -63,13 +63,16 @@ export function VultusProvider({
   // Every VultusTexts key, not a hard-coded pair: a key `texts` doesn't set keeps its default.
   // Memoized on the values, not on `texts`'s own identity (a fresh object literal at the call
   // site, as `texts={{ ... }}` naturally produces, must not re-render every consumer below) — an
-  // array value (joiningWords) compares by its joined content, like a string or number value.
+  // array value (joiningWords) compares by its joined content via JSON.stringify, like a string
+  // or number value. An absent key gets a sentinel no JSON.stringify output can produce (every
+  // stringified value starts with `"`, `[`, or a digit/letter/`-`), so it never collides with an
+  // explicit override of `''` or `[]` — those must still take effect over the default.
+  const ABSENT = '\u0000';
   const textsKeys = Object.keys(defaultVultusTexts) as (keyof VultusTexts)[];
   const textsValuesKey = textsKeys
     .map((key) => {
       const value = texts?.[key];
-      if (value === undefined) return '';
-      return Array.isArray(value) ? value.join('\u0000') : String(value);
+      return value === undefined ? ABSENT : JSON.stringify(value);
     })
     .join('\u0001');
   const mergedTexts = useMemo<VultusTexts>(() => {

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { describe, it, expect } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { ConfigProvider } from 'antd';
 import { useMessageSink, useVultusComponents, type SpinnerProps } from 'vultus-core';
 import { VultusProvider } from '../VultusProvider.js';
@@ -166,6 +166,33 @@ describe('VultusProvider texts', () => {
     expect(getByTestId('textsProbe').textContent).toBe(
       `${defaultVultusTexts.currentState}|${defaultVultusTexts.switchTo}|Kész|${defaultVultusTexts.search}|${defaultVultusTexts.joiningWords.join(',')}`,
     );
+  });
+
+  it('an explicit empty override is distinguished from an omitted key, both directions', () => {
+    const switchTo = () => screen.getByTestId('textsProbe').textContent?.split('|')[1];
+    const { rerender } = render(
+      <VultusProvider texts={{ switchTo: undefined }}>
+        <TextsProbe />
+      </VultusProvider>,
+    );
+    // Omitted (undefined): the default.
+    expect(switchTo()).toBe(defaultVultusTexts.switchTo);
+
+    // undefined -> '': an explicit empty override must take effect, not stay the stale default.
+    rerender(
+      <VultusProvider texts={{ switchTo: '' }}>
+        <TextsProbe />
+      </VultusProvider>,
+    );
+    expect(switchTo()).toBe('');
+
+    // '' -> undefined: going back to omitted must restore the default, not stay stuck at ''.
+    rerender(
+      <VultusProvider texts={{ switchTo: undefined }}>
+        <TextsProbe />
+      </VultusProvider>,
+    );
+    expect(switchTo()).toBe(defaultVultusTexts.switchTo);
   });
 
   it('a fresh inline texts object with the same joiningWords content keeps the merged texts referentially stable', () => {
