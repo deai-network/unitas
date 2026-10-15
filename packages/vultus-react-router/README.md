@@ -1,6 +1,6 @@
 # vultus-react-router
 
-A vultus `ArgStore` over react-router 7's location: argument values (`useArg`,
+A vultus `ArgStore` over react-router's location (7 and 8): argument values (`useArg`,
 `useStoredField`, `<Field stored>`) live in the URL's query, so a filtered
 view can be bookmarked, shared and walked through with Back and Forward. Like
 vultus-core it is antd-free: no Ant Design import appears in this package.
@@ -8,8 +8,12 @@ vultus-core it is antd-free: no Ant Design import appears in this package.
 ## Install
 
 ```sh
-npm install vultus-react-router
+npm install vultus-react-router vultus-core react-router
 ```
+
+With react-router-dom, add `react-router` at the same version as
+react-router-dom, so that both resolve to one copy of it: with two, the
+store's `useLocation` finds no router and throws.
 
 ## Peer dependencies
 
@@ -20,7 +24,8 @@ npm install vultus-react-router
   react-router's `UNSAFE_` contexts, checked against 7.0, 7.18 and 8.4; a new
   major is admitted once they are checked again.
 
-vultus-core comes as a dependency and brings its own peer, `react-i18next`.
+vultus-core is a dependency of this package too (installed above as well,
+since the app imports its hooks) and brings its own peer, `react-i18next`.
 
 ## Entry points
 
