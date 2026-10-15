@@ -105,9 +105,9 @@ export const ControlsObject: StoryObj = {
   name: 'What a widget receives',
   render: function Render() {
     const field = useBoolField({ id: 'demo', label: 'Demo', disabled: denyWithReason('Read-only in this view') });
-    const { setValue: _s, toggle: _t, confirmationFor: _c, ...data } = field;
+    const { setValue: _s, toggle: _t, confirmationFor: _c, hrefFor: _h, ...data } = field;
     return (
-      <Showcase title="The controls object" note="Everything a field widget renders comes from the field's controls; setValue, toggle and confirmationFor are the functions next to these values.">
+      <Showcase title="The controls object" note="Everything a field widget renders comes from the field's controls; setValue, toggle, confirmationFor and hrefFor are the functions next to these values.">
         <Descriptions bordered size="small" column={1} style={{ minWidth: 420 }}
           items={Object.entries(data).map(([key, value]) => ({ key, label: key, children: <code>{JSON.stringify(value)}</code> }))} />
       </Showcase>
