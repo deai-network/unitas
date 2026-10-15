@@ -92,6 +92,7 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
     ...field.choices.filter((c) => !c.group).map(option),
     ...groups.map((g) => ({ label: g, title: '', options: field.choices.filter((c) => c.group === g).map(option) })),
   ];
+  // Without a width the span is a block, so the select fills a form item (antd's ant-select-in-form-item); elsewhere it keeps its natural width.
   return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, (
     <Select
       value={field.value}
@@ -135,5 +136,5 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
       data-field-id={field.id}
       data-value={field.value}
     />
-  ), { open: open || asking ? false : undefined, width: style?.width }));
+  ), { open: open || asking ? false : undefined, style, block: style?.width === undefined, stable: true }));
 }

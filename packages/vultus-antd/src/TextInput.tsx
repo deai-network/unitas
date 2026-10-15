@@ -4,7 +4,7 @@ import { useSpinnerKey, useVultusComponents, type TextFieldControls } from 'vult
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useTextDraft } from './useTextDraft.js';
 import { useVultusTexts } from './texts.js';
-import { withTooltip } from './WithReason.js';
+import { splitLayout, withTooltip } from './WithReason.js';
 
 export interface TextInputProps {
   field: TextFieldControls;
@@ -53,7 +53,7 @@ export function TextInput({ field, style }: TextInputProps) {
     'data-value': field.value,
   };
   // The textarea and its spinner in one row, which a given width (and the tooltip's span) can size: the textarea grows in it.
-  const { width, ...rest } = style ?? {};
+  const { width, ...rest } = splitLayout(style).rest;
   const control: ReactElement = field.control === 'textarea'
     ? (
       <span style={{ display: 'flex', alignItems: 'flex-start', gap: 8, width }}>
@@ -76,7 +76,8 @@ export function TextInput({ field, style }: TextInputProps) {
   // Without a width, antd's Input fills its container: so does the tooltip's span (always there, see withTooltip).
   return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, control, {
     open: asking ? false : undefined,
-    width: style?.width,
+    style,
     block: style?.width === undefined,
+    stable: true,
   }));
 }

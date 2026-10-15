@@ -35,5 +35,5 @@ export function BoolCheckbox({ field }: { field: BoolFieldControls | MixedBoolFi
         ? <span style={{ marginInlineStart: 8 }}><Spinner spinnerKey={spinnerKey} size="small" /></span>
         : <Spin size="small" style={{ marginInlineStart: 8 }} />)}
     </Checkbox>
-  ), { open: asking ? false : undefined }));
+  ), { open: asking ? false : undefined, stable: true }));
 }

@@ -71,6 +71,7 @@ export function RangeSlider({ field, style, showValue }: RangeSliderProps) {
   // The handles show what the values are (their own tooltips); the track says what the field is.
   return wrap(withTooltip(fieldTooltip(tipField, texts, false), !field.enabled, body, {
     open: asking || onHandle ? false : undefined,
-    width: style?.width,
+    style,
+    stable: true,
   }));
 }

@@ -1,14 +1,16 @@
 import { useEffect, useState, type CSSProperties } from 'react';
+import { splitLayout } from './WithReason.js';
 
 /**
  * The style of a slider widget's antd Slider (NumericSlider, RangeSlider, OneOfSlider), from the
- * widget's `style`: at least 160px wide. A `style.width` goes to the slider's body (a flex box,
- * beside the shown value if any), in which the Slider grows instead, so `'100%'` fills the
+ * widget's `style`: at least 160px wide. The layout keys (flex, margins, ...) go to the widget's
+ * anchor span (withTooltip `stable`), not here. A `style.width` goes to the slider's body (a flex
+ * box, beside the shown value if any), in which the Slider grows instead, so `'100%'` fills the
  * container.
  */
 export function sliderStyle(style: CSSProperties | undefined): CSSProperties {
-  if (style?.width === undefined) return { minWidth: 160, ...style };
-  const { width: _body, ...rest } = style;
+  const { width, ...rest } = splitLayout(style).rest;
+  if (width === undefined) return { minWidth: 160, ...rest };
   return { minWidth: 160, ...rest, flex: 1 };
 }
 

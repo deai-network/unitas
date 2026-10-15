@@ -210,7 +210,10 @@ export function ManyOfTreePicker<T extends string>({
   );
   const closed = wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, select, {
     open: open || drawerOpen || asking ? false : undefined,
-    width: style?.width,
+    // Without a width the span is a block, so the select fills a form item (antd's ant-select-in-form-item); elsewhere it keeps its natural width.
+    style,
+    block: style?.width === undefined,
+    stable: true,
   }));
   if (panel !== 'drawer') return closed;
   return (

@@ -71,6 +71,7 @@ export function NumericSlider({ field, style, showValue }: NumericSliderProps) {
   // The handle shows what the value is (its own tooltip); the track says what the field is.
   return wrap(withTooltip(fieldTooltip(tipField, texts, false), !field.enabled, body, {
     open: asking || onHandle ? false : undefined,
-    width: style?.width,
+    style,
+    stable: true,
   }));
 }

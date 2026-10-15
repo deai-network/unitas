@@ -219,23 +219,18 @@ describe('ActionButton — typing confirmation', () => {
 });
 
 describe('ActionButton — the tooltip wrapper', () => {
-  it('a block button\'s wrapper is a block too, so the button still fills the row (with a reason or without)', () => {
-    render(wrap(<>
-      <ActionButton action={makeStatus({ id: 'go', label: 'Go' })} block />
-      <ActionButton action={makeStatus({ id: 'stop', label: 'Stop', disabled: true, reason: 'Not now' })} block />
-    </>));
-    for (const name of ['Go', 'Stop']) {
-      const button = screen.getByRole('button', { name });
-      expect(button).toHaveClass('ant-btn-block');
-      expect(button.parentElement!.style.display).toBe('block');
-    }
+  it('a block button with a reason: its wrapper is a block too, so the button still fills the row', () => {
+    render(wrap(<ActionButton action={makeStatus({ id: 'stop', label: 'Stop', disabled: true, reason: 'Not now' })} block />));
+    const button = screen.getByRole('button', { name: 'Stop' });
+    expect(button).toHaveClass('ant-btn-block');
+    expect(button.parentElement!.style.display).toBe('block');
   });
 
-  it('becoming disabled with a reason keeps the button (no remount)', () => {
-    const { rerender } = render(wrap(<ActionButton action={makeStatus({ id: 'go', label: 'Go' })} />));
+  it('without a reason there is no wrapper: the button is the layout box (sibling spacing, flex classes reach it)', () => {
+    render(wrap(<ActionButton action={makeStatus({ id: 'go', label: 'Go' })} />));
     const button = screen.getByRole('button', { name: 'Go' });
-    rerender(wrap(<ActionButton action={makeStatus({ id: 'go', label: 'Go', disabled: true, reason: 'Not now' })} />));
-    expect(screen.getByRole('button', { name: 'Go' })).toBe(button);
+    expect(button.parentElement!.tagName).not.toBe('SPAN');
+    expect(button.closest('span[style]')).toBeNull();
   });
 });
 

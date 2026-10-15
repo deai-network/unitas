@@ -278,15 +278,23 @@ by an info sign, so the two never read as one text; "Current state:" has no sign
 sign is gray, not the danger colour: a disabled thing is no danger. While a widget's
 confirmation is open, the widget holds back its own tooltips, which would cover it.
 
-A control sits in its tooltip's span whether or not it has a tooltip right now (one that comes and
-goes with the value — a value with a description and one without — would otherwise remount the
-control, and the keyboard focus would drop); without a title the tooltip never opens. A widget
-that takes `style` (the inputs, selects, sliders and `ManyOfTreePicker`) keeps a `style.width` —
-`'100%'` to fill a form column: the span takes the width and the control fills the span (so a
-percentage applies once), and the tooltip stays on the control. Without a width, `TextInput` and
-`SearchInput` fill their container, as antd's Input does (their span is a block), and a `block`
-`ActionButton`'s span is a block too. A slider's width goes to its body (with `showValue`, the
-value and the slider), in which the slider grows; a textarea's likewise, beside its spinner.
+A field widget's own control (`TextInput`, `SearchInput`, `NumericInput`, `OneOfSelect`,
+`ManyOfSelect`, `ManyOfTreePicker`, `BoolSwitch`, `BoolCheckbox` and the sliders) sits in a span
+with the class `vultus-tooltip-anchor`, whether or not it has a tooltip right now: a tooltip that
+comes and goes with the value (a value with a description and one without, or the description
+moving to `<Field item>`'s label) would otherwise remount the control, and the keyboard focus would
+drop; without a title the tooltip never opens. That span is the control's layout box: the widget's
+`style` gives it its layout keys — `flex`, `flexGrow`, `flexShrink`, `flexBasis`, `alignSelf`,
+`justifySelf`, `order`, the margins, the grid placement — which leave the control, so they reach the
+parent and apply once, and its `width` (`'100%'` to fill a form column), the control filling the
+span (so a percentage applies once) and the tooltip staying on the control; the rest of `style`
+stays on the control. Without a width, `TextInput`, `SearchInput` and the three selects have a block
+span: the inputs fill their container, as antd's Input does, and a select fills a form item, as
+antd intends (`ant-select-in-form-item`), keeping its natural width elsewhere. A slider's width goes
+to its body (with `showValue`, the value and the slider), in which the slider grows; a textarea's
+likewise, beside its spinner. Other controls with a tooltip (choices, buttons, a disabled field's
+checkboxes or tree) get their span only while they have one; a `block` `ActionButton` with a reason
+has a block span.
 
 `VultusTexts` (`VultusProvider texts`) also carries `done` (ManyOfTreePicker's drawer, closing it),
 `search` (a tree widget's search box placeholder), `joiningWords` (ManyOfTreePicker's first-words

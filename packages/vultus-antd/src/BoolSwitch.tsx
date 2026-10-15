@@ -59,5 +59,5 @@ export function BoolSwitch({ field, size, checkedChildren, unCheckedChildren }: 
   const control = Spinner
     ? <>{switchEl}{field.pending && <span style={{ marginInlineStart: 8 }}><Spinner spinnerKey={spinnerKey} size="small" /></span>}</>
     : switchEl;
-  return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, control, { open: asking ? false : undefined }));
+  return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, control, { open: asking ? false : undefined, stable: true }));
 }

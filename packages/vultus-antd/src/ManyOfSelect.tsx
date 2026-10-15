@@ -46,6 +46,7 @@ export function ManyOfSelect<T extends string>({ field, size, style }: ManyOfSel
     ...field.choices.filter((c) => !c.group).map(option),
     ...groups.map((g) => ({ label: g, title: '', options: field.choices.filter((c) => c.group === g).map(option) })),
   ];
+  // Without a width the span is a block, so the select fills a form item (antd's ant-select-in-form-item); elsewhere it keeps its natural width.
   return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, (
     <Select
       mode="multiple"
@@ -82,5 +83,5 @@ export function ManyOfSelect<T extends string>({ field, size, style }: ManyOfSel
       data-field-id={field.id}
       data-value={field.value.join(',')}
     />
-  ), { open: open || asking ? false : undefined, width: style?.width }));
+  ), { open: open || asking ? false : undefined, style, block: style?.width === undefined, stable: true }));
 }

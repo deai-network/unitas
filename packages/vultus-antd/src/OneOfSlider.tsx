@@ -97,6 +97,7 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
   // The track and handle say what the field is, not its value: the marks do.
   return wrap(withTooltip(fieldTooltip(tipField, texts, false), !field.enabled, body, {
     open: asking || onMark ? false : undefined,
-    width: style?.width,
+    style,
+    stable: true,
   }));
 }

@@ -66,5 +66,5 @@ export function NumericInput({ field, style }: NumericInputProps) {
       data-value={String(field.value)}
       style={{ minWidth: 120, ...style }}
     />
-  ), { open: asking ? false : undefined, width: style?.width }));
+  ), { open: asking ? false : undefined, style, stable: true }));
 }
