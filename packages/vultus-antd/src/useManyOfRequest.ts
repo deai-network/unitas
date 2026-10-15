@@ -11,7 +11,7 @@ import { sameMembers, useFieldRequest } from './useFieldRequest.js';
  * is labelled with the field itself, as a boolean field's would be).
  */
 export function useManyOfRequest<T extends string>(field: ManyOfFieldControls<T>): {
-  request: (next: T[]) => void;
+  request: (next: T[]) => boolean;
   wrap: (control: ReactElement) => ReactElement;
   asking: boolean;
 } {

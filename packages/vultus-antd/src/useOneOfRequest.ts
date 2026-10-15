@@ -14,7 +14,7 @@ import { useFieldRequest } from './useFieldRequest.js';
  * field's value. `asking`: the confirmation is open (see useConfirm).
  */
 export function useOneOfRequest<T extends string>(field: OneOfFieldControls<T>): {
-  request: (next: T) => void;
+  request: (next: T) => boolean;
   wrap: (control: ReactElement) => ReactElement;
   asking: boolean;
 } {

@@ -29,7 +29,8 @@ interface Props<T extends string> {
  * handle returns. The field's confirmation for the requested choice comes
  * first; the handle stays on the requested choice while it is asked and
  * while the commit runs, then shows the stored value (the old one after a
- * Cancel or a failure). A disabled field shows its reason for the whole
+ * Cancel or a failure). A move while a confirmation is open requests nothing:
+ * the handle returns to the choice being asked about. A disabled field shows its reason for the whole
  * control.
  */
 export function OneOfSlider<T extends string>({ field, style, markStyle }: Props<T>) {
@@ -51,8 +52,8 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
     setMoving(null);
     const choice = choices[index];
     if (!choice?.enabled) return;
-    setRequested(choice.value);
-    request(choice.value);
+    // Held only when taken: a move while another choice's confirmation is open is not.
+    if (request(choice.value)) setRequested(choice.value);
   };
   const slider = (
     <Slider

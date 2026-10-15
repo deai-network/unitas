@@ -10,7 +10,7 @@ import { sameMembers, useFieldRequest } from './useFieldRequest.js';
  * confirmation's OK with, so it is labelled with the field itself.
  */
 export function useManyOfTreeRequest<T extends string>(field: ManyOfTreeFieldControls<T>): {
-  request: (next: T[]) => void;
+  request: (next: T[]) => boolean;
   wrap: (control: ReactElement) => ReactElement;
   asking: boolean;
 } {

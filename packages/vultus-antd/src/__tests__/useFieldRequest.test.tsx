@@ -17,15 +17,19 @@ function makeField(overrides: Partial<RequestableField<number>> = {}): Requestab
   };
 }
 
-function Harness({ field, values, labelsFor }: {
+function Harness({ field, values, labelsFor, onTaken }: {
   field: RequestableField<number>;
   values: number[];
   labelsFor?: (next: number) => ConfirmLabels;
+  /** Gets what each request answered: whether it was taken. */
+  onTaken?: (taken: boolean) => void;
 }) {
   const { request, wrap } = useFieldRequest(field, { equal: (a, b) => a === b, labelsFor });
   return wrap(
     <>
-      {values.map((v) => <Button key={v} onClick={() => request(v)}>{`Request ${v}`}</Button>)}
+      {values.map((v) => (
+        <Button key={v} onClick={() => { const taken = request(v); onTaken?.(taken); }}>{`Request ${v}`}</Button>
+      ))}
     </>,
   );
 }
@@ -88,6 +92,19 @@ describe('useFieldRequest', () => {
     fireEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.includes('OK'))!);
     await waitFor(() => expect(field.setValue).toHaveBeenCalledWith(99));
     expect(field.setValue).not.toHaveBeenCalledWith(50);
+  });
+
+  it('request answers whether it took the request: not the current value, nor one while a confirmation is open', async () => {
+    const taken: boolean[] = [];
+    const field = makeField({
+      confirmationFor: (next) => (next === 99 ? { kind: 'popconfirm', question: 'Raise it?' } : undefined),
+    });
+    wrap(<Harness field={field} values={[10, 99, 50]} onTaken={(t) => taken.push(t)} />);
+    fireEvent.click(requestButton(10));
+    fireEvent.click(requestButton(99));
+    expect(await screen.findByText('Raise it?')).toBeInTheDocument();
+    fireEvent.click(requestButton(50));
+    expect(taken).toEqual([false, true, false]);
   });
 
   it("labelsFor labels the OK for the requested value: a cascade modal's, on the first request", async () => {

@@ -11,7 +11,7 @@ import { useFieldRequest } from './useFieldRequest.js';
  * that case).
  */
 export function useNumericRequest(field: NumericFieldControls): {
-  request: (next: number) => void;
+  request: (next: number) => boolean;
   wrap: (control: ReactElement) => ReactElement;
   asking: boolean;
 } {

@@ -38,6 +38,9 @@ export function sameMembers<T>(a: T[], b: T[]): boolean {
  * node's label, a danger button for a danger choice), over `okText`; the
  * labels go with the confirmation (see Confirm), so a cascade modal, which
  * takes them when it opens, names what was just requested.
+ * `request` answers whether it took the request (asked its confirmation, or
+ * requested it at once): a widget holding the requested value on screen
+ * (a slider's handle) holds it only then.
  * `asking`: the confirmation is open (see useConfirm).
  */
 export function useFieldRequest<TRequest>(
@@ -48,14 +51,15 @@ export function useFieldRequest<TRequest>(
     labelsFor?: (next: TRequest) => ConfirmLabels;
   },
 ): {
-  request: (next: TRequest) => void;
+  request: (next: TRequest) => boolean;
   wrap: (control: ReactElement) => ReactElement;
   asking: boolean;
 } {
   const { confirm, wrap, asking } = useConfirm({ okText: okText ?? field.label });
   const request = (next: TRequest) => {
-    if (!field.enabled || field.pending || asking || equal(next, field.value)) return;
+    if (!field.enabled || field.pending || asking || equal(next, field.value)) return false;
     confirm(field.confirmationFor(next), () => field.setValue(next), labelsFor?.(next));
+    return true;
   };
   return { request, wrap, asking };
 }

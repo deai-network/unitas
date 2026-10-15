@@ -24,11 +24,12 @@ function Inside(opts: Partial<Omit<OneOfFieldOptions<Effort>, 'value' | 'onChang
   return <><OneOfSlider field={field} /><output>{field.value}</output></>;
 }
 
-function Committed({ fire, confirmation }: {
+function Committed({ fire, confirmation, initial = 'medium' }: {
   fire: (next: Effort) => Promise<void> | void;
   confirmation?: FieldCommit<Effort>['confirmation'];
+  initial?: Effort;
 }) {
-  const [stored, setStored] = useState<Effort>('medium');
+  const [stored, setStored] = useState<Effort>(initial);
   const field = useOneOfField<Effort>({
     id: 'effort', label: 'Effort', choices: LEVELS, value: stored,
     commit: { confirmation, fire: async (next) => { await fire(next); setStored(next); } },
@@ -209,6 +210,22 @@ describe('OneOfSlider', () => {
     fireEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.includes('Cancel'))!);
     await waitFor(() => expect(handle()).toHaveAttribute('aria-valuenow', '1'));
     expect(shown()).toBe('medium');
+  });
+
+  it('a move while a confirmation is asked is not taken: the handle stays on the asked choice, which OK commits', async () => {
+    const fire = vi.fn();
+    wrap(<Committed fire={fire} initial="low"
+      confirmation={(next) => (next === 'medium' ? { kind: 'popconfirm', question: 'Think more?' } : undefined)} />);
+    press('ArrowRight', 39);
+    expect(await screen.findByText('Think more?')).toBeInTheDocument();
+    expect(handle()).toHaveAttribute('aria-valuenow', '1');
+    press('ArrowRight', 39);
+    await waitFor(() => expect(handle()).toHaveAttribute('aria-valuenow', '1'));
+    await act(async () => { fireEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.includes('OK'))!); });
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(fire).toHaveBeenCalledWith('medium');
+    await waitFor(() => expect(shown()).toBe('medium'));
+    expect(handle()).toHaveAttribute('aria-valuenow', '1');
   });
 
   it('a danger choice\'s mark is in the danger colour while enabled', () => {

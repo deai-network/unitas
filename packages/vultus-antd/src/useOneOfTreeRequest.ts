@@ -10,7 +10,7 @@ import { useFieldRequest } from './useFieldRequest.js';
  * popconfirm keeps its OK, as everywhere in vultus.
  */
 export function useOneOfTreeRequest<T extends string>(field: OneOfTreeFieldControls<T>): {
-  request: (next: T | '') => void;
+  request: (next: T | '') => boolean;
   wrap: (control: ReactElement) => ReactElement;
   asking: boolean;
 } {

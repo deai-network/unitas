@@ -224,6 +224,21 @@ describe('NumericSlider', () => {
     expect(shown()).toBe('5');
   });
 
+  it('a move while a confirmation is asked is not taken: the handle stays on the asked value, which OK commits', async () => {
+    const fire = vi.fn();
+    wrap(<SliderCommitted fire={fire} confirmation={(next) => (next > 5 ? { kind: 'popconfirm', question: 'Go louder?' } : undefined)} />);
+    press('ArrowRight', 39);
+    expect(await screen.findByText('Go louder?')).toBeInTheDocument();
+    expect(handle()).toHaveAttribute('aria-valuenow', '6');
+    press('ArrowRight', 39);
+    await waitFor(() => expect(handle()).toHaveAttribute('aria-valuenow', '6'));
+    await act(async () => { fireEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.includes('OK'))!); });
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(fire).toHaveBeenCalledWith(6);
+    await waitFor(() => expect(shown()).toBe('6'));
+    expect(handle()).toHaveAttribute('aria-valuenow', '6');
+  });
+
   it('a committed move: the handle stays on the requested value while the commit runs (no jump back)', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
