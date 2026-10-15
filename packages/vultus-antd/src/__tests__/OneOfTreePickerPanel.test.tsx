@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
-import { App as AntApp } from 'antd';
+import { App as AntApp, Modal } from 'antd';
 import { useState } from 'react';
 import {
   denyWithReason, useOneOfTreeField, type FieldCommit, type OneOfTreeFieldOptions, type TreeNode,
@@ -168,6 +168,25 @@ describe('OneOfTreePicker panel="drawer": the drawer', () => {
       return <OneOfTreePicker field={field} panel="drawer" />;
     }
     wrap(<AlreadyCurrent />);
+    tap(root());
+    await waitFor(() => expect(openDrawer()).not.toBeNull());
+    fireEvent.click(within(drawerRow('Kör')!).getByText('Kör'));
+    expect(onChange).not.toHaveBeenCalled();
+    await waitFor(() => expect(openDrawer()).toBeNull());
+  });
+
+  it('choosing the already-current node still closes the drawer with an unrelated modal open elsewhere', async () => {
+    const onChange = vi.fn();
+    function AlreadyCurrentWithModal() {
+      const field = useOneOfTreeField<Geo>({
+        id: 'cat', label: 'Category', nodes: GEO, expand: 'all', value: 'kor', onChange,
+      });
+      // Unrelated to this field's own request path: an open modal elsewhere on the page must
+      // not be mistaken for a confirmation this choice opened.
+      return <><OneOfTreePicker field={field} panel="drawer" /><Modal open title="Unrelated">Elsewhere</Modal></>;
+    }
+    wrap(<AlreadyCurrentWithModal />);
+    await screen.findByText('Unrelated');
     tap(root());
     await waitFor(() => expect(openDrawer()).not.toBeNull());
     fireEvent.click(within(drawerRow('Kör')!).getByText('Kör'));

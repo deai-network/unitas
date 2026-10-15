@@ -18,7 +18,7 @@ export interface OneOfTreeListProps<T extends string> {
 }
 
 /** OneOfTreeList's props for vultus-antd's own widgets only: not in OneOfTreeListProps, not exported. */
-interface InternalOneOfTreeListProps {
+interface InternalOneOfTreeListProps<T extends string> {
   /**
    * @internal Leaves `data-field-id` and `data-value` off the root: the list is
    * part of another widget of the same field (OneOfTreePicker's drawer), whose
@@ -27,11 +27,14 @@ interface InternalOneOfTreeListProps {
    */
   nested?: boolean;
   /**
-   * @internal Called after a click (or the keyboard) chose a row: the request
-   * was taken, or the row is the value already. OneOfTreePicker's drawer closes
-   * on it. Not after a folder's click, nor after a click left to the browser.
+   * @internal Called with the row's value after a click (or the keyboard)
+   * chose it: the request was taken, or the row is the value already
+   * (`value === field.value` then — `request` refuses it as equal, so
+   * nothing was requested). OneOfTreePicker's drawer uses the value to decide
+   * whether to close without looking at the DOM for an open confirmation. Not
+   * after a folder's click, nor after a click left to the browser.
    */
-  onChosen?: () => void;
+  onChosen?: (value: T | '') => void;
 }
 
 /**
@@ -139,7 +142,7 @@ function listRows<T extends string>(
  */
 export function OneOfTreeList<T extends string>({
   field, search = false, style, nested = false, onChosen,
-}: OneOfTreeListProps<T> & InternalOneOfTreeListProps) {
+}: OneOfTreeListProps<T> & InternalOneOfTreeListProps<T>) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { request, wrap, asking } = useOneOfTreeRequest(field);
@@ -212,7 +215,7 @@ export function OneOfTreeList<T extends string>({
   const choose = (key: T | '') => {
     const node = key === '' ? undefined : field.byValue.get(key);
     if (node?.children?.length && !expandedKeys.includes(node.value)) setExpandedKeys([...expandedKeys, node.value]);
-    if (request(key) || key === field.value) onChosen?.();
+    if (request(key) || key === field.value) onChosen?.(key);
   };
 
   // rc-tree's keyboard walks every row in its list, hidden or not (focus activates the

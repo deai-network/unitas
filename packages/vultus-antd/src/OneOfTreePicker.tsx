@@ -58,16 +58,6 @@ function parentValues<T extends string>(nodes: OneOfTreeNodeControls<T>[]): T[] 
 const OWN_ACTIONS = '.ant-select-clear';
 
 /**
- * Whether a confirmation (a popconfirm, or either kind of modal; see useConfirm) is currently
- * shown anywhere: the drawer's `OneOfTreeList` runs its own request path, invisible to the
- * picker, so this is the only way to tell "a choice opened a confirmation" apart from "nothing
- * was requested" after `onChosen` fires for both (see the drawer's `onChosen` below).
- */
-function confirmationShown(): boolean {
-  return document.querySelector('.ant-popconfirm, .ant-modal') !== null;
-}
-
-/**
  * A one-of tree field (useOneOfTreeField) as antd's TreeSelect, single: a
  * category picker. Closed, the field shows the chosen node's label, or with
  * `summary="path"` its path ("Geometria › Síkgeometria › Kör",
@@ -114,7 +104,8 @@ function confirmationShown(): boolean {
  *
  * The drawer closes when the field's value becomes the node chosen in it (a
  * choice with no confirmation, or a confirmed one), or when the node chosen
- * is the one already current (nothing is requested then, but the user's
+ * is the one already current (`onChosen`'s value then equals `field.value`:
+ * `request` refuses it as equal, so nothing is requested, but the user's
  * intent is clear); it does not close merely because a request was taken,
  * so a popconfirm or modal confirmation opened from the list's choice stays
  * visible, and a Cancel keeps the drawer open. There is no Done button.
@@ -162,14 +153,15 @@ export function OneOfTreePicker<T extends string>({
   const disabled = !field.enabled || field.pending;
   const openDrawer = () => { if (!disabled) setDrawerOpen(true); };
   /**
-   * The drawer list's `onChosen`: fires for a request taken (including one that only opened a
-   * confirmation, not yet in the DOM at this point) and for choosing the already-current node
-   * (nothing requested then). Deferred to a microtask (as treeData's own scroll-into-view is),
-   * so a confirmation's popconfirm or modal, if the choice opened one, has had its commit land by
-   * the time this checks: only the already-current choice, which opens none, closes the drawer
-   * here; a choice that changes the value is `trackedValue` above's, once its own commit lands.
+   * The drawer list's `onChosen`: `value` is the row chosen, whether or not the request was
+   * taken. `value === field.value` means the already-current node was chosen (`request` refused
+   * it as equal, so nothing was requested): the user's intent is clear, so this closes the
+   * drawer directly. Otherwise the request was taken, either applied at once or (a confirmation
+   * open) not yet; either way `trackedValue` above closes the drawer once the value actually
+   * changes, so this does nothing then, leaving a popconfirm or modal confirmation visible until
+   * it is answered.
    */
-  const chosen = () => queueMicrotask(() => { if (!confirmationShown()) setDrawerOpen(false); });
+  const chosen = (value: T | '') => { if (value === field.value) setDrawerOpen(false); };
 
   // antd filters while the search is not empty; it opens every node then, as here.
   const searching = query !== '';
