@@ -231,12 +231,14 @@ gives `['geometria']` under `'topmost'` and `['geometria', 'sikgeometria']`
 under `'all'`, and `coveredNodes` does not include Térgeometria. A disabled
 node in the value (`setValue` and a stored value do not police them) stays
 there and covers itself only. Where a disabled node breaks the cascade, the
-value names what the other named nodes would not cover, as antd TreeSelect
-does: under `'topmost'` a checked disabled node beside its checked parent
-(`['geometria', 'tergeometria']`), and checked children beside their checked
-disabled parent; under `'leaves'` a checked node with children that is
-disabled or has only disabled children. So normalizing never changes what a
-value covers. The same rule sanitizes a stored value. The
+value names what the other named nodes would not cover: under `'topmost'`
+a checked disabled node beside its checked parent (`['geometria',
+'tergeometria']`), and checked children beside their checked disabled parent,
+as antd TreeSelect's `SHOW_PARENT` does; under `'leaves'` a checked node with
+children that is disabled or has only disabled children — where antd's
+`SHOW_CHILD` would drop it (and with it what it covers), so vultus-antd's
+`TreePicker` requests the field's value with the clicked node toggled rather
+than antd's list. So normalizing never changes what a value covers. The same rule sanitizes a stored value. The
 cost: a parent in the value stands for its subtree as it is when read, so
 under `'topmost'` (and `'all'`, which lists the parent too) a child that was
 disabled when the value was stored and is enabled later is covered from

@@ -25,9 +25,11 @@ export interface TreeNodeControls<T extends string = string> extends OneOfChoice
  * - `'leaves'` (`SHOW_CHILD`): the covered leaves.
  *
  * Where a disabled node breaks the cascade, the value also names what the others would not
- * cover, as antd TreeSelect does: `'topmost'` a covered disabled node under a covered parent,
- * and a covered node under a covered disabled parent; `'leaves'` a covered node with children
- * that is disabled or has no enabled child.
+ * cover: `'topmost'` a covered disabled node under a covered parent, and a covered node under
+ * a covered disabled parent (as antd TreeSelect's SHOW_PARENT does); `'leaves'` a covered node
+ * with children that is disabled or has no enabled child (stricter than antd's SHOW_CHILD,
+ * which drops a checked disabled parent whose enabled children are all checked, and a parent
+ * whose only children are disabled and checked — so the value would no longer cover them).
  *
  * `'independent'` (`checkStrictly`, moxb's `strictSelect`): each node is chosen on its own.
  */
@@ -101,8 +103,9 @@ function cascade<T extends string>(nodes: TreeNode<T>[], value: T[]): Set<T> {
 
 /**
  * The covered nodes the value names under `selection` (see TreeSelection), in pre-order, by
- * rc-tree-select's formatStrategyValues, so that the named nodes cover exactly what `covered`
- * does (`cascade` of them gives it back) also where disabled nodes break the cascade:
+ * rc-tree-select's formatStrategyValues (for `'leaves'`, a stricter form of it), so that the
+ * named nodes cover exactly what `covered` does (`cascade` of them gives it back) also where
+ * disabled nodes break the cascade:
  * - `'topmost'`: a covered node unless its parent is covered and neither of the two is
  *   disabled (only then does the parent cover it);
  * - `'leaves'`: the covered leaves, and a covered node with children that is disabled, has
