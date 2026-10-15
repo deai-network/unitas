@@ -51,7 +51,7 @@ export function NumericInput({ field, style }: Props) {
       placeholder={field.placeholder}
       suffix={spinner || field.unit ? <>{spinner}{field.unit}</> : undefined}
       disabled={!field.enabled || field.pending}
-      onChange={(next) => setDraft(next === null ? null : Number(next))}
+      onChange={(next) => setDraft(next)}
       onBlur={commitDraft}
       onPressEnter={commitDraft}
       onStep={(next) => { const value = Number(next); setDraft(value); request(value); }}
