@@ -12,7 +12,7 @@ export interface VultusTexts {
   currentState: string;
   /** Leads another choice's description on its segment or mark (what a click does): "Switch to: Off". */
   switchTo: string;
-  /** Closes a many-of field's open list of choices, and a tree picker's phone panel (TreePicker `panel="drawer"`). */
+  /** Closes TreePicker's phone panel (`panel="drawer"`), the button at its top. */
   done: string;
   /**
    * A tree widget's search box placeholder, filtering its nodes by label
@@ -22,9 +22,8 @@ export interface VultusTexts {
    */
   search: string;
   /**
-   * Joins the chosen choices' labels in a many-of field's summary, e.g. "A, B and C"; also filtered out of a free-text search,
-   * and trimmed from the end of a first-words cut (TreePicker `summary="firstWords"`: "Gráfok és…" is shown "Gráfok…"),
-   * compared case-insensitively.
+   * Words a first-words cut does not end on (TreePicker `summary="firstWords"`: "Gráfok és…" is
+   * shown "Gráfok…"), compared case-insensitively.
    */
   joiningWords: string[];
   /** Names a range field's lower-end handle to assistive tech, after its label: "School years, from". */

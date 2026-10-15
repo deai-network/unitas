@@ -20,15 +20,23 @@ npm install vultus-antd
 
 ## Entry points
 
-- `.` — re-exports all of `vultus-core`, plus `VultusProvider`,
-  `ActionButton`, `CombinedActionButton`, `FormSubmitButton`, `FormPanel`,
-  `BoolSwitch`, `BoolCheckbox`, `useConfirm`, `ConfirmTypingModal`, `ChoiceNote`,
-  `useManyOfRequest`, `ManyOfCheckboxes`, `ManyOfSwitches`, `ManyOfSelect`,
-  `NumericInput`, `NumericSlider`, `useNumericRequest`, `RangeSlider`,
-  `TreeChecklist`, `TreePicker`, `useTreeRequest`, `TextInput`, `SearchInput`,
-  `FieldWidget`, `Field`, and the `ManyOfCheckboxesProps`, `ManyOfSwitchesProps`,
-  `TreeChecklistProps`, `TreePickerProps`, `FieldWidgetProps`, `WidgetNameOf`,
-  `WidgetHintOf` and `FieldProps` types.
+- `.` — re-exports all of `vultus-core`, plus:
+  - `VultusProvider`, and its texts: `defaultVultusTexts`, `useVultusTexts`,
+    `VultusTextsContext` and the `VultusTexts` type;
+  - actions: `ActionButton`, `CombinedActionButton`, `FormSubmitButton`, `FormPanel`,
+    `useConfirm` (and the `Confirm` type), `ConfirmTypingModal`;
+  - `Markdown` (and the `MarkdownProps` type);
+  - field widgets: `BoolSwitch`, `BoolCheckbox`, `OneOfSelect`, `OneOfSegmented`,
+    `OneOfSlider`, `ManyOfCheckboxes`, `ManyOfSwitches`, `ManyOfSelect`, `NumericInput`,
+    `NumericSlider`, `RangeSlider`, `TreeChecklist`, `TreePicker`, `TextInput`, `SearchInput`,
+    and the `ManyOfCheckboxesProps`, `ManyOfSwitchesProps`, `ManyOfSelectProps`,
+    `NumericInputProps`, `NumericSliderProps`, `RangeSliderProps`, `TreeChecklistProps`,
+    `TreePickerProps`, `TextInputProps` and `SearchInputProps` types;
+  - for a widget of one's own: `ChoiceLabel`, `ChoiceNote`, and the request hooks
+    `useFieldRequest` (with `sameMembers` and the `RequestableField` type),
+    `useManyOfRequest`, `useNumericRequest`, `useTreeRequest`;
+  - `FieldWidget`, `Field`, and the `FieldWidgetProps`, `WidgetNameOf`, `WidgetHintOf` and
+    `FieldProps` types.
 - `./markdown` — `Markdown` and the `MarkdownProps` type, standalone.
 
 ## Spinner slot
@@ -177,8 +185,9 @@ names its two handles to assistive tech after the field's label, with `VultusPro
 
 `useNumericRequest` (exported, for a custom numeric widget) is `useFieldRequest` with `===`
 equality: a request naming the field's current number is a no-op (e.g. a second Enter before the
-first commit lands). Neither it nor a one-of request's choice names a value to label the
-confirmation's OK with, so both are labelled with the field itself.
+first commit lands). No single choice names a number, so its confirmation's OK is labelled with
+the field itself, as a many-of or tree request's is; a one-of request's OK is labelled with the
+chosen choice instead (`useOneOfRequest`).
 
 ## Tree fields
 
