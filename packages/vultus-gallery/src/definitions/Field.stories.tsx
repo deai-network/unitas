@@ -3,7 +3,7 @@ import { Card, Form, Space, Tag } from 'antd';
 import { useState } from 'react';
 import { Field, denyWithReason, type ExecutionContext, type FieldDefinition } from 'vultus-antd';
 import { Example, Showcase, delay } from '../Showcase.js';
-import { TASK_FILTERS } from './taskFilters.js';
+import { CATEGORIES, TASK_FILTERS } from './taskFilters.js';
 
 /**
  * Fields as data: a FieldDefinition is a field hook's options in their inside form, tagged by
@@ -21,15 +21,17 @@ const hintText = (d: FieldDefinition) => (d.widget === undefined ? '(default)' :
 
 const MIXED: FieldDefinition = { kind: 'mixed-boolean', id: 'sources', label: 'All sources', initialValue: 'mixed', widget: 'checkbox' };
 
+const CHAPTER: FieldDefinition = { kind: 'oneOfTree', id: 'chapter', label: 'Chapter', nodes: CATEGORIES, widget: 'list' };
+
 export const EveryKind: StoryObj = {
   name: 'A list of definitions, every kind',
   render: () => (
     <Showcase
       title="A task module's filters, as data"
-      note="One <Field definition={d} /> per definition, the value inside each field. Each caption gives the kind and the definition's widget hint; without one, the kind's default widget (switch, select, checkboxes, input, slider, picker). The last one, a mixed-boolean aggregate, cannot be stored, but renders like the others."
+      note="One <Field definition={d} /> per definition, the value inside each field. Each caption gives the kind and the definition's widget hint; without one, the kind's default widget (switch, select, checkboxes, input, slider, picker). 'chapter' hints 'list', an OneOfTreeList instead of its default picker. The last one, a mixed-boolean aggregate, cannot be stored, but renders like the others."
     >
       <Space orientation="vertical" size={20}>
-        {[...TASK_FILTERS, MIXED].map((d) => (
+        {[...TASK_FILTERS, CHAPTER, MIXED].map((d) => (
           <Example key={d.id} label={`${d.id}: ${d.kind} · ${hintText(d)}`}>
             <Field definition={d} />
           </Example>

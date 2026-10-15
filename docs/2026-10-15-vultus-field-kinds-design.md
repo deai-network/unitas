@@ -225,6 +225,7 @@ back to the default, or is dropped from a list, with a console warning, not an e
 | numeric | `NumericInput` (`input`, default), `NumericSlider` (`slider`) |
 | range | `RangeSlider` (`slider`, default) |
 | manyOfTree | `ManyOfTreePicker` (`picker`, default), `ManyOfTreeChecklist` (`checklist`) |
+| oneOfTree | `OneOfTreePicker` (`picker`, default), `OneOfTreeList` (`list`) |
 | text | `TextInput` (`input`, default), `SearchInput` (`search`) |
 
 - **Common behaviour**: the conventions of today's field widgets (tooltips in markdown, a

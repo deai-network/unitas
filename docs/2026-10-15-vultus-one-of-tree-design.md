@@ -102,7 +102,7 @@ the many-of tree.
 Both: the request path of OneOfSelect (`useFieldRequest`: the field's confirmation first, commit,
 pending), the stable `vultus-tooltip-anchor` span on the field's control, disabled nodes greyed
 with their reason as tooltip, notes and dimmed nodes as in the many-of tree, `data-field-id` on the
-control and `data-value` per node.
+control and `data-value` per row in the list and on the picker's root.
 
 **OneOfTreePicker** (antd TreeSelect, single):
 - Choosing a node that can be chosen requests it and closes the dropdown; a node that cannot be

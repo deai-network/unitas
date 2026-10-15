@@ -28,10 +28,12 @@ npm install vultus-antd
   - `Markdown` (and the `MarkdownProps` type);
   - field widgets: `BoolSwitch`, `BoolCheckbox`, `OneOfSelect`, `OneOfSegmented`,
     `OneOfSlider`, `ManyOfCheckboxes`, `ManyOfSwitches`, `ManyOfSelect`, `NumericInput`,
-    `NumericSlider`, `RangeSlider`, `ManyOfTreeChecklist`, `ManyOfTreePicker`, `TextInput`, `SearchInput`,
+    `NumericSlider`, `RangeSlider`, `ManyOfTreeChecklist`, `ManyOfTreePicker`, `OneOfTreePicker`,
+    `OneOfTreeList`, `TextInput`, `SearchInput`,
     and the `ManyOfCheckboxesProps`, `ManyOfSwitchesProps`, `ManyOfSelectProps`,
     `NumericInputProps`, `NumericSliderProps`, `RangeSliderProps`, `ManyOfTreeChecklistProps`,
-    `ManyOfTreePickerProps`, `TextInputProps` and `SearchInputProps` types;
+    `ManyOfTreePickerProps`, `OneOfTreePickerProps`, `OneOfTreeListProps`, `TextInputProps` and
+    `SearchInputProps` types;
   - for a widget of one's own: `ChoiceLabel`, `ChoiceNote`, and the request hooks
     `useFieldRequest` (with `sameMembers` and the `RequestableField` type),
     `useManyOfRequest`, `useNumericRequest`, `useManyOfTreeRequest`;
@@ -239,6 +241,61 @@ is selected, else 40, cut at a word boundary, never ending on one of `VultusProv
 `joiningWords` (`['and', 'of', 'the']` by default, compared case-insensitively — "Gráfok és…"
 becomes "Gráfok…") or on `,`, `;` or `:`.
 
+## One-of tree fields
+
+`<OneOfTreePicker field={f} />` (antd TreeSelect, single) and `<OneOfTreeList field={f} />` (antd
+Tree, no checkboxes) render a `useOneOfTreeField` field (vultus-core): a dropdown category picker
+and an always-open sidebar or table of contents. Both sit in the `vultus-tooltip-anchor` span,
+disabled nodes greyed with their reason as tooltip, notes and dimmed nodes as the many-of tree's,
+and carry `data-field-id` on the control — `OneOfTreePicker`'s root, `OneOfTreeList`'s root — and
+`data-value` per node: one per row in `OneOfTreeList`, and on `OneOfTreePicker`'s root alone (the
+closed field names one node, or none). Each change goes through the field's confirmation
+(`useFieldRequest`'s path, as `OneOfSelect`'s), committing, pending.
+
+Choosing a node `canChooseNode` accepts (vultus-core: not a folder — `choosable: false` — nor,
+under `choose: 'leaves'`, a node with children) requests it; clicking one it does not accept opens
+or closes it instead. The search box — `OneOfTreePicker`'s dropdown search, or the one in its
+`panel="drawer"` drawer, which holds an `OneOfTreeList` — filters by label, accent- and
+case-insensitive, as the many-of tree's: a match keeps its whole subtree and its ancestors, every
+kept node open (the user may still close one), the keyboard never landing on a hidden node. A
+search hiding the chosen node keeps the value, shown again once the search clears.
+
+`OneOfTreePicker` closed shows the chosen node's label, or, with `summary="path"`, its path from
+the root ("Geometria › Síkgeometria", joined by `VultusProvider texts`' `pathSeparator`); while no
+node is chosen (the value empty, or naming no node) it shows `field.placeholder`, never the raw
+value. `optional` adds a clear button, requesting `''`. `panel="drawer"` is `ManyOfTreePicker`'s
+phone layout for a single choice: the closed field keeps no dropdown of its own; a tap (or Enter
+while focused), except on the clear icon, opens an antd Drawer from the bottom, 88% high, titled
+with the field's label, holding an `OneOfTreeList` of the same field (its search box included);
+choosing a node closes the drawer at once — there is no Done button. `listHeight` and
+`popupMatchSelectWidth` are `ManyOfTreePicker`'s (520, 480).
+
+`OneOfTreeList` shows the current node selected and its ancestors (`onPath`) in strong text;
+clicking a node that can be chosen requests it and opens it if it has children, while a folder's
+click only opens or closes it. It follows the value (previous / next buttons, the URL): its
+ancestors open (the user's own expansion kept) and its row scrolls into view. `search` adds the
+same search box as `ManyOfTreeChecklist`'s. `optional` adds a first row, `field.placeholder` (else
+`VultusProvider texts`' `none`), requesting `''` and shown selected while the value is empty.
+Keyboard: antd Tree's — the arrows move and open or close, Enter or Space chooses the active row
+(opening a node with children) or opens and closes a folder; Enter is the tree's own even while a
+row's link has the focus.
+
+**Links.** Where the field's `hrefFor` gives an href for a node that can be chosen — a stored field
+over a URL store (vultus-react-router's `ReactRouterArgStore`) — `OneOfTreeList` renders that
+node's title as `<a href>` (the optional row's `''` likewise), while the field is enabled and no
+commit is pending (otherwise plain text, as a disabled node is). A plain click requests the node
+through the field's confirmation, the browser not following the link; a click with Ctrl, Cmd,
+Shift or Alt, or the middle button, is left to the browser (a new tab, which reads the value from
+its own URL) and requests nothing. `OneOfTreePicker` does not use `hrefFor` — the closed field is
+not a link.
+
+```tsx
+<OneOfTreeList field={field} search />
+<OneOfTreePicker field={field} summary="path" panel="drawer" />
+```
+
+`<Field>` and `<FieldWidget>` name these widgets `picker` (oneOfTree's default) and `list`.
+
 ## Text fields
 
 `<TextInput field={f} />` and `<SearchInput field={f} />` render a `useTextField` field
@@ -279,7 +336,8 @@ sign is gray, not the danger colour: a disabled thing is no danger. While a widg
 confirmation is open, the widget holds back its own tooltips, which would cover it.
 
 A field widget's own control (`TextInput`, `SearchInput`, `NumericInput`, `OneOfSelect`,
-`ManyOfSelect`, `ManyOfTreePicker`, `BoolSwitch`, `BoolCheckbox` and the sliders) sits in a span
+`ManyOfSelect`, `ManyOfTreePicker`, `OneOfTreePicker`, `BoolSwitch`, `BoolCheckbox` and the
+sliders) sits in a span
 with the class `vultus-tooltip-anchor`, whether or not it has a tooltip right now: a tooltip that
 comes and goes with the value (a value with a description and one without, or the description
 moving to `<Field item>`'s label) would otherwise remount the control, and the keyboard focus would
@@ -298,8 +356,9 @@ has a block span.
 
 `VultusTexts` (`VultusProvider texts`) also carries `done` (ManyOfTreePicker's drawer, closing it),
 `search` (a tree widget's search box placeholder), `joiningWords` (ManyOfTreePicker's first-words
-summary), and `from` / `to` (RangeSlider's handle names) — see Many-of tree fields and Numeric and range
-fields, above.
+summary), `from` / `to` (RangeSlider's handle names), `pathSeparator` (OneOfTreePicker
+`summary="path"`'s join) and `none` (OneOfTreeList's optional row, without a placeholder) — see
+Many-of tree fields, One-of tree fields and Numeric and range fields, above.
 
 ## `<Field>`
 
@@ -322,7 +381,8 @@ both, rather than leaving the other half's meaning from the definition in force.
 
 **The widget** is picked the same way: the render-site `widget` prop, else the definition's
 `widget` hint, else the kind's default (boolean and mixed-boolean `switch`, oneOf `select`, manyOf
-`checkboxes`, numeric `input`, range `slider`, manyOfTree `picker`, text `input`) — each a name, or
+`checkboxes`, numeric `input`, range `slider`, manyOfTree `picker`, oneOfTree `picker`, text
+`input`) — each a name, or
 `{ name, ...displayOptions }` (`widget: { name: 'segmented', iconOnly: true }`). Names are general
 UI terms, so vultus-core stays free of antd. An unknown kind or widget name throws.
 
