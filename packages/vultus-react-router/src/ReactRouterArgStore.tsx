@@ -1,4 +1,7 @@
 import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from 'react';
+// The UNSAFE_ contexts (read only for the router's current location, see `now` below) carry no
+// semver promise; their shape was checked against react-router 7.0, 7.18 and 8.4, hence the
+// peer range `>=7 <9`.
 import {
   UNSAFE_DataRouterContext, UNSAFE_NavigationContext, useHref, useLocation, useNavigate,
   type Location, type NavigateFunction, type Path,
@@ -6,10 +9,20 @@ import {
 import { ArgStoreProvider, type ArgStore, type RawChange, type UpdateMethod } from 'vultus-core';
 import { applyChanges, readQuery, writeQuery } from './query.js';
 
-/** Where the router is now: its own location object (the same object while it has not moved) and that location in `useLocation`'s terms. */
+/** A location in `useLocation`'s terms (the basename stripped), with its history state. */
+type Place = Path & { state: unknown };
+
+/**
+ * Where the router is now: the location object it reports (`at`), and that location as a Place.
+ * A data router's `state.location` and a memory history's `location` are the same object while
+ * the router has not moved. A browser or hash history's `location` getter builds a new object on
+ * every access, so there `at` never matches an earlier one — which is right for them: their
+ * navigations are synchronous (no loaders), so the location read now already includes the store's
+ * own last navigation.
+ */
 interface RouterNow {
   at: object;
-  path: Path;
+  path: Place;
 }
 
 /** `pathname` without the router's basename, as `<Router>` strips it for `useLocation`; `undefined` when it lies outside the basename. */
@@ -34,7 +47,7 @@ class RouterArgStore implements ArgStore {
   now!: () => RouterNow;
 
   /** This store's last navigation, and where the router was when it was made. */
-  private navigated: { from: object; to: Path } | undefined;
+  private navigated: { from: object; to: Place } | undefined;
   private batch: { changes: RawChange[]; push: boolean } | undefined;
   private readonly listeners = new Set<() => void>();
   private parsed = { search: '', query: new Map<string, string>() };
@@ -76,7 +89,8 @@ class RouterArgStore implements ArgStore {
    * Applies the batch on top of the latest location — not the rendered one, which lags behind
    * the router while its update renders (react-router renders in a transition): the router's
    * own location, or this store's last navigation while the router has not moved since (a
-   * navigation still loading). The path, the hash and every other parameter are kept.
+   * navigation still loading). The path, the hash and every other parameter are kept, and a
+   * replace keeps the entry's history state.
    */
   private flush(): void {
     const { changes, push } = this.batch!;
@@ -85,9 +99,11 @@ class RouterArgStore implements ArgStore {
     const base = this.navigated !== undefined && this.navigated.from === now.at ? this.navigated.to : now.path;
     const search = applyChanges(base.search, changes);
     if (search === writeQuery(new URLSearchParams(base.search))) return;
+    // A replace stands in for the same history entry, so it keeps that entry's state; a push starts a new one.
+    const state = push ? undefined : base.state;
     const to: Path = { pathname: base.pathname, search, hash: base.hash };
-    this.navigated = { from: now.at, to };
-    void this.navigate(to, { replace: !push });
+    this.navigated = { from: now.at, to: { ...to, state } };
+    void this.navigate(to, { replace: !push, state });
   }
 }
 
@@ -115,7 +131,7 @@ export function ReactRouterArgStore({ children }: { children?: ReactNode }) {
     const at = dataRouter?.router.state.location ?? (navigator as { location?: Location }).location;
     const pathname = at === undefined ? undefined : stripBasename(at.pathname, basename);
     return at !== undefined && pathname !== undefined
-      ? { at, path: { pathname, search: at.search, hash: at.hash } }
+      ? { at, path: { pathname, search: at.search, hash: at.hash, state: at.state } }
       : { at: location, path: location };
   };
 

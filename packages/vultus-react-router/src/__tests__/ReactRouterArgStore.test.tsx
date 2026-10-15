@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import {
-  createHashRouter, createMemoryRouter, createPath, MemoryRouter, Route, RouterProvider, Routes, type Location,
+  createHashRouter, createMemoryRouter, createPath, HashRouter, MemoryRouter, Route, RouterProvider, Routes, useNavigate,
+  type InitialEntry, type Location, type NavigateFunction,
 } from 'react-router';
 import {
   setArg, stringSetType, stringType, useArg, useArgWriter,
@@ -34,7 +35,7 @@ function pathOf(location: Pick<Location, 'pathname' | 'search' | 'hash'>): strin
  * `navigations` lists every location the router moved to, as `'PUSH /m?…'` / `'REPLACE /m?…'`.
  * A `loader` makes every navigation to `/m` wait for it (the first render does not).
  */
-function setup(entries: string[], { loader }: { loader?: () => Promise<null> } = {}) {
+function setup(entries: InitialEntry[], { loader }: { loader?: () => Promise<null> } = {}) {
   const seen = {} as Seen;
   function Probe() {
     seen.rounds = useArg(rounds);
@@ -250,6 +251,20 @@ describe('ReactRouterArgStore: writing', () => {
     expect(router.state.location.search).toBe('?rounds=a,b,c');
   });
 
+  it('a replace keeps the history entry\'s state; a push starts without one', async () => {
+    const { seen, router, url } = setup([{ pathname: '/m', search: '?q=x', state: { from: 'list' } }]);
+    await act(async () => {
+      seen.q.set('y');
+    });
+    expect(url()).toBe('/m?q=y');
+    expect(router.state.location.state).toEqual({ from: 'list' });
+    await act(async () => {
+      seen.q.set('z', 'push');
+    });
+    expect(url()).toBe('/m?q=z');
+    expect(router.state.location.state).toBeNull();
+  });
+
   it('a write that changes nothing does not navigate', async () => {
     const { seen, navigations } = setup(['/m?q=x']);
     await act(async () => {
@@ -349,5 +364,70 @@ describe('ReactRouterArgStore under a hash router', () => {
     });
     expect(window.location.hash).toBe('#/m?x=2&list=a,b');
     expect(store.read('x')).toBe('2');
+  });
+});
+
+describe('ReactRouterArgStore under a classic <HashRouter>', () => {
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/#/m?x=0');
+  });
+  afterEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  function renderHashRouter() {
+    const seen = {} as { store: ArgStore; navigate: NavigateFunction };
+    function Probe() {
+      seen.store = useRouterArgStore();
+      seen.navigate = useNavigate();
+      return null;
+    }
+    render(
+      <HashRouter>
+        <ReactRouterArgStore>
+          <Routes>
+            <Route path="/m" element={<Probe />} />
+          </Routes>
+        </ReactRouterArgStore>
+      </HashRouter>,
+    );
+    return seen;
+  }
+
+  it('reads the query inside the hash, links to #/…, and writes the hash', async () => {
+    const seen = renderHashRouter();
+    expect(seen.store.read('x')).toBe('0');
+    expect(seen.store.hrefFor?.([{ key: 'x', raw: '1' }])).toBe('#/m?x=1');
+    await act(async () => {
+      seen.store.write([{ key: 'x', raw: '2' }], 'replace');
+    });
+    expect(window.location.hash).toBe('#/m?x=2');
+    expect(seen.store.read('x')).toBe('2');
+  });
+
+  it('a push and a replace in two ticks before a render make one history entry with both', async () => {
+    const seen = renderHashRouter();
+    const length = window.history.length;
+    await act(async () => {
+      seen.store.write([{ key: 'x', raw: '1' }], 'push');
+      await Promise.resolve();
+      await Promise.resolve();
+      // The push has navigated; React has not rendered it inside act.
+      expect(window.location.hash).toBe('#/m?x=1');
+      expect(seen.store.read('x')).toBe('0');
+      seen.store.write([{ key: 'y', raw: '2' }], 'replace');
+    });
+    expect(window.location.hash).toBe('#/m?x=1&y=2');
+    expect(window.history.length).toBe(length + 1);
+  });
+
+  it('a navigation from outside in the same tick is kept', async () => {
+    const seen = renderHashRouter();
+    await act(async () => {
+      seen.navigate('/m?q=z&k=1');
+      seen.store.write([{ key: 'x', raw: '5' }], 'replace');
+    });
+    expect(window.location.hash).toBe('#/m?q=z&k=1&x=5');
+    expect(seen.store.read('q')).toBe('z');
   });
 });

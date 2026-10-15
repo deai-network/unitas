@@ -13,7 +13,9 @@ if (!i18n.isInitialized) {
 
 // react-router's data routers build each navigation's Request with the global AbortController's
 // signal. Under jsdom that is jsdom's AbortSignal, which Node's Request (kept, as jsdom has none)
-// refuses. The tests' routes have no loaders to abort, so the signal is dropped.
+// refuses, so the signal is dropped. A request then never sees its navigation aborted: the one
+// test that interrupts a navigation (a second batch while the first's loader is pending) never
+// settles the aborted loader, and checks only the second navigation.
 const NodeRequest = globalThis.Request;
 globalThis.Request = class extends NodeRequest {
   constructor(input: RequestInfo | URL, init?: RequestInit) {

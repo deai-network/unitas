@@ -14,9 +14,11 @@ npm install vultus-react-router
 ## Peer dependencies
 
 - `react` >=18
-- `react-router` >=7 (`createBrowserRouter`, `createHashRouter`, `<BrowserRouter>`,
+- `react-router` >=7 <9 (`createBrowserRouter`, `createHashRouter`, `<BrowserRouter>`,
   ... — any router whose hooks come from `react-router`; react-router-dom 7
-  re-exports them)
+  re-exports them). The store reads the router's current location through
+  react-router's `UNSAFE_` contexts, checked against 7.0, 7.18 and 8.4; a new
+  major is admitted once they are checked again.
 
 vultus-core comes as a dependency and brings its own peer, `react-i18next`.
 
@@ -62,7 +64,9 @@ reaches every argument, also those whose components did not re-render.
 A write navigates to the same path with the changed query, keeping the hash
 and every other parameter in its place; a key whose value is removed goes
 away, and the last one going takes the `?` with it. An empty value stays as
-`?key=` (an empty list, for example — not the same as the default).
+`?key=` (an empty list, for example — not the same as the default). A
+replace keeps the history entry's `state`; a push starts a new entry without
+one.
 
 **Batching.** Writes made in the same tick — several `set` calls in one
 handler, a `useArgWriter` batch, both — are collected and applied in a
@@ -74,6 +78,12 @@ lags while the router's update renders (react-router renders it in a
 transition): a navigation from outside in the same tick is kept, and while
 the store's own previous navigation is still loading, the next batch builds
 on it. A write that changes nothing does not navigate.
+
+**Writes next to a navigation.** A batch lands wherever the router is when
+it is applied. So a write made in the same tick as a navigation to another
+path — a handler that sets an argument and then navigates, in either order —
+lands in the new path's query (`/other?rounds=final`), not on the page it was
+made on.
 
 **A readable query.** Keys and values are percent-encoded, except `,`, `.`
 and `/`, so lists and ranges read as they are: `?rounds=final,regional&years=2010..2025`.
