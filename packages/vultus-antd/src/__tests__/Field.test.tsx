@@ -1,0 +1,359 @@
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { App as AntApp } from 'antd';
+import { useState, type ReactNode } from 'react';
+import {
+  ArgStoreProvider, denyWithReason, memoryStore, useManyOfField, useOneOfField, useStoredField,
+  type ExecutionContext, type FieldDefinition, type FieldKind,
+} from 'vultus-core';
+import { Field } from '../Field.js';
+import { FieldWidget } from '../FieldWidget.js';
+import { openTooltips } from './helpers/tooltips.js';
+
+// The real useStoredField, watched: <Field stored> must hand it the definition object itself
+// (Review Focus 4), never a per-render merge with the render-site overrides.
+vi.mock('vultus-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vultus-core')>();
+  return { ...actual, useStoredField: vi.fn(actual.useStoredField) };
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.mocked(useStoredField).mockClear();
+});
+
+const CHOICES = [{ value: 'a', label: 'Alpha' }, { value: 'b', label: 'Beta' }, { value: 'c', label: 'Gamma' }];
+const NODES = [
+  { value: 'alg', label: 'Algebra', children: [{ value: 'eq', label: 'Equations' }, { value: 'ineq', label: 'Inequalities' }] },
+  { value: 'geo', label: 'Geometry' },
+];
+
+const DEFINITIONS: Record<FieldKind, FieldDefinition> = {
+  boolean: { kind: 'boolean', id: 'duplex', label: 'Both sides' },
+  'mixed-boolean': { kind: 'mixed-boolean', id: 'all', label: 'All', initialValue: 'mixed' },
+  oneOf: { kind: 'oneOf', id: 'paper', label: 'Paper', choices: CHOICES },
+  manyOf: { kind: 'manyOf', id: 'rounds', label: 'Rounds', choices: CHOICES },
+  numeric: { kind: 'numeric', id: 'copies', label: 'Copies', min: 1, max: 10 },
+  range: { kind: 'range', id: 'years', label: 'Years', min: 2000, max: 2025 },
+  tree: { kind: 'tree', id: 'topics', label: 'Topics', nodes: NODES },
+  text: { kind: 'text', id: 'q', label: 'Search' },
+};
+
+/**
+ * What tells each widget apart from the other widgets of its kind in the DOM: antd's own
+ * classes, or the search icon SearchInput puts before its input (TextInput has none).
+ */
+const has = (selector: string) => () => document.querySelector(selector) !== null;
+const MARKS: Record<FieldKind, Record<string, () => boolean>> = {
+  boolean: { switch: has('.ant-switch'), checkbox: has('.ant-checkbox') },
+  'mixed-boolean': { switch: has('.ant-switch'), checkbox: has('.ant-checkbox') },
+  oneOf: { select: has('.ant-select'), segmented: has('.ant-segmented'), slider: has('.ant-slider') },
+  manyOf: { checkboxes: has('.ant-checkbox-group'), select: has('.ant-select-multiple'), switches: has('.ant-switch') },
+  numeric: { input: has('.ant-input-number'), slider: has('.ant-slider') },
+  range: { slider: has('.ant-slider') },
+  tree: { picker: has('.ant-select'), checklist: has('.ant-tree') },
+  text: { input: () => has('input.ant-input')() && !has('.anticon-search')(), search: has('.anticon-search') },
+};
+
+const DEFAULTS: Record<FieldKind, string> = {
+  boolean: 'switch', 'mixed-boolean': 'switch', oneOf: 'select', manyOf: 'checkboxes',
+  numeric: 'input', range: 'slider', tree: 'picker', text: 'input',
+};
+
+const wrap = (node: ReactNode) => render(<AntApp>{node}</AntApp>);
+
+/** The widget named `name` is the one on show: its mark is present, the other widgets' of the kind are not. */
+function expectWidget(kind: FieldKind, name: string) {
+  for (const [other, shows] of Object.entries(MARKS[kind])) {
+    expect(shows(), `${kind} ${name}: ${other} ${other === name ? 'shown' : 'not shown'}`).toBe(other === name);
+  }
+}
+
+/** React logs a render error to console.error before rethrowing it; keep the test output clean. */
+function quietRenderErrors() {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+}
+
+describe('Field: the widget for a definition', () => {
+  it.each(Object.keys(DEFINITIONS) as FieldKind[])('%s: the kind\'s default widget', (kind) => {
+    wrap(<Field definition={DEFINITIONS[kind]} />);
+    expect(document.querySelector(`[data-field-id="${DEFINITIONS[kind].id}"]`)).not.toBeNull();
+    expectWidget(kind, DEFAULTS[kind]);
+  });
+
+  const named = (Object.keys(MARKS) as FieldKind[]).flatMap((kind) => Object.keys(MARKS[kind]).map((name) => [kind, name] as const));
+
+  it.each(named)('%s: the definition\'s hint \'%s\' picks the widget', (kind, name) => {
+    wrap(<Field definition={{ ...DEFINITIONS[kind], widget: name }} />);
+    expectWidget(kind, name);
+  });
+
+  it('a hint with display options: { name, ...options }', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.manyOf, widget: { name: 'checkboxes', vertical: true } }} />);
+    expectWidget('manyOf', 'checkboxes');
+    expect(document.querySelector('[data-field-id="rounds"]')).toHaveStyle({ flexDirection: 'column' });
+  });
+
+  it('the render site\'s widget overrides the definition\'s hint', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.oneOf, widget: 'segmented' }} widget="slider" />);
+    expectWidget('oneOf', 'slider');
+  });
+
+  it('the render site\'s display props override the hint\'s options', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.manyOf, widget: { name: 'checkboxes', vertical: true } }} vertical={false} />);
+    expect(document.querySelector('[data-field-id="rounds"]')).toHaveStyle({ flexDirection: 'row' });
+  });
+
+  it('a render-site widget given with options: its options apply', () => {
+    wrap(<Field definition={DEFINITIONS.manyOf} widget={{ name: 'switches', vertical: true }} />);
+    expectWidget('manyOf', 'switches');
+    expect(document.querySelector('[data-field-id="rounds"]')).toHaveStyle({ flexDirection: 'column' });
+  });
+
+  it('the hint\'s options belong to its widget: another widget named at the render site does not get them', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.manyOf, widget: { name: 'switches', vertical: true } }} widget="checkboxes" />);
+    expectWidget('manyOf', 'checkboxes');
+    expect(document.querySelector('[data-field-id="rounds"]')).toHaveStyle({ flexDirection: 'row' });
+  });
+
+  it('a render-site prop given as undefined leaves the hint\'s option alone', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.manyOf, widget: { name: 'checkboxes', vertical: true } }} vertical={undefined} />);
+    expect(document.querySelector('[data-field-id="rounds"]')).toHaveStyle({ flexDirection: 'column' });
+  });
+
+  it('an override label shows instead of the definition\'s', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.boolean, widget: 'checkbox' }} label="Print on both sides" />);
+    expect(screen.getByRole('checkbox', { name: 'Print on both sides' })).toBeInTheDocument();
+    expect(screen.queryByText('Both sides')).toBeNull();
+  });
+
+  it('an override placeholder shows instead of the definition\'s', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.text, placeholder: 'Words' }} placeholder="Words in the task" />);
+    expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', 'Words in the task');
+  });
+
+  it('render-site enabled replaces the definition\'s disabled (one value, two spellings): no contradiction', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.boolean, disabled: true }} enabled />);
+    expect(screen.getByRole('switch')).not.toBeDisabled();
+  });
+
+  it('render-site disabled disables an enabled definition', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.boolean, enabled: true }} disabled />);
+    expect(screen.getByRole('switch')).toBeDisabled();
+  });
+
+  it('render-site enabled with a reason disables', () => {
+    wrap(<Field definition={DEFINITIONS.boolean} enabled={denyWithReason('Locked')} />);
+    expect(screen.getByRole('switch')).toBeDisabled();
+  });
+
+  it('render-site visible replaces the definition\'s hidden', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.boolean, hidden: true }} visible />);
+    expect(screen.getByRole('switch')).toBeInTheDocument();
+  });
+
+  it('render-site hidden hides the field', () => {
+    wrap(<Field definition={DEFINITIONS.boolean} hidden />);
+    expect(screen.queryByRole('switch')).toBeNull();
+  });
+
+  it('remaining props go to the widget (SearchInput\'s onEnter)', () => {
+    const onEnter = vi.fn();
+    wrap(<Field definition={{ ...DEFINITIONS.text, widget: 'search' }} onEnter={onEnter} />);
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+    expect(onEnter).toHaveBeenCalledTimes(1);
+  });
+
+  it('an unknown widget name throws, naming the field, the name and the kind', () => {
+    quietRenderErrors();
+    expect(() => wrap(<Field definition={{ ...DEFINITIONS.oneOf, widget: 'dial' }} />))
+      .toThrow("Field 'paper': no widget 'dial' for kind 'oneOf'");
+  });
+
+  it('a name another kind has, but not this one, throws', () => {
+    quietRenderErrors();
+    expect(() => wrap(<Field definition={DEFINITIONS.range} widget="input" />))
+      .toThrow("Field 'years': no widget 'input' for kind 'range'");
+  });
+
+  it('a name inherited from Object.prototype is not a widget', () => {
+    quietRenderErrors();
+    expect(() => wrap(<Field definition={DEFINITIONS.text} widget="toString" />))
+      .toThrow("Field 'q': no widget 'toString' for kind 'text'");
+  });
+
+  it('an unknown kind throws', () => {
+    quietRenderErrors();
+    const definition = { kind: 'date', id: 'when', label: 'When' } as unknown as FieldDefinition;
+    expect(() => wrap(<Field definition={definition} />)).toThrow("Field 'when': no widget 'default' for kind 'date'");
+    expect(() => wrap(<Field definition={definition} widget="picker" />)).toThrow("Field 'when': no widget 'picker' for kind 'date'");
+  });
+
+  it('a new kind for the same field remounts with the new kind\'s hook', () => {
+    const { rerender } = wrap(<Field definition={DEFINITIONS.text} />);
+    expectWidget('text', 'input');
+    rerender(<AntApp><Field definition={{ ...DEFINITIONS.boolean, id: 'q' }} /></AntApp>);
+    expectWidget('boolean', 'switch');
+  });
+});
+
+describe('Field: storage', () => {
+  it('inside by default: the value starts at initialValue and changes in the field', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.boolean, initialValue: true }} />);
+    expect(screen.getByRole('switch')).toBeChecked();
+    fireEvent.click(screen.getByRole('switch'));
+    expect(screen.getByRole('switch')).not.toBeChecked();
+  });
+
+  it('value + onChange from the render site: the definition\'s initialValue is the storage\'s business, not an error', () => {
+    function Outside() {
+      const [value, setValue] = useState(false);
+      return <><Field definition={{ ...DEFINITIONS.boolean, initialValue: true }} value={value} onChange={setValue} /><output>{String(value)}</output></>;
+    }
+    wrap(<Outside />);
+    expect(screen.getByRole('switch')).not.toBeChecked();
+    fireEvent.click(screen.getByRole('switch'));
+    expect(screen.getByRole('status').textContent).toBe('true');
+  });
+
+  it('commit from the render site: fire receives the requested value', async () => {
+    const fire = vi.fn();
+    wrap(<Field definition={DEFINITIONS.boolean} value={false} commit={{ fire }} />);
+    fireEvent.click(screen.getByRole('switch'));
+    await waitFor(() => expect(fire).toHaveBeenCalledWith(true, expect.anything()));
+  });
+
+  it('stored: a change writes the nearest ArgStore under the field\'s id', () => {
+    const store = memoryStore();
+    wrap(<ArgStoreProvider store={store}><Field stored definition={DEFINITIONS.boolean} /></ArgStoreProvider>);
+    fireEvent.click(screen.getByRole('switch'));
+    expect(store.snapshot()).toEqual({ duplex: '1' });
+    expect(screen.getByRole('switch')).toBeChecked();
+  });
+
+  it('stored: reads the store, with the render-site overrides applied', () => {
+    const store = memoryStore({ paper: 'b' });
+    wrap(<ArgStoreProvider store={store}><Field stored definition={{ ...DEFINITIONS.oneOf, widget: 'segmented' }} label="Sheet" /></ArgStoreProvider>);
+    expect(document.querySelector('[data-field-id="paper"]')).toHaveAttribute('data-value', 'b');
+    expect(document.querySelector('[data-field-id="paper"]')).toHaveAttribute('aria-label', 'Sheet');
+  });
+
+  it('stored with a value that does not fit warns once over three renders; useStoredField gets the definition object itself (RF4)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const store = memoryStore({ paper: 'zzz' });
+    const definition: FieldDefinition = { ...DEFINITIONS.oneOf };
+    const at = (label: string) => (
+      <AntApp><ArgStoreProvider store={store}><Field stored definition={definition} label={label} /></ArgStoreProvider></AntApp>
+    );
+    const { rerender } = render(at('Paper 1'));
+    rerender(at('Paper 2'));
+    rerender(at('Paper 3'));
+    expect(warn.mock.calls.filter(([m]) => String(m).includes("Field 'paper'"))).toHaveLength(1);
+    const calls = vi.mocked(useStoredField).mock.calls;
+    expect(calls.length).toBeGreaterThanOrEqual(3);
+    expect(calls.every(([d]) => d === definition)).toBe(true);
+  });
+
+  it('stored together with value, onChange or commit throws', () => {
+    quietRenderErrors();
+    const store = memoryStore();
+    expect(() => wrap(<ArgStoreProvider store={store}><Field stored definition={DEFINITIONS.boolean} value onChange={() => {}} /></ArgStoreProvider>))
+      .toThrow("Field 'duplex': \"stored\" keeps the value in the ArgStore; it does not go together with \"value\", \"onChange\" or \"commit\"");
+  });
+});
+
+describe('FieldWidget: the widget for controls a caller made', () => {
+  function Topics({ widget, ...props }: { widget?: string; vertical?: boolean }) {
+    const field = useManyOfField({ id: 'rounds', label: 'Rounds', choices: CHOICES, widget: { name: 'switches', vertical: true } });
+    return <FieldWidget field={field} widget={widget} {...props} />;
+  }
+
+  it('picks by the controls\' type and their hint', () => {
+    wrap(<Topics />);
+    expectWidget('manyOf', 'switches');
+    expect(document.querySelector('[data-field-id="rounds"]')).toHaveStyle({ flexDirection: 'column' });
+  });
+
+  it('render-site widget and props win', () => {
+    wrap(<Topics widget="checkboxes" />);
+    expectWidget('manyOf', 'checkboxes');
+    expect(document.querySelector('[data-field-id="rounds"]')).toHaveStyle({ flexDirection: 'row' });
+  });
+
+  it('the kind\'s default without a hint', () => {
+    function Plain() {
+      const field = useOneOfField({ id: 'paper', label: 'Paper', choices: CHOICES });
+      return <FieldWidget field={field} />;
+    }
+    wrap(<Plain />);
+    expectWidget('oneOf', 'select');
+  });
+});
+
+describe('item: a labelled form item', () => {
+  const DUPLEX: FieldDefinition = {
+    kind: 'boolean', id: 'duplex', label: 'Both sides', description: 'Print on **both** sides of the sheet',
+  };
+
+  function Committed({ fire, widget }: { fire: (next: boolean, ctx: ExecutionContext) => void; widget?: string }) {
+    const [value, setValue] = useState(false);
+    return (
+      <Field
+        item
+        definition={DUPLEX}
+        widget={widget}
+        value={value}
+        commit={{ fire: (next, ctx) => { fire(next, ctx); setValue(next); } }}
+      />
+    );
+  }
+
+  it('shows the label, and the description (markdown) in the label\'s tooltip', async () => {
+    wrap(<Field item definition={DUPLEX} />);
+    const item = document.querySelector('.ant-form-item')!;
+    expect(item).not.toBeNull();
+    expect(item.querySelector('.ant-form-item-label')).toHaveTextContent('Both sides');
+    expect(item.querySelector('[data-field-id="duplex"]')).not.toBeNull();
+    fireEvent.mouseEnter(item.querySelector('.ant-form-item-tooltip')!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    expect(openTooltips()[0].querySelector('strong')).toHaveTextContent('both');
+  });
+
+  it('shows the last commit\'s error message under the control, with the error status', async () => {
+    wrap(<Committed fire={(_next, ctx) => ctx.error('Printer offline')} />);
+    fireEvent.click(screen.getByRole('switch'));
+    await waitFor(() => expect(screen.getByText('Printer offline')).toBeInTheDocument());
+    expect(document.querySelector('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+  });
+
+  it('an info message is shown without the error status', async () => {
+    wrap(<Committed fire={(_next, ctx) => ctx.info('Saved for this printer')} />);
+    fireEvent.click(screen.getByRole('switch'));
+    await waitFor(() => expect(screen.getByText('Saved for this printer')).toBeInTheDocument());
+    expect(document.querySelector('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+  });
+
+  it('the checkbox widget shows its own label: the item has none', () => {
+    wrap(<Field item definition={{ ...DUPLEX, widget: 'checkbox' }} />);
+    expect(document.querySelector('.ant-form-item-label')).toBeNull();
+    expect(screen.getByRole('checkbox', { name: 'Both sides' })).toBeInTheDocument();
+  });
+
+  it('a hidden field renders no item at all', () => {
+    wrap(<Field item definition={DUPLEX} hidden />);
+    expect(document.querySelector('.ant-form-item')).toBeNull();
+  });
+
+  it('the override label labels the item', () => {
+    wrap(<Field item definition={DUPLEX} label="Duplex" />);
+    expect(document.querySelector('.ant-form-item-label')).toHaveTextContent('Duplex');
+  });
+
+  it('renders without an enclosing antd Form, with no warnings', () => {
+    const error = vi.spyOn(console, 'error');
+    const warn = vi.spyOn(console, 'warn');
+    wrap(<Field item definition={DUPLEX} />);
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+  });
+});

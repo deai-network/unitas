@@ -28,3 +28,5 @@ export { TreePicker, type TreePickerProps } from './TreePicker.js';
 export { useTreeRequest } from './useTreeRequest.js';
 export { TextInput } from './TextInput.js';
 export { SearchInput } from './SearchInput.js';
+export { FieldWidget, type FieldWidgetProps, type WidgetName } from './FieldWidget.js';
+export { Field, type FieldProps } from './Field.js';

@@ -130,8 +130,9 @@ export function fieldAccessibleDescription(field: DescribedField, texts: VultusT
 
 // antd's InfoCircleOutlined and StopOutlined, inlined (as EllipsisIcon in
 // CombinedActionButton) so vultus-antd needs no @ant-design/icons dependency;
-// same markup as the icon components.
-function InfoCircleIcon() {
+// same markup as the icon components. InfoCircleIcon also leads a form item's description
+// tooltip (FieldItem), so a description has the same sign wherever it shows.
+export function InfoCircleIcon() {
   return (
     <span role="img" aria-label="info-circle" className="anticon anticon-info-circle">
       <svg viewBox="64 64 896 896" focusable="false" data-icon="info-circle" width="1em" height="1em" fill="currentColor" aria-hidden="true">

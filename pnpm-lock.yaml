@@ -122,6 +122,9 @@ importers:
       react-i18next:
         specifier: ^17.0.0
         version: 17.0.9(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
+      react-router:
+        specifier: ^7.18.2
+        version: 7.18.4(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       storybook:
         specifier: ^10.6.1
         version: 10.6.1(@types/react@19.2.17)(react@19.2.7)
@@ -137,6 +140,9 @@ importers:
       vultus-core:
         specifier: workspace:*
         version: link:../vultus-core
+      vultus-react-router:
+        specifier: workspace:*
+        version: link:../vultus-react-router
 
   packages/vultus-react-router:
     devDependencies:
