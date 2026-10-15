@@ -1,12 +1,11 @@
-import { Empty, Input, Spin, Tree } from 'antd';
+import { Empty, Tree } from 'antd';
 import { useMemo, useRef, useState } from 'react';
 import {
-  filterTree, normalizeTreeValue, useSpinnerKey, useVultusComponents,
-  type ManyOfTreeFieldControls,
+  filterTree, normalizeTreeValue, type ManyOfTreeFieldControls,
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useVultusTexts } from './texts.js';
-import { collectValues, openOrder, treeData, TreeSwitcherIcon } from './treeData.js';
+import { collectValues, nextShown, openOrder, treeData, TreeSearchBox, TreeSwitcherIcon } from './treeData.js';
 import { useManyOfTreeRequest } from './useManyOfTreeRequest.js';
 import { withTooltip } from './WithReason.js';
 
@@ -69,8 +68,6 @@ export function ManyOfTreeChecklist<T extends string>({ field, nested = false }:
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { request, wrap, asking } = useManyOfTreeRequest(field);
-  const { Spinner } = useVultusComponents();
-  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState<T[]>(field.expandedKeys);
   /** The user's own expansion under the current query; null opens every kept node. */
@@ -102,14 +99,7 @@ export function ManyOfTreeChecklist<T extends string>({ field, nested = false }:
       setActive(key);
       return;
     }
-    const order = openOrder(field.nodes, new Set(expandedKeys));
-    const from = order.indexOf(key);
-    let next: T | null = null;
-    for (let step = 1; step < order.length && next === null; step += 1) {
-      const candidate = order[(from + travel.current * step + order.length) % order.length];
-      if (kept.all.has(candidate)) next = candidate;
-    }
-    setActive(next);
+    setActive(nextShown(openOrder(field.nodes, new Set(expandedKeys)), key, travel.current, (k) => kept.all.has(k)));
   };
 
   const tree = (
@@ -144,21 +134,14 @@ export function ManyOfTreeChecklist<T extends string>({ field, nested = false }:
       onFocusCapture={() => { travel.current = 1; }}
       onKeyDownCapture={(e) => { travel.current = e.key === 'ArrowUp' || e.key === 'End' ? -1 : 1; }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <Input
-          allowClear
-          placeholder={texts.search}
-          aria-label={[texts.search, field.label].filter(Boolean).join(' ')}
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setSearchExpanded(null);
-          }}
-        />
-        {field.pending && (Spinner
-          ? <Spinner spinnerKey={spinnerKey} size="small" />
-          : <Spin size="small" />)}
-      </div>
+      <TreeSearchBox
+        field={field}
+        query={query}
+        onSearch={(next) => {
+          setQuery(next);
+          setSearchExpanded(null);
+        }}
+      />
       {kept && kept.all.size === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} /> : control}
     </div>,
   );

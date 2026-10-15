@@ -1,11 +1,11 @@
-import { Empty, Input, Spin, Tree } from 'antd';
+import { Empty, Tree } from 'antd';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import {
-  filterTree, useSpinnerKey, useVultusComponents, type OneOfTreeFieldControls, type OneOfTreeNodeControls,
-} from 'vultus-core';
+import { filterTree, type OneOfTreeFieldControls, type OneOfTreeNodeControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useVultusTexts } from './texts.js';
-import { collectValues, openOrder, treeData, TreeSwitcherIcon, type FieldTreeDataNode } from './treeData.js';
+import {
+  collectValues, nextShown, openOrder, treeData, TreeSearchBox, TreeSwitcherIcon, type FieldTreeDataNode,
+} from './treeData.js';
 import { useOneOfTreeRequest } from './useOneOfTreeRequest.js';
 import { withTooltip } from './WithReason.js';
 
@@ -139,8 +139,6 @@ export function OneOfTreeList<T extends string>({
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { request, wrap, asking } = useOneOfTreeRequest(field);
-  const { Spinner } = useVultusComponents();
-  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState<T[]>(field.expandedKeys);
   /** The user's own expansion under the current query; null opens every kept node. */
@@ -222,13 +220,7 @@ export function OneOfTreeList<T extends string>({
       return;
     }
     const order: (T | '')[] = [...(field.optional ? ['' as const] : []), ...openOrder(field.nodes, new Set(expandedKeys))];
-    const from = order.indexOf(key);
-    let next: T | '' | null = null;
-    for (let step = 1; step < order.length && next === null; step += 1) {
-      const candidate = order[(from + travel.current * step + order.length) % order.length];
-      if (isShown(candidate)) next = candidate;
-    }
-    setActive(next);
+    setActive(nextShown(order, key, travel.current, isShown));
   };
 
   const tree = (
@@ -277,21 +269,14 @@ export function OneOfTreeList<T extends string>({
       }}
     >
       {search && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <Input
-            allowClear
-            placeholder={texts.search}
-            aria-label={[texts.search, field.label].filter(Boolean).join(' ')}
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setSearchExpanded(null);
-            }}
-          />
-          {field.pending && (Spinner
-            ? <Spinner spinnerKey={spinnerKey} size="small" />
-            : <Spin size="small" />)}
-        </div>
+        <TreeSearchBox
+          field={field}
+          query={query}
+          onSearch={(next) => {
+            setQuery(next);
+            setSearchExpanded(null);
+          }}
+        />
       )}
       {kept && kept.all.size === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} /> : tree}
     </div>

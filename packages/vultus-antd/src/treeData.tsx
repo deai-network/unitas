@@ -1,9 +1,10 @@
-import type { TooltipProps } from 'antd';
+import { Input, Spin, type TooltipProps } from 'antd';
 import type { CSSProperties, ReactNode } from 'react';
-import { normalizeText, type OneOfChoiceControls } from 'vultus-core';
+import { normalizeText, useSpinnerKey, useVultusComponents, type OneOfChoiceControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { ChoiceNote, ChoiceRow } from './ChoiceNote.js';
 import { choiceTooltip } from './fieldTooltip.js';
+import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
 
 /**
@@ -125,6 +126,49 @@ export function openOrder<T extends string>(nodes: WalkedNode<T>[], open: Set<T>
   };
   walk(nodes);
   return order;
+}
+
+/**
+ * Where the keyboard goes from a row a search hides (rc-tree's keyboard walks every row in its
+ * list, hidden or not): the first row of `order` after `from` the way `step` goes (1 down, -1
+ * up), wrapping around, that `isShown`; null when no other row is.
+ */
+export function nextShown<K>(order: K[], from: K, step: 1 | -1, isShown: (key: K) => boolean): K | null {
+  const index = order.indexOf(from);
+  for (let offset = 1; offset < order.length; offset += 1) {
+    const candidate = order[(index + step * offset + order.length) % order.length];
+    if (isShown(candidate)) return candidate;
+  }
+  return null;
+}
+
+/**
+ * The always-open tree widgets' search box (ManyOfTreeChecklist, OneOfTreeList): placeholder
+ * `texts.search`, named "<search> <label>", with the lent Spinner (else antd's own) beside it
+ * while the field's commit is pending.
+ */
+export function TreeSearchBox({ field, query, onSearch }: {
+  field: { id: string; label: string; pending: boolean };
+  query: string;
+  onSearch: (query: string) => void;
+}) {
+  const texts = useVultusTexts();
+  const { Spinner } = useVultusComponents();
+  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <Input
+        allowClear
+        placeholder={texts.search}
+        aria-label={[texts.search, field.label].filter(Boolean).join(' ')}
+        value={query}
+        onChange={(e) => onSearch(e.target.value)}
+      />
+      {field.pending && (Spinner
+        ? <Spinner spinnerKey={spinnerKey} size="small" />
+        : <Spin size="small" />)}
+    </div>
+  );
 }
 
 /**
