@@ -19,3 +19,6 @@ export { useManyOfRequest } from './useManyOfRequest.js';
 export { ManyOfCheckboxes, type ManyOfCheckboxesProps } from './ManyOfCheckboxes.js';
 export { ManyOfSwitches, type ManyOfSwitchesProps } from './ManyOfSwitches.js';
 export { ManyOfSelect } from './ManyOfSelect.js';
+export { NumericInput } from './NumericInput.js';
+export { NumericSlider } from './NumericSlider.js';
+export { useNumericRequest } from './useNumericRequest.js';
