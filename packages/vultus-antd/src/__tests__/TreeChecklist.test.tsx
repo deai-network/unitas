@@ -71,6 +71,28 @@ async function settled() {
 
 afterEach(() => { vi.restoreAllMocks(); });
 
+describe('TreeChecklist: disabled nodes, as antd and the hook both conduct', () => {
+  type Geo = 'geometria' | 'sik' | 'ter';
+  function Geometria() {
+    const field = useTreeField<Geo>({
+      id: 'cats', label: 'Categories',
+      nodes: [{ value: 'geometria', label: 'Geometria', children: [{ value: 'sik', label: 'Síkgeometria' }, { value: 'ter', label: 'Térgeometria', disabled: true }] }],
+    });
+    const covered = [...field.byValue.values()].filter((n) => n.checked).map((n) => n.value);
+    return <><TreeChecklist field={field} /><output>{field.value.join(',')}</output><span data-testid="covered">{covered.join(',')}</span></>;
+  }
+
+  it('checking the only enabled child checks the parent; the hook\'s checked nodes are the ones the tree shows checked', async () => {
+    wrap(<Geometria />);
+    fireEvent.click(checkbox('Síkgeometria'));
+    await waitFor(() => expect(shown()).toBe('geometria'));
+    expect(checkbox('Geometria')).toHaveAttribute('aria-checked', 'true');
+    expect(checkbox('Síkgeometria')).toHaveAttribute('aria-checked', 'true');
+    expect(checkbox('Térgeometria')).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByTestId('covered').textContent).toBe('geometria,sik');
+  });
+});
+
 describe('TreeChecklist: rendering', () => {
   it('renders the tree open at the top, each node with its note in brackets after the label', () => {
     wrap(<><Inside /><DescriptionColorProbe /></>);

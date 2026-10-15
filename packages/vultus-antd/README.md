@@ -187,12 +187,13 @@ list, both over the same checking rules.
 
 Checking uses antd's own conduction: a checked node checks its whole subtree, and a node all of
 whose children are checked shows checked; `selection: 'independent'` turns that off
-(`treeCheckStrictly` / `checkStrictly`), checking every node on its own. **As of today, antd's own
-conduction does not cascade into a disabled node**: a checked parent does not show a disabled
-child as checked, and a parent whose *enabled* children are all checked shows checked regardless
-of a disabled one — while the hook's own coverage (vultus-core's `coveredNodes`) counts the
-disabled child in, as the cascading selection says it should. This is the current behaviour, not a
-guarantee: the owner is deciding whether the hooks should instead follow antd's rule.
+(`treeCheckStrictly` / `checkStrictly`), checking every node on its own. antd's conduction does not
+cascade into a disabled node: a checked parent does not show a disabled child as checked, and a
+parent whose *enabled* children are all checked shows checked regardless of a disabled one. The
+hook follows the same rule (vultus-core's `useTreeField`, `normalizeTreeValue` and `coveredNodes`;
+see its README), so the widgets and the field's value agree: with Térgeometria disabled, checking
+Síkgeometria checks Geometria, the value is `['geometria']` under `'topmost'`, and `coveredNodes`
+leaves Térgeometria out.
 
 Each node shows its label (ChoiceLabel: in `token.colorTextDescription` while `dimmed`) and its
 note (ChoiceNote: right-aligned across the row in `TreePicker`'s dropdown, in brackets after the
@@ -235,8 +236,12 @@ A field that does not commit (`!field.commits`) requests on every keystroke: the
 to wait out, as a numeric or tree value has, so a bound form's own state stays in step at once. A
 committing field (`field.commits`) keeps a draft while typing instead and requests only when
 editing ends: on blur, or on Enter for the single-line input (a textarea's Enter is a newline, so
-only blur requests there). The draft follows the field's value whenever it changes other than
-through the widget's own in-flight request (as a numeric field's draft does).
+only blur requests there). The input shows a draft in both modes, changed by the keystroke
+itself, so a value that is stored later than the keystroke — an app's asynchronous `onChange`, a
+store that renders later — neither moves the caret nor loses a character typed meanwhile. The
+draft follows the field's value whenever it changes other than through the widget's own requests
+(a change from outside, a committed value), not when the value is one of its own live requests
+landing late.
 
 `SearchInput` clears on Escape in every mode — resets the draft and requests `''` at once, not
 waiting for a blur or Enter — and, for a committing field, on its clear button too (antd's

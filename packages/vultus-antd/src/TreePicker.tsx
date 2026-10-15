@@ -74,8 +74,9 @@ function labelMatches(search: string, node: Record<string, unknown>): boolean {
  * disabled node cannot be checked. The tree is `listHeight` high at most and
  * `popupMatchSelectWidth` wide (520 and 480, as Taskmaster's).
  *
- * Checking uses antd's own conduction (a checked node checks its subtree, a
- * node all of whose children are checked is checked), shown by the
+ * Checking uses antd's own conduction (a checked node checks its enabled
+ * subtree, a node all of whose enabled children are checked is checked — the
+ * hook's coverage follows the same rule), shown by the
  * selection's strategy (`topmost` SHOW_PARENT, `all` SHOW_ALL, `leaves`
  * SHOW_CHILD); `independent` turns conduction off (`treeCheckStrictly`, whose
  * labelled values are mapped to and from the field's plain ones). Each change

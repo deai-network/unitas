@@ -70,11 +70,11 @@ function openOrder<T extends string>(nodes: TreeNodeControls<T>[], open: Set<T>)
  * checked parent alone, and unchecking a child of a checked parent requests
  * its siblings). `selection: 'independent'` turns conduction off
  * (`checkStrictly`). Values naming no node are kept at the end of the request
- * (as the hook keeps them) without being handed to antd. antd does not
- * conduct into a disabled node: a checked parent does not show its disabled
- * child checked, and a parent whose enabled children are all checked shows
- * checked, while the hook's coverage (coveredNodes) counts the disabled child
- * in as the cascading selections say.
+ * (as the hook keeps them) without being handed to antd. Disabled nodes: antd
+ * does not conduct into one (a checked parent does not show its disabled
+ * child checked), and a parent whose enabled children are all checked shows
+ * checked; the hook's coverage (vultus-core's coveredNodes) follows the same
+ * rule, so the tree and the field's value agree.
  *
  * The search box (placeholder `texts.search`, named "<search> <label>")
  * keeps the nodes filterTree keeps: the matches (accent- and
