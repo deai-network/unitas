@@ -140,8 +140,9 @@ module page and `values` and `items` lower down). Loud failures:
   - `'independent'` (moxb's `strictSelect`, antd `checkStrictly`).
 
   The hook normalizes the value (with `'topmost'`, a node and its descendant collapse to the
-  node). `coveredNodes(definition, value)` expands a value to every node it covers, which is what a
-  module matches against.
+  node). `coveredNodes(nodes, value, selection?)` expands a value to every node it covers, which is
+  what a module matches against (the resolved nodes, since a definition's `nodes` may need the
+  field context).
 - `expand`: `'top'` (default), `'none'`, `'selected'` (moxb's `expandValues`), `'all'`.
 - Search over the labels ignores accents and case: vultus-core gets `normalizeText` (decompose,
   strip combining marks, lower case); no quaesitor dependency. Matches keep their ancestors, and
@@ -192,10 +193,10 @@ back to the default, or is dropped from a list, with a console warning, not an e
   `setArg(definition, value)` and `resetArg(definition)` (moxb's `ArgChange`): one write, one
   history entry ("clear all"; a category chip that also closes the task).
 - **Fields over arguments**: `useStoredField(definition)` derives the argument (key = the
-  definition's `id`, value type from `kind`, default = `initialValueOf`) and returns the
-  definition in its outside form (`value` + `onChange`) plus `isDefault` and `reset`.
-  `useStoredFields(definitions)` gives `isDefault(id)`, `changedCount` ("more filters (3)") and
-  `resetAll(method)`.
+  definition's `id`, value type from `kind`, default = `initialValueOf`) and returns
+  `{ options, isDefault, reset }`, `options` being the definition in its outside form
+  (`value` + `onChange`). `useStoredFields(definitions)` gives `isDefault(id)`, `changedCount`
+  ("more filters (3)") and `resetAll(method)`.
 - **Arguments without a field** use the same hooks, e.g. Praeceptor's `task` (pushed).
 - **Reactivity** without mobx: `useSyncExternalStore` over the store.
 

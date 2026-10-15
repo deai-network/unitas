@@ -30,7 +30,7 @@ npm install vultus-core
   `expandedTreeKeys` / `filterTree`); definitions as data (`FieldDefinition`,
   `initialValueOf`, `valueTypeOf`, `sanitizeStored`); the argument layer
   (the value types, `memoryStore`, `localStorageStore`, `ArgStoreProvider` /
-  `useArgStore`, `useArg`, `useArgWriter`, `setArg` / `resetArg`,
+  `useArgStore`, `useArg`, `useArgWriter`, `setArg` / `resetArg`, `argOf`,
   `useStoredField` / `useStoredFields`); `InternalLinkContext` /
   `useInternalLink` / `InternalLinkComponent`, `MessageSinkContext` /
   `useMessageSink` / `MessageSink`, and `VultusComponentsContext` /
@@ -315,14 +315,17 @@ change is `setArg(definition, value)` or `resetArg(definition)` — several
 arguments change in one store write, one history entry (a "clear all"
 button, a filter chip that also closes a detail view).
 
-**Fields over arguments.** `useStoredField(definition)` runs a
-`FieldDefinition` as a stored field: the argument's key is the definition's
-`id`, its value type comes from the kind, its default is `initialValueOf`.
-It returns `{ options, isDefault, reset }` — `options` is the definition in
-its outside form (`value` plus `onChange`, ready for the kind's hook), with
-the stored raw value made to fit the definition as it is now
-(`sanitizeStored`: unknown choices or nodes dropped, numbers and ranges
-clamped). A value that needed fixing up warns once per field and per raw
+**Fields over arguments.** `argOf(definition, ctx)` is the argument a
+definition's value is stored as — key = the definition's `id`, value type
+from its kind, default = its resolved initial value — for a caller that
+wants `useArg` directly instead of a field. `useStoredField(definition)`
+runs a `FieldDefinition` as a stored field the same way: the argument's key
+is the definition's `id`, its value type comes from the kind, its default
+is `initialValueOf`. It returns `{ options, isDefault, reset }` — `options`
+is the definition in its outside form (`value` plus `onChange`, ready for
+the kind's hook), with the stored raw value made to fit the definition as
+it is now (`sanitizeStored`: unknown choices or nodes dropped, numbers and
+ranges clamped). A value that needed fixing up warns once per field and per raw
 value — not again on every render, and not at all when the key is simply
 absent (then the default applies, and an absent key is not outside input).
 `useStoredFields(definitions)` answers for several definitions over one
