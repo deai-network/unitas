@@ -11,6 +11,7 @@ import { useManyOfField } from '../useManyOfField.js';
 import { useNumericField } from '../useNumericField.js';
 import { useRangeField } from '../useRangeField.js';
 import { useManyOfTreeField } from '../useManyOfTreeField.js';
+import { useOneOfTreeField } from '../useOneOfTreeField.js';
 import { useTextField } from '../useTextField.js';
 import type { TreeNode } from '../tree.js';
 import type { FieldKind } from '../field.js';
@@ -24,6 +25,18 @@ const NODES: TreeNode[] = [
   { value: 'B' },
 ];
 
+// Geometria (folder) > Síkgeometria > Kör, Térgeometria (disabled); Algebra. Same tree as
+// tree.test.ts's 'choosable nodes' geo.
+const GEO: TreeNode[] = [
+  {
+    value: 'geo', label: 'Geometria', choosable: false, children: [
+      { value: 'sik', label: 'Síkgeometria', children: [{ value: 'kor', label: 'Kör' }] },
+      { value: 'ter', label: 'Térgeometria', disabled: { verdict: true, reason: 'later' } },
+    ],
+  },
+  { value: 'alg', label: 'Algebra' },
+];
+
 /** Definitions as a definer writes them: plain data, in their inside form. */
 const DEFINITIONS: FieldDefinition[] = [
   { kind: 'boolean', id: 'done', label: 'Done', initialValue: true },
@@ -33,6 +46,7 @@ const DEFINITIONS: FieldDefinition[] = [
   { kind: 'numeric', id: 'count', min: 1, max: 9, unit: ' pcs' },
   { kind: 'range', id: 'years', min: 2000, max: 2030, initialValue: [2010, 2020] },
   { kind: 'manyOfTree', id: 'topics', nodes: NODES, selection: 'leaves', initialValue: ['A1'] },
+  { kind: 'oneOfTree', id: 'category', nodes: GEO, initialValue: 'kor' },
   { kind: 'text', id: 'q', control: 'textarea', placeholder: 'Search' },
 ];
 
@@ -46,6 +60,7 @@ function useDefinition(definition: FieldDefinition) {
     case 'numeric': return useNumericField(definition);
     case 'range': return useRangeField(definition);
     case 'manyOfTree': return useManyOfTreeField(definition);
+    case 'oneOfTree': return useOneOfTreeField(definition);
     case 'text': return useTextField(definition);
   }
 }
@@ -70,7 +85,8 @@ describe('FieldDefinition', () => {
 
   it('every kind\'s hook resolves a context-function initialValue once, when it mounts, not on every render', () => {
     const values: Record<FieldKind, unknown> = {
-      boolean: true, 'mixed-boolean': 'mixed', oneOf: 'b', manyOf: ['final'], numeric: 3, range: [2010, 2020], manyOfTree: ['A1'], text: 'abc',
+      boolean: true, 'mixed-boolean': 'mixed', oneOf: 'b', manyOf: ['final'], numeric: 3, range: [2010, 2020],
+      manyOfTree: ['A1'], oneOfTree: 'kor', text: 'abc',
     };
     for (const definition of DEFINITIONS) {
       const initialValue = vi.fn((ctx: { lang: string }) => (ctx.lang === 'hu' ? values[definition.kind] : undefined));
@@ -146,6 +162,14 @@ describe('initialValueOf', () => {
       .toEqual(['A1', 'A2']);
   });
 
+  it("oneOfTree: initialValue, else the first choosable node in pre-order ('any'), else '' (optional, or no node can be chosen)", () => {
+    expect(initialValueOf({ kind: 'oneOfTree', id: 'category', nodes: GEO }, NO_FIELD_CONTEXT)).toBe('sik');
+    expect(initialValueOf({ kind: 'oneOfTree', id: 'category', nodes: GEO, choose: 'leaves' }, NO_FIELD_CONTEXT)).toBe('kor');
+    expect(initialValueOf({ kind: 'oneOfTree', id: 'category', nodes: GEO, optional: true }, NO_FIELD_CONTEXT)).toBe('');
+    expect(initialValueOf({ kind: 'oneOfTree', id: 'category', nodes: GEO, initialValue: 'alg' }, NO_FIELD_CONTEXT)).toBe('alg');
+    expect(initialValueOf({ kind: 'oneOfTree', id: 'category', nodes: [{ value: 'x', choosable: false }] }, NO_FIELD_CONTEXT)).toBe('');
+  });
+
   it('text: initialValue, else the empty string', () => {
     expect(initialValueOf({ kind: 'text', id: 'q' }, NO_FIELD_CONTEXT)).toBe('');
     expect(initialValueOf({ kind: 'text', id: 'q', initialValue: 'abc' }, NO_FIELD_CONTEXT)).toBe('abc');
@@ -187,6 +211,7 @@ describe('valueTypeOf', () => {
     expect(valueTypeOf('text')).toBe(stringType);
     expect(valueTypeOf('manyOf')).toBe(stringSetType);
     expect(valueTypeOf('manyOfTree')).toBe(stringSetType);
+    expect(valueTypeOf('oneOfTree')).toBe(stringType);
     expect(valueTypeOf('numeric')).toBe(numberType);
     expect(valueTypeOf('range')).toBe(rangeType);
   });
@@ -317,6 +342,32 @@ describe('sanitizeStored', () => {
       expect(sanitizeStored({ kind: 'manyOfTree', id: 'topics', nodes: NODES }, ['A1', 'A2', 'gone'], NO_FIELD_CONTEXT)).toEqual(['A']);
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith("Field 'topics': dropping stored values that are not among its nodes: 'gone'");
+    });
+  });
+
+  describe('oneOfTree', () => {
+    it('keeps a value that can be chosen', () => {
+      expect(sanitizeStored({ kind: 'oneOfTree', id: 'category', nodes: GEO }, 'kor', NO_FIELD_CONTEXT)).toBe('kor');
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('an unknown value, or a folder, falls back to the initial value, with one warning each', () => {
+      expect(sanitizeStored({ kind: 'oneOfTree', id: 'category', nodes: GEO }, 'nope', NO_FIELD_CONTEXT)).toBe('sik');
+      expect(sanitizeStored({ kind: 'oneOfTree', id: 'category', nodes: GEO }, 'geo', NO_FIELD_CONTEXT)).toBe('sik');
+      expect(warn).toHaveBeenCalledTimes(2);
+      expect(warn).toHaveBeenNthCalledWith(1, "Field 'category': stored value 'nope' is not one of its nodes, using 'sik'");
+      expect(warn).toHaveBeenNthCalledWith(2, "Field 'category': stored value 'geo' is not one of its nodes, using 'sik'");
+    });
+
+    it("'' falls back to the initial value when the field is not optional, with a warning", () => {
+      expect(sanitizeStored({ kind: 'oneOfTree', id: 'category', nodes: GEO }, '', NO_FIELD_CONTEXT)).toBe('sik');
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith("Field 'category': stored value '' is not one of its nodes, using 'sik'");
+    });
+
+    it("'' is kept silently when the field is optional", () => {
+      expect(sanitizeStored({ kind: 'oneOfTree', id: 'category', nodes: GEO, optional: true }, '', NO_FIELD_CONTEXT)).toBe('');
+      expect(warn).not.toHaveBeenCalled();
     });
   });
 

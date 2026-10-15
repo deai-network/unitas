@@ -265,6 +265,37 @@ const field = useManyOfTreeField({
 field.toggle('a'); // field.value === ['a'] — 'topmost' collapses the subtree to the parent
 ```
 
+### one-of tree (`useOneOfTreeField`)
+
+The value is a single node id (`nodes`, the many-of tree's `TreeNode`), or `''` meaning nothing
+chosen (Praeceptor's category picker, a table of contents). A node is choosable when its own
+`choosable` is not `false` (a folder — a part heading with no page, a category group — is
+`choosable: false`; the many-of tree ignores it, so one node list can feed both kinds), it is
+enabled, and, under `choose: 'leaves'` (default `'any'`), has no children (`canChooseNode`,
+`choosableValues`, `treePath` — see Fields, above). `setValue` refuses, with a warning (as
+`useOneOfField` refuses a disabled choice): a value naming no node, a node that cannot be
+chosen, and `''` unless `optional` (default `false`, as `oneOf`'s value is never empty); `clear()`
+requests `''`. Controls add `nodes` (each with `choosable`, `current` — it is the value — and
+`onPath` — an ancestor of it) and `byValue`, as the many-of tree's; `current` (the chosen node, or
+undefined when the value is empty or names no node), `path` (the nodes from the root down to
+`current`, inclusive; empty when there is none), `previous` / `next` (the neighbours of `current`
+among the nodes that can be chosen, in tree pre-order; undefined at the ends, and with no
+`current`, `previous` undefined and `next` the first), `optional`, `choose` and `expandedKeys`
+(from `expand`, default `'selected'` — the value's ancestors, so a table of contents opens where
+the reader is; `'top'`, `'none'` and `'all'` as the many-of tree's). The field's current state is
+the chosen node's description, unless `valueDescriptions` words it differently (as `oneOf`).
+Implicit initial value: `initialValue`, else `''` when `optional`, else the first node that can be
+chosen in tree pre-order, else `''` (no node can be chosen; as `oneOf`'s undefined choice).
+
+```ts
+const field = useOneOfTreeField({
+  id: 'category',
+  nodes: [{ value: 'geo', choosable: false, children: [{ value: 'sik' }, { value: 'ter' }] }],
+});
+field.value; // 'sik' — the first node that can be chosen ('geo' is a folder)
+field.next?.value; // 'ter'
+```
+
 ### text (`useTextField`)
 
 The value is a string. `control: 'input' | 'textarea'` (default `'input'`)
@@ -285,7 +316,7 @@ const field = useTextField({ id: 'search', control: 'input' });
 A `FieldDefinition` is a field's options in their "inside" form (no `value`
 plus `onChange` or `commit`), tagged with a required `kind` — one of
 `'boolean'`, `'mixed-boolean'`, `'oneOf'`, `'manyOf'`, `'numeric'`,
-`'range'`, `'manyOfTree'`, `'text'` (the same strings `FieldControls.type` already
+`'range'`, `'manyOfTree'`, `'oneOfTree'`, `'text'` (the same strings `FieldControls.type` already
 carries). `kind` stays optional on each hook's own options — a hook knows
 its own kind, and throws if a definition names a different one — but is
 required once a field becomes plain data: a module declares its filters as a
@@ -333,7 +364,7 @@ b)`) say how a value is kept as a string and compared; equality is the
 type's own meaning (a list as a set, a range by both ends), used everywhere
 two values of that type are compared — including whether a value is the
 default, so it's left out of the store. `valueTypeOf(kind)` gives each field
-kind's: `booleanType` (`'1'` / `'0'`), `stringType` (one-of, text),
+kind's: `booleanType` (`'1'` / `'0'`), `stringType` (one-of, one-of tree, text),
 `stringSetType` (many-of, many-of tree — a sorted comma list; a *present but empty*
 value reads as the empty list, which differs from the key being absent
 altogether), `numberType`, `rangeType` (`from..to`). A mixed-boolean field

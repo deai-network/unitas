@@ -51,6 +51,10 @@ export {
   type ManyOfTreeFieldControls, type ManyOfTreeFieldOptions, type ManyOfTreeOwnOptions,
 } from './useManyOfTreeField.js';
 export {
+  useOneOfTreeField, oneOfTreeInitialValue,
+  type OneOfTreeFieldControls, type OneOfTreeFieldOptions, type OneOfTreeOwnOptions, type OneOfTreeNodeControls,
+} from './useOneOfTreeField.js';
+export {
   useTextField, textInitialValue,
   type TextFieldControls, type TextFieldOptions, type TextOwnOptions,
 } from './useTextField.js';

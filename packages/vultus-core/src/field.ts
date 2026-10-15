@@ -23,7 +23,7 @@ import type {
  */
 
 /** The field kinds (FieldControls.type and a FieldDefinition's `kind`). */
-export type FieldKind = 'boolean' | 'mixed-boolean' | 'oneOf' | 'manyOf' | 'numeric' | 'range' | 'manyOfTree' | 'text';
+export type FieldKind = 'boolean' | 'mixed-boolean' | 'oneOf' | 'manyOf' | 'numeric' | 'range' | 'manyOfTree' | 'oneOfTree' | 'text';
 
 /** The widget to render a field with: a name, or a name with display options overriding its defaults. */
 export type WidgetHint = string | { name: string; [option: string]: unknown };
