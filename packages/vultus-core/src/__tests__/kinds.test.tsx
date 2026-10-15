@@ -351,18 +351,24 @@ describe('sanitizeStored', () => {
       expect(warn).not.toHaveBeenCalled();
     });
 
-    it('an unknown value, or a folder, falls back to the initial value, with one warning each', () => {
+    it('an unknown value names no node; falls back to the initial value, with a warning naming the reason', () => {
       expect(sanitizeStored({ kind: 'oneOfTree', id: 'category', nodes: GEO }, 'nope', NO_FIELD_CONTEXT)).toBe('sik');
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith("Field 'category': stored value 'nope' names no node, using 'sik'");
+    });
+
+    it('a folder, or a node a context change disabled, cannot be chosen; falls back with a warning naming the reason', () => {
       expect(sanitizeStored({ kind: 'oneOfTree', id: 'category', nodes: GEO }, 'geo', NO_FIELD_CONTEXT)).toBe('sik');
+      expect(sanitizeStored({ kind: 'oneOfTree', id: 'category', nodes: GEO }, 'ter', NO_FIELD_CONTEXT)).toBe('sik');
       expect(warn).toHaveBeenCalledTimes(2);
-      expect(warn).toHaveBeenNthCalledWith(1, "Field 'category': stored value 'nope' is not one of its nodes, using 'sik'");
-      expect(warn).toHaveBeenNthCalledWith(2, "Field 'category': stored value 'geo' is not one of its nodes, using 'sik'");
+      expect(warn).toHaveBeenNthCalledWith(1, "Field 'category': stored value 'geo' cannot be chosen, using 'sik'");
+      expect(warn).toHaveBeenNthCalledWith(2, "Field 'category': stored value 'ter' cannot be chosen, using 'sik'");
     });
 
     it("'' falls back to the initial value when the field is not optional, with a warning", () => {
       expect(sanitizeStored({ kind: 'oneOfTree', id: 'category', nodes: GEO }, '', NO_FIELD_CONTEXT)).toBe('sik');
       expect(warn).toHaveBeenCalledTimes(1);
-      expect(warn).toHaveBeenCalledWith("Field 'category': stored value '' is not one of its nodes, using 'sik'");
+      expect(warn).toHaveBeenCalledWith("Field 'category': stored value '' is empty but the field is not optional, using 'sik'");
     });
 
     it("'' is kept silently when the field is optional", () => {

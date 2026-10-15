@@ -90,10 +90,11 @@ function nodesOf(definition: { id: string; nodes: ValueOrFn<TreeNode[]> }, ctx: 
 /**
  * A definition's default: `initialValue` resolved with the field context, else its kind's
  * implicit initial value (false; the first enabled choice; the empty list; `min`, or 0, clamped
- * into the bounds; `[min, max]`; the empty string). A tree's comes normalized under its
+ * into the bounds; `[min, max]`; the empty string). A many-of tree's comes normalized under its
  * selection, as the hook shows it, so a value equal to what the field shows by default is equal
- * to the default too. It is what a store falls back to, what a reset restores, and what "is it
- * set?" compares against; the kind's hook starts at the same value.
+ * to the default too; a one-of tree's is `''` when `optional`, else the first node it can choose
+ * in pre-order, else `''` (none can be chosen). It is what a store falls back to, what a reset
+ * restores, and what "is it set?" compares against; the kind's hook starts at the same value.
  */
 export function initialValueOf(definition: FieldDefinition, ctx: FieldCtx): unknown {
   const { id } = definition;
@@ -137,16 +138,19 @@ function warnDropped(id: string, among: 'choices' | 'nodes', dropped: string[], 
 /**
  * A stored value (already parsed by the kind's value type) made fit for the definition as it is
  * now: choices, nodes and bounds follow the data, and an old URL may not. A one-of value that is
- * not a choice becomes the initial value; many-of and tree values that are not choices or nodes
- * are dropped; numbers and ranges are clamped into the bounds, then rounded when the field is
- * `integer` (so a stored `2.5` reads `3`; a whole number inside the bounds, see `fit`), with one
- * warning for whichever of the two actually changed the value: "outside its bounds" when
- * clamping did (whether or not rounding also did), "not a whole number" ("has ends that are not
- * whole numbers" for a range) when only rounding did. Each such change warns, naming the
- * field: the value came from outside, so it is not an error. Reordering is silent: lists come
- * back in choice order or normalized under the tree's selection (a store keeps them sorted, so a
- * warning would come on every read), and a range's ends in order. The warnings go to `warn`,
- * console.warn unless a caller that only summarizes (useStoredFields) silences them.
+ * not a choice becomes the initial value; many-of values that are not choices or nodes are
+ * dropped. A one-of tree value is replaced by the initial value too, when it names no node, when
+ * the node it names cannot be chosen (a folder, or one a context change disabled), or when it is
+ * `''` and the field is not optional. Numbers and ranges are clamped into the bounds, then
+ * rounded when the field is `integer` (so a stored `2.5` reads `3`; a whole number inside the
+ * bounds, see `fit`), with one warning for whichever of the two actually changed the value:
+ * "outside its bounds" when clamping did (whether or not rounding also did), "not a whole
+ * number" ("has ends that are not whole numbers" for a range) when only rounding did. Each such
+ * change warns, naming the field: the value came from outside, so it is not an error. Reordering
+ * is silent: lists come back in choice order or normalized under the tree's selection (a store
+ * keeps them sorted, so a warning would come on every read), and a range's ends in order. The
+ * warnings go to `warn`, console.warn unless a caller that only summarizes (useStoredFields)
+ * silences them.
  */
 export function sanitizeStored(
   definition: FieldDefinition,
@@ -184,11 +188,16 @@ export function sanitizeStored(
     case 'oneOfTree': {
       const stored = value as string;
       const nodes = nodesOf(definition, ctx);
-      const choosable = choosableValues(nodes, definition.choose ?? 'any');
-      const ok = stored === '' ? (definition.optional ?? false) : choosable.includes(stored);
-      if (ok) return stored;
+      if (stored === '') {
+        if (definition.optional ?? false) return stored;
+        const fallback = oneOfTreeInitialValue(definition, ctx, id, nodes);
+        if (fallback !== stored) warn(`Field '${id}': stored value '' is empty but the field is not optional, using '${fallback}'`);
+        return fallback;
+      }
+      if (choosableValues(nodes, definition.choose ?? 'any').includes(stored)) return stored;
       const fallback = oneOfTreeInitialValue(definition, ctx, id, nodes);
-      if (fallback !== stored) warn(`Field '${id}': stored value '${stored}' is not one of its nodes, using '${fallback}'`);
+      const reason = nodeValues(nodes).has(stored) ? 'cannot be chosen' : 'names no node';
+      if (fallback !== stored) warn(`Field '${id}': stored value '${stored}' ${reason}, using '${fallback}'`);
       return fallback;
     }
     case 'numeric': {

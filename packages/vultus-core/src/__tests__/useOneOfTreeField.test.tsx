@@ -103,6 +103,20 @@ describe('useOneOfTreeField: setValue', () => {
     const { result } = renderHook(() => useOneOfTreeField({ id: 'category', nodes: geo, initialValue: 'kor' }));
     act(() => result.current.clear());
     expect(result.current.value).toBe('kor');
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith("Field 'category': '' is refused — the field is not optional");
+    warn.mockRestore();
+  });
+
+  it("a disabled node with no reason warns with '(no reason)'", () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { result } = renderHook(() => useOneOfTreeField({
+      id: 'category', initialValue: 'b', nodes: [{ value: 'a', disabled: true }, { value: 'b' }],
+    }));
+    act(() => result.current.setValue('a' as 'a' | 'b'));
+    expect(result.current.value).toBe('b');
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith("Field 'category': node 'a' is disabled — (no reason)");
     warn.mockRestore();
   });
 });
@@ -112,7 +126,9 @@ describe('useOneOfTreeField: controls', () => {
     const { result } = renderHook(() => useOneOfTreeField({ id: 'category', nodes: geo, initialValue: 'kor' }));
     expect(result.current.current?.value).toBe('kor');
     expect(result.current.path.map((n) => n.value)).toEqual(['geo', 'sik', 'kor']);
+    expect(result.current.byValue.get('geo')?.onPath).toBe(true);
     expect(result.current.byValue.get('sik')?.onPath).toBe(true);
+    expect(result.current.byValue.get('kor')?.onPath).toBe(false);
     expect(result.current.byValue.get('kor')?.current).toBe(true);
     expect(result.current.byValue.get('geo')?.choosable).toBe(false);
     expect(result.current.previous?.value).toBe('sik');
@@ -136,6 +152,20 @@ describe('useOneOfTreeField: controls', () => {
     expect(result.current.path).toEqual([]);
     expect(result.current.previous).toBeUndefined();
     expect(result.current.next?.value).toBe('sik');
+  });
+
+  it("an optional empty value: current undefined, next the first node", () => {
+    const { result } = renderHook(() => useOneOfTreeField<GeoId>({ id: 'category', nodes: geo, optional: true, value: '', onChange: vi.fn() }));
+    expect(result.current.current).toBeUndefined();
+    expect(result.current.next?.value).toBe('sik');
+  });
+
+  it("a current that cannot itself be chosen (outside storage naming a disabled node) still gets its true neighbours", () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() => useOneOfTreeField({ id: 'category', nodes: geo, value: 'ter' as GeoId, onChange }));
+    expect(result.current.current?.value).toBe('ter');
+    expect(result.current.previous?.value).toBe('kor');
+    expect(result.current.next?.value).toBe('alg');
   });
 });
 

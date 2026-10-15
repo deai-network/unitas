@@ -42,9 +42,14 @@ export interface OneOfTreeFieldControls<T extends string = string> extends Field
   current: OneOfTreeNodeControls<T> | undefined;
   /** The nodes from the root down to `current`, inclusive; empty when there is none. */
   path: OneOfTreeNodeControls<T>[];
-  /** The node that can be chosen just before `current` in tree pre-order; undefined at the start, and with no `current`. */
+  /**
+   * The choosable node just before `current` in tree pre-order — by `current`'s own position,
+   * not its position among the choosable nodes, so a `current` that cannot itself be chosen
+   * (a value naming a folder, or a node a context change disabled) still gets its true
+   * neighbours. Undefined at the start, and with no `current`.
+   */
   previous: OneOfTreeNodeControls<T> | undefined;
-  /** The node that can be chosen just after `current`; with no `current`, the first one. */
+  /** The choosable node just after `current` in tree pre-order, by the same rule; with no `current`, the first choosable node. */
   next: OneOfTreeNodeControls<T> | undefined;
   optional: boolean;
   choose: TreeChoose;
@@ -60,7 +65,7 @@ export interface OneOfTreeFieldControls<T extends string = string> extends Field
  * pre-order, else '' (no node can be chosen; as oneOf's undefined choice).
  */
 export function oneOfTreeInitialValue<T extends string>(
-  opts: { initialValue?: ValueOrFn<T | ''>; nodes: ValueOrFn<TreeNode<T>[]>; choose?: TreeChoose; optional?: boolean },
+  opts: { initialValue?: ValueOrFn<T | ''>; choose?: TreeChoose; optional?: boolean },
   ctx: FieldCtx,
   id: string,
   nodes: TreeNode<T>[],
@@ -79,9 +84,11 @@ export function oneOfTreeInitialValue<T extends string>(
  * warning (as useOneOfField refuses a disabled choice): a value naming no node, a node
  * `canChooseNode` rejects, and '' unless `optional`. `clear()` requests ''. The field's current
  * state is the chosen node's description, unless `valueDescriptions` words it differently (as
- * oneOf). `previous` / `next` are the neighbours of `current` in tree pre-order among the nodes
- * that can be chosen (`choosableValues`); with no `current`, `previous` is undefined and `next`
- * is the first. `expandedKeys` (from `expand`, default `'selected'`) are the value's ancestors,
+ * oneOf). `previous` / `next` are the choosable nodes just before and after `current`'s own
+ * position in tree pre-order (so a `current` that cannot itself be chosen still gets its true
+ * neighbours, skipping only the nodes between them that cannot be chosen); with no `current`,
+ * `previous` is undefined and `next` is the first choosable node. `expandedKeys` (from `expand`,
+ * default `'selected'`) are the value's ancestors,
  * so a table of contents opens where the reader is. Inside the field the value starts at
  * `oneOfTreeInitialValue`.
  */
@@ -98,7 +105,8 @@ export function useOneOfTreeField<T extends string = string, RouteId extends str
   const initialValue = () => oneOfTreeInitialValue<T>(opts, ctx, opts.id, nodes);
   const field = useFieldCore<T | '', T | '', RouteId, Ctx>('oneOfTree', inside ? { ...opts, initialValue } : opts, registry);
 
-  const path = field.value ? new Set(treePath(nodes, field.value)) : new Set<T>();
+  const valuePath = field.value ? treePath(nodes, field.value) : [];
+  const ancestors = new Set(valuePath);
   const byValue = new Map<T, OneOfTreeNodeControls<T>>();
   const control = (node: TreeNode<T>): OneOfTreeNodeControls<T> => {
     const controls: OneOfTreeNodeControls<T> = {
@@ -106,7 +114,7 @@ export function useOneOfTreeField<T extends string = string, RouteId extends str
       children: undefined,
       choosable: canChooseNode(node, choose),
       current: node.value === field.value,
-      onPath: path.has(node.value) && node.value !== field.value,
+      onPath: ancestors.has(node.value) && node.value !== field.value,
     };
     byValue.set(node.value, controls);
     if (node.children) controls.children = node.children.map(control);
@@ -115,14 +123,21 @@ export function useOneOfTreeField<T extends string = string, RouteId extends str
   const nodeControls = nodes.map(control);
 
   const current = field.value ? byValue.get(field.value) : undefined;
-  const pathControls = field.value ? treePath(nodes, field.value).map((v) => byValue.get(v)!) : [];
+  const pathControls = valuePath.map((v) => byValue.get(v)!);
 
-  const order = choosableValues(nodes, choose);
-  const index = current ? order.indexOf(current.value) : -1;
-  const previous = index > 0 ? byValue.get(order[index - 1]) : undefined;
-  const next = index < 0
-    ? (order.length > 0 ? byValue.get(order[0]) : undefined)
-    : (index + 1 < order.length ? byValue.get(order[index + 1]) : undefined);
+  // byValue's insertion order is the full tree's pre-order (control() visits a node before its
+  // children), so it doubles as "every node, choosable or not" for finding current's neighbours.
+  const fullOrder = [...byValue.keys()];
+  const nearestChoosable = (from: number, step: 1 | -1): OneOfTreeNodeControls<T> | undefined => {
+    for (let i = from; i >= 0 && i < fullOrder.length; i += step) {
+      const node = byValue.get(fullOrder[i])!;
+      if (node.choosable) return node;
+    }
+    return undefined;
+  };
+  const index = current ? fullOrder.indexOf(current.value) : -1;
+  const previous = nearestChoosable(index - 1, -1);
+  const next = nearestChoosable(index + 1, 1);
 
   const setValue = (requested: T | '') => {
     if (requested === '') {
@@ -139,8 +154,8 @@ export function useOneOfTreeField<T extends string = string, RouteId extends str
       return;
     }
     if (!node.choosable) {
-      if (node.whyDisabled !== undefined) {
-        console.warn(`Field '${opts.id}': node '${requested}' is disabled — ${node.whyDisabled}`);
+      if (!node.enabled) {
+        console.warn(`Field '${opts.id}': node '${requested}' is disabled — ${node.whyDisabled ?? '(no reason)'}`);
       } else {
         console.warn(`Field '${opts.id}': node '${requested}' cannot be chosen`);
       }

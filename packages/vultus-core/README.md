@@ -257,6 +257,12 @@ its descendants matches (with only the children that stay), and the rest
 is trimmed, leaving the nodes given unchanged. Implicit initial value: the
 empty list.
 
+A `TreeNode`'s `choosable` (default `true`; a folder when `false`) is for the one-of tree, below;
+this hook ignores it, so one node list can feed both kinds. Its helpers: `canChooseNode(node,
+choose)` (choosable, enabled, and, under `choose: 'leaves'`, no children), `choosableValues(nodes,
+choose)` (the values it accepts, in pre-order) and `treePath(nodes, value)` (the values from the
+root down to `value`, inclusive; `[]` when no node has it).
+
 ```ts
 const field = useManyOfTreeField({
   id: 'categories',
@@ -272,15 +278,17 @@ chosen (Praeceptor's category picker, a table of contents). A node is choosable 
 `choosable` is not `false` (a folder — a part heading with no page, a category group — is
 `choosable: false`; the many-of tree ignores it, so one node list can feed both kinds), it is
 enabled, and, under `choose: 'leaves'` (default `'any'`), has no children (`canChooseNode`,
-`choosableValues`, `treePath` — see Fields, above). `setValue` refuses, with a warning (as
+`choosableValues`, `treePath` — see many-of tree, above). `setValue` refuses, with a warning (as
 `useOneOfField` refuses a disabled choice): a value naming no node, a node that cannot be
 chosen, and `''` unless `optional` (default `false`, as `oneOf`'s value is never empty); `clear()`
 requests `''`. Controls add `nodes` (each with `choosable`, `current` — it is the value — and
 `onPath` — an ancestor of it) and `byValue`, as the many-of tree's; `current` (the chosen node, or
 undefined when the value is empty or names no node), `path` (the nodes from the root down to
-`current`, inclusive; empty when there is none), `previous` / `next` (the neighbours of `current`
-among the nodes that can be chosen, in tree pre-order; undefined at the ends, and with no
-`current`, `previous` undefined and `next` the first), `optional`, `choose` and `expandedKeys`
+`current`, inclusive; empty when there is none), `previous` / `next` (the choosable nodes just
+before and after `current`'s own position in tree pre-order — so a `current` that cannot itself
+be chosen, e.g. a value naming a folder or a node a context change disabled, still gets its true
+neighbours; undefined at the ends, and with no `current`, `previous` undefined and `next` the
+first choosable node), `optional`, `choose` and `expandedKeys`
 (from `expand`, default `'selected'` — the value's ancestors, so a table of contents opens where
 the reader is; `'top'`, `'none'` and `'all'` as the many-of tree's). The field's current state is
 the chosen node's description, unless `valueDescriptions` words it differently (as `oneOf`).
@@ -412,7 +420,9 @@ is the definition's `id`, its value type comes from the kind, its default
 is `initialValueOf`. It returns `{ options, isDefault, reset }` — `options`
 is the definition in its outside form (`value` plus `onChange`, ready for
 the kind's hook), with the stored raw value made to fit the definition as
-it is now (`sanitizeStored`: unknown choices or nodes dropped, numbers and
+it is now (`sanitizeStored`: unknown choices or nodes dropped; a one-of
+tree value naming no node, a folder or a node it cannot choose, or `''`
+when the field is not optional, replaced by the initial value; numbers and
 ranges clamped, and rounded when `integer`). A value that needed fixing up
 warns once per field and per raw value — not again on every render, and not
 at all when the key is simply absent (then the default applies, and an
