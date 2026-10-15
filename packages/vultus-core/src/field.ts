@@ -224,7 +224,9 @@ export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId e
     return typeof spec === 'function' ? spec(next) : spec;
   };
 
-  const { hrefFor: hrefForOpt } = opts as { hrefFor?: (value: TRequest) => string | undefined };
+  // Inside the field nothing outside keeps the value, so nothing gives a link: an `hrefFor` that
+  // came anyway (untyped options; the types forbid it) is ignored.
+  const hrefForOpt = mode === 'inside' ? undefined : (opts as { hrefFor?: (value: TRequest) => string | undefined }).hrefFor;
   const hrefFor = useCallback((next: TRequest) => hrefForOpt?.(next), [hrefForOpt]);
 
   return {

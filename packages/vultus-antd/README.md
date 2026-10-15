@@ -377,7 +377,9 @@ the value in the nearest `ArgStore` instead (`useStoredField`, vultus-core: the 
 the field entirely. `stored` does not go together with `value`, `onChange` or `commit` — giving
 both throws (and with a literal `stored`, `<Field definition={d} stored value={…} />` is a type
 error). An `initialValue` override only makes sense for a value kept inside the field: giving
-one together with `stored`, `value`, `onChange` or `commit` throws too.
+one together with `stored`, `value`, `onChange` or `commit` throws too. `hrefFor` (the link a
+requested value amounts to) goes with `value` and `onChange` or `commit`: with `stored` the
+`ArgStore` gives its own, and inside the field nothing gives one, so passing it there throws.
 
 **Precedence**, for both the widget's display options (`iconOnly`, `vertical`, `showValue`,
 `panel`, ...) and the definition's own values (`label`, `description`, `enabled` / `disabled`,

@@ -384,6 +384,28 @@ describe('Field: storage', () => {
     expect(() => wrap(<ArgStoreProvider store={store}><Field stored definition={DEFINITIONS.boolean} value onChange={() => {}} /></ArgStoreProvider>))
       .toThrow("Field 'duplex': \"stored\" keeps the value in the ArgStore; it does not go together with \"value\", \"onChange\" or \"commit\"");
   });
+
+  it('stored together with hrefFor throws (the store gives its own)', () => {
+    quietRenderErrors();
+    const props = { stored: true, hrefFor: (v: boolean) => `#?duplex=${v}` } as unknown as { stored: true };
+    expect(() => wrap(<ArgStoreProvider store={memoryStore()}><Field definition={DEFINITIONS.boolean} {...props} /></ArgStoreProvider>))
+      .toThrow("Field 'duplex': \"stored\" keeps the value in the ArgStore, which gives its own \"hrefFor\"; the render site cannot pass one");
+  });
+
+  it('hrefFor without value, onChange or commit throws (inside the field nothing gives a link)', () => {
+    quietRenderErrors();
+    expect(() => wrap(<Field definition={DEFINITIONS.boolean} hrefFor={(v) => `#?duplex=${v}`} />))
+      .toThrow("Field 'duplex': \"hrefFor\" goes with \"value\" and \"onChange\" or \"commit\" (the link a requested value amounts to, where the render site keeps the value); a value inside the field has none");
+  });
+
+  it('hrefFor with value and onChange: the kind\'s controls carry it', () => {
+    function Outside() {
+      const [value, setValue] = useState(false);
+      return <Field definition={DEFINITIONS.boolean} value={value} onChange={setValue} hrefFor={(v) => `#?duplex=${v}`} />;
+    }
+    wrap(<Outside />);
+    expect(vi.mocked(useBoolField).mock.results.at(-1)?.value.hrefFor?.(true)).toBe('#?duplex=true');
+  });
 });
 
 describe('FieldWidget: the widget for controls a caller made', () => {

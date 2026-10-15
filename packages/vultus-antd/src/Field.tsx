@@ -156,8 +156,9 @@ const SILENT_SINK: MessageSink = () => {};
  * With `stored`, the values the store reads (`initialValue`, `choices`, `nodes`, `selection`,
  * `choose`, `optional`, `min`, `max`, `integer`) come from the definition: overriding one throws
  * (a context function in the definition covers data that changes). `hrefFor` goes with `value`
- * / `onChange` / `commit` (the link a requested value amounts to, the render site's to give);
- * with `stored` the ArgStore gives its own, so passing one throws.
+ * / `onChange` / `commit` (the link a requested value amounts to, the render site's to give):
+ * with `stored` the ArgStore gives its own, and inside the field nothing gives one, so passing
+ * one there throws.
  *
  * The props are typed by the definition's kind. In a component generic over
  * `<D extends FieldDefinition>`, they cannot resolve for the generic `D`: render
@@ -180,6 +181,9 @@ export function Field<D extends FieldDefinition>(props: FieldProps<D>) {
   }
   if (stored && hrefFor !== undefined) {
     throw new Error(`Field '${id}': "stored" keeps the value in the ArgStore, which gives its own "hrefFor"; the render site cannot pass one`);
+  }
+  if (!stored && hrefFor !== undefined && !outsideStorage) {
+    throw new Error(`Field '${id}': "hrefFor" goes with "value" and "onChange" or "commit" (the link a requested value amounts to, where the render site keeps the value); a value inside the field has none`);
   }
   if (overrides.initialValue !== undefined && (stored || outsideStorage)) {
     const where = stored ? 'stored' : commit ? 'commit' : onChange ? 'onChange' : 'value';

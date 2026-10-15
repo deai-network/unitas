@@ -90,19 +90,27 @@ describe('field: hrefFor', () => {
       const [value, setValue] = useState(false);
       return useBoolField({ id: 'f', value, onChange: setValue, hrefFor: (v) => `#?k=${v}` });
     });
-    expect(result.current.hrefFor(true)).toBe('#?k=true');
+    expect(result.current.hrefFor?.(true)).toBe('#?k=true');
   });
 
   it('with commit: passed through', () => {
     const { result } = renderHook(() => useBoolField({
       id: 'f', value: false, commit: { fire: () => {} }, hrefFor: (v) => `#?k=${v}`,
     }));
-    expect(result.current.hrefFor(true)).toBe('#?k=true');
+    expect(result.current.hrefFor?.(true)).toBe('#?k=true');
   });
 
   it('inside the field: undefined', () => {
     const { result } = renderHook(() => useBoolField({ id: 'f' }));
-    expect(result.current.hrefFor(true)).toBeUndefined();
+    expect(result.current.hrefFor?.(true)).toBeUndefined();
+  });
+
+  it('inside the field, an hrefFor passed anyway (untyped options) is ignored: undefined', () => {
+    const hrefFor = vi.fn((v: boolean) => `#?k=${v}`);
+    const { result } = renderHook(() => useBoolField({ id: 'f', hrefFor } as unknown as Parameters<typeof useBoolField>[0]));
+    expect(result.current.hrefFor).toBeTypeOf('function');
+    expect(result.current.hrefFor?.(true)).toBeUndefined();
+    expect(hrefFor).not.toHaveBeenCalled();
   });
 });
 
