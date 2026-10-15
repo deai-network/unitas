@@ -11,11 +11,6 @@ export interface ManyOfCheckboxesProps<T extends string> {
   field: ManyOfFieldControls<T>;
   /** Column layout instead of the default row. */
   vertical?: boolean;
-  /**
-   * Shared with ManyOfSwitches, for a consistent API across the two widgets;
-   * antd's Checkbox has no size of its own, so this has no effect here.
-   */
-  size?: 'small' | 'middle';
 }
 
 /**

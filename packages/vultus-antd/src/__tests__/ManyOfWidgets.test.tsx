@@ -20,6 +20,8 @@ const CHOICES: OneOfChoice<Tag>[] = [
 const widgets = { ManyOfCheckboxes, ManyOfSwitches } as const;
 type Kind = keyof typeof widgets;
 
+const LABELS: Record<Tag, string> = { a: 'Alpha', b: 'Beta', c: 'Gamma' };
+
 function Inside({ kind, vertical, ...opts }: { kind: Kind; vertical?: boolean } & Partial<Omit<ManyOfFieldOptions<Tag>, 'value' | 'onChange' | 'commit'>>) {
   const field = useManyOfField<Tag>({ id: 'tags', label: 'Tags', choices: CHOICES, initialValue: ['a'], ...opts } as ManyOfFieldOptions<Tag>);
   const Widget = widgets[kind];
@@ -49,11 +51,12 @@ const shown = () => screen.getByRole('status').textContent;
  * ManyOfCheckboxes `data-choice-value` lands on the checkbox's own input (it
  * is forwarded straight onto the Checkbox), so the matched element is the
  * checkbox itself; for ManyOfSwitches it lands on the row wrapping the
- * switch and its label, so the switch is found inside it.
+ * switch and its label, so the switch is found inside it — by its accessible
+ * name (the choice's label), pinning that the switch has one.
  */
 function choiceInput(kind: Kind, value: Tag): HTMLElement {
   const el = document.querySelector<HTMLElement>(`[data-choice-value="${value}"]`)!;
-  return kind === 'ManyOfCheckboxes' ? el : within(el).getByRole('switch');
+  return kind === 'ManyOfCheckboxes' ? el : within(el).getByRole('switch', { name: LABELS[value] });
 }
 
 function root() {

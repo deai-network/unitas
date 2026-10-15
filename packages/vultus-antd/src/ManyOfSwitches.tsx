@@ -17,7 +17,9 @@ export interface ManyOfSwitchesProps<T extends string> {
 /**
  * One choice's switch and its label (ChoiceLabel), both disabled while the
  * choice is and either one toggling it, with its own tooltip (choiceTooltip)
- * while `showTooltip` (the field is enabled).
+ * while `showTooltip` (the field is enabled). The choice's label is also the
+ * switch's accessible name (as BoolSwitch's field label is its own switch's),
+ * since the label sits next to it rather than inside it.
  */
 function ChoiceSwitch<T extends string>({ choice, size, disabled, showTooltip, asking, onToggle }: {
   choice: ManyOfChoiceControls<T>;
@@ -29,7 +31,13 @@ function ChoiceSwitch<T extends string>({ choice, size, disabled, showTooltip, a
 }) {
   return withTooltip(showTooltip ? choiceTooltip(choice) : undefined, !choice.enabled, (
     <span data-choice-value={choice.value} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-      <Switch size={size} checked={choice.selected} disabled={disabled} onChange={() => onToggle()} />
+      <Switch
+        size={size}
+        checked={choice.selected}
+        disabled={disabled}
+        onChange={() => onToggle()}
+        aria-label={choice.label}
+      />
       <span onClick={disabled ? undefined : () => onToggle()} style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}>
         <ChoiceLabel choice={choice} />
       </span>
