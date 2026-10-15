@@ -59,6 +59,15 @@ const checkbox = (label: string) => screen.getByRole('checkbox', { name: nameOf(
 /** A node's row, if it is shown (a row hidden by a search is not). */
 const row = (label: string) => screen.queryByRole('treeitem', { name: nameOf(label) });
 const search = (query: string) => fireEvent.change(screen.getByPlaceholderText('Search'), { target: { value: query } });
+/**
+ * Waits for antd's open/close motion to end: rc-tree ignores a switcher click
+ * while its list is changing, and lets go a tick after the motion (which
+ * jsdom never ends: the rows go at its deadline).
+ */
+async function settled() {
+  await waitFor(() => expect(document.querySelector('.ant-tree-treenode-motion')).toBeNull(), { timeout: 3000 });
+  await act(() => new Promise((resolve) => { setTimeout(resolve, 0); }));
+}
 
 afterEach(() => { vi.restoreAllMocks(); });
 
@@ -105,9 +114,9 @@ describe('TreeChecklist: rendering', () => {
 
   it('the user can collapse and expand a node', async () => {
     wrap(<Inside />);
-    const switcher = row('Algebra')!.querySelector<HTMLElement>('.ant-tree-switcher')!;
-    fireEvent.click(switcher);
-    await waitFor(() => expect(row('Egyenletek')).toBeNull());
+    fireEvent.click(row('Algebra')!.querySelector<HTMLElement>('.ant-tree-switcher')!);
+    await settled();
+    expect(row('Egyenletek')).toBeNull();
     fireEvent.click(row('Algebra')!.querySelector<HTMLElement>('.ant-tree-switcher')!);
     await waitFor(() => expect(row('Egyenletek')).toBeInTheDocument());
   });
@@ -226,6 +235,90 @@ describe('TreeChecklist: search', () => {
     fireEvent.click(checkbox('Összegzés'));
     await waitFor(() => expect(shown()).toBe('ossz'));
     expect(checkbox('Algebra')).toHaveAttribute('aria-checked', 'mixed');
+  });
+
+  it('a new query opens every kept node again, even one the user closed under an earlier, retyped query', async () => {
+    wrap(<Inside expand="none" />);
+    search('graf');
+    await settled();
+    expect(row('Gráfok')).toBeInTheDocument();
+    fireEvent.click(row('Kombinatorika')!.querySelector<HTMLElement>('.ant-tree-switcher')!);
+    await settled();
+    expect(row('Gráfok')).toBeNull();
+    search('gra');
+    await waitFor(() => expect(row('Gráfok')).toBeInTheDocument());
+    search('graf');
+    await waitFor(() => expect(row('Gráfok')).toBeInTheDocument());
+  });
+
+  it('no matches: antd\'s empty notice instead of the tree', () => {
+    wrap(<Inside initialValue={['alg']} />);
+    search('zzz');
+    expect(screen.queryByRole('tree')).toBeNull();
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    expect(document.querySelector('.ant-empty')).toBeTruthy();
+    search('');
+    expect(screen.getByRole('tree')).toBeInTheDocument();
+    expect(document.querySelector('.ant-empty')).toBeNull();
+    expect(shown()).toBe('alg');
+  });
+
+  it('the search box is named after the field', () => {
+    wrap(<Inside />);
+    expect(screen.getByRole('textbox', { name: 'Search Categories' })).toBeInTheDocument();
+  });
+});
+
+/** The tree's active (keyboard) node: its row, from the tree's aria-activedescendant. */
+function activeRow(): HTMLElement | null {
+  const id = screen.getByRole('tree').getAttribute('aria-activedescendant');
+  return id ? document.getElementById(id) : null;
+}
+const press = (key: string) => fireEvent.keyDown(screen.getByRole('tree'), { key });
+const focusTree = () => act(() => { screen.getByRole('tree').focus(); });
+
+describe('TreeChecklist: keyboard while searching (never onto a hidden node)', () => {
+  it('focus activates the first shown node, and Space checks it (not a hidden one)', async () => {
+    wrap(<Inside />);
+    search('kombinatorika');
+    focusTree();
+    await waitFor(() => expect(activeRow()?.textContent).toMatch(/^Kombinatorika/));
+    press(' ');
+    await waitFor(() => expect(shown()).toBe('komb'));
+  });
+
+  it('arrows, Home and End skip hidden nodes in the direction of travel, wrapping around', async () => {
+    wrap(<Inside />);
+    search('kombinatorika');
+    focusTree();
+    const expectActive = async (label: string) => {
+      await waitFor(() => expect(activeRow()?.textContent).toMatch(nameOf(label)));
+      expect(activeRow()).toBeVisible();
+    };
+    await expectActive('Kombinatorika');
+    press('ArrowDown');
+    await expectActive('Gráfok');
+    press('ArrowDown');
+    await expectActive('Leszámlálás');
+    press('ArrowDown'); // Geometria and Algebra are hidden: wraps to Kombinatorika
+    await expectActive('Kombinatorika');
+    press('ArrowUp'); // Algebra and Geometria are hidden: back to Leszámlálás
+    await expectActive('Leszámlálás');
+    press('Home');
+    await expectActive('Kombinatorika');
+    press('End');
+    await expectActive('Leszámlálás');
+    press(' ');
+    await waitFor(() => expect(shown()).toBe('lesz'));
+  });
+
+  it('ArrowRight onto a hidden first child moves on to the next shown node', async () => {
+    wrap(<Inside />);
+    search('osszeg');
+    focusTree();
+    await waitFor(() => expect(activeRow()?.textContent).toMatch(/^Algebra/));
+    press('ArrowRight'); // Egyenletek and Egyenlőtlenségek are hidden
+    await waitFor(() => expect(activeRow()?.textContent).toMatch(/^Összegzés/));
   });
 });
 

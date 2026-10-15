@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react';
 import type { TreeFieldControls } from 'vultus-core';
-import { useFieldRequest } from './useFieldRequest.js';
-import { sameMembers } from './useManyOfRequest.js';
+import { sameMembers, useFieldRequest } from './useFieldRequest.js';
 
 /**
  * What checking in a tree widget requests: useFieldRequest with set equality,

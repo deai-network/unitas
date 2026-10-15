@@ -1,15 +1,6 @@
 import type { ReactElement } from 'react';
 import type { ManyOfFieldControls } from 'vultus-core';
-import { useFieldRequest } from './useFieldRequest.js';
-
-/** Whether `a` and `b` hold the same members, regardless of order or duplicates (many-of and tree values). */
-export function sameMembers<T>(a: T[], b: T[]): boolean {
-  const setA = new Set(a);
-  const setB = new Set(b);
-  if (setA.size !== setB.size) return false;
-  for (const v of setA) if (!setB.has(v)) return false;
-  return true;
-}
+import { sameMembers, useFieldRequest } from './useFieldRequest.js';
 
 /**
  * What choosing in a many-of widget requests: useFieldRequest with set

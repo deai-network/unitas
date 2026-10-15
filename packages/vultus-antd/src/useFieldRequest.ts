@@ -12,6 +12,15 @@ export interface RequestableField<TRequest> {
   confirmationFor(next: TRequest): ConfirmationSpec | undefined;
 }
 
+/** Whether `a` and `b` hold the same members, regardless of order or duplicates (the set equality of many-of and tree values). */
+export function sameMembers<T>(a: T[], b: T[]): boolean {
+  const setA = new Set(a);
+  const setB = new Set(b);
+  if (setA.size !== setB.size) return false;
+  for (const v of setA) if (!setB.has(v)) return false;
+  return true;
+}
+
 /**
  * What requesting a value on a field widget does, shared by useManyOfRequest
  * (set equality) and useNumericRequest (`===`); useOneOfRequest stays apart,
