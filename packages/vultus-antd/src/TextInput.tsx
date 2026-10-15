@@ -68,7 +68,11 @@ export function TextInput({ field, style }: Props) {
       <Input
         {...sharedProps}
         onPressEnter={field.commits ? commitDraft : undefined}
-        suffix={spinner || undefined}
+        // Always a real element, never undefined: toggling antd's `suffix` between a node and
+        // undefined as `field.pending` flips makes antd remount the affix wrapper and drop
+        // focus (its own dev warning) — an always-present (if sometimes empty) slot keeps the
+        // wrapper stable instead.
+        suffix={spinner ?? <></>}
         style={{ minWidth: 200, ...style }}
       />
     );

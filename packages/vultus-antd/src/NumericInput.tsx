@@ -49,7 +49,11 @@ export function NumericInput({ field, style }: Props) {
       step={field.step}
       precision={field.integer ? 0 : undefined}
       placeholder={field.placeholder}
-      suffix={spinner || field.unit ? <>{spinner}{field.unit}</> : undefined}
+      // Always a real element, never undefined, even with neither a spinner nor a unit: toggling
+      // antd's `suffix` on and off as `field.pending` flips makes antd remount the affix wrapper
+      // and drop focus (the same caveat Input itself warns about) — an always-present (if
+      // sometimes empty) slot keeps the wrapper stable instead.
+      suffix={<>{spinner}{field.unit}</>}
       disabled={!field.enabled || field.pending}
       onChange={(next) => setDraft(next)}
       onBlur={commitDraft}

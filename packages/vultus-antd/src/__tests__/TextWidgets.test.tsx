@@ -153,6 +153,24 @@ describe('TextInput', () => {
     wrap(<Inside hidden />);
     expect(screen.queryByRole('textbox')).toBeNull();
   });
+
+  it('commit: after Enter the input keeps focus while pending, and antd prints no dynamic-suffix warning', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let finish!: () => void;
+    const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    wrap(<Committed fire={fire} />);
+    input().focus();
+    type('Ada');
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    await waitFor(() => expect(input()).toBeDisabled());
+    expect(document.activeElement).toBe(input());
+    await act(async () => { finish(); });
+    await waitFor(() => expect(shown()).toBe('Ada'));
+    const focusWarnings = errorSpy.mock.calls.filter((args) =>
+      args.some((a) => typeof a === 'string' && a.includes('lose focus')));
+    expect(focusWarnings).toHaveLength(0);
+    errorSpy.mockRestore();
+  });
 });
 
 function SearchInside(opts: Partial<Omit<TextFieldOptions, 'value' | 'onChange' | 'commit'>> & { onEnter?: () => void }) {
@@ -225,6 +243,15 @@ describe('SearchInput', () => {
     await waitFor(() => expect(shown()).toBe(''));
   });
 
+  it('commit: the clear button requests \'\' at once (not just the draft), as Escape does', async () => {
+    const fire = vi.fn();
+    wrap(<SearchCommitted fire={fire} initial="cats" />);
+    const clearBtn = document.querySelector('.ant-input-clear-icon') as HTMLElement;
+    fireEvent.click(clearBtn);
+    expect(input()).toHaveValue('');
+    await waitFor(() => expect(fire).toHaveBeenCalledWith(''));
+  });
+
   it('Escape clears, requesting \'\'', async () => {
     wrap(<SearchInside initialValue="cats" />);
     fireEvent.keyDown(input(), { key: 'Escape' });
@@ -238,6 +265,37 @@ describe('SearchInput', () => {
     fireEvent.keyDown(input(), { key: 'Escape' });
     expect(input()).toHaveValue('');
     await waitFor(() => expect(fire).toHaveBeenCalledWith(''));
+  });
+
+  it('commit, mid-composition: Enter neither requests the draft nor calls onEnter', () => {
+    const fire = vi.fn();
+    const onEnter = vi.fn();
+    wrap(<SearchCommitted fire={fire} onEnter={onEnter} />);
+    type('ねこ');
+    fireEvent.keyDown(input(), { key: 'Enter', isComposing: true });
+    expect(fire).not.toHaveBeenCalled();
+    expect(onEnter).not.toHaveBeenCalled();
+    expect(input()).toHaveValue('ねこ');
+  });
+
+  it('mid-composition, Escape does not clear', () => {
+    wrap(<SearchInside initialValue="cats" />);
+    fireEvent.keyDown(input(), { key: 'Escape', isComposing: true });
+    expect(shown()).toBe('cats');
+  });
+
+  it('the draft follows the field\'s value when it changes from outside', () => {
+    function OutsideCommitted() {
+      const [stored, setStored] = useState('cats');
+      const field = useTextField({
+        id: 'query', label: 'Search', value: stored, commit: { fire: (next) => { setStored(next); } },
+      });
+      return <><SearchInput field={field} /><button onClick={() => setStored('dogs')}>External set</button></>;
+    }
+    wrap(<OutsideCommitted />);
+    type('birds');
+    fireEvent.click(screen.getByText('External set'));
+    expect(input()).toHaveValue('dogs');
   });
 
   it('disabled: no change, shows the reason on hover', async () => {
