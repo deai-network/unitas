@@ -85,7 +85,9 @@ group.isDefault(id), group.changedCount, group.resetAll()
     key, so an absent key reads as the current default; `hrefFor` links each value; a stored
     raw value that does not parse, or falls back, warns once, in the render that first reads
     it, as `useStoredField`'s does. A value that falls back later, because another field
-    changed, does not warn. `resetAll(method = 'replace')` resets every key in one write.
+    changed, does not warn, nor does a raw value the group itself wrote (a chained write,
+    below, may fall back at once): the warnings are for raw values from elsewhere (the URL,
+    another tab). `resetAll(method = 'replace')` resets every key in one write.
   - Mixing storage modes in one group: not in this design.
 - **Controls**: each field's controls are exactly what its kind's hook returns, with the same
   types, so every widget works unchanged; `setValue` (through the kind's own checks) writes the

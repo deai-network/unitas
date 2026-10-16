@@ -391,6 +391,28 @@ describe('useFieldGroup: stored', () => {
     });
   });
 
+  it('a raw value the group itself wrote does not warn when it falls back; one from elsewhere still warns once', () => {
+    warnings((warn) => {
+      const store = memoryStore({ layout: 'original' });
+      const { result, rerender } = renderHook(() => useFieldGroup(PRINT, { stored: true }), { wrapper: storing(store) });
+      // Under the original layout Letter is a choice, so the request passes; the layout write before it makes it fall back.
+      act(() => {
+        result.current.byId.layout.setValue('rendered');
+        result.current.byId.paper.setValue('letter');
+      });
+      expect(store.snapshot()).toEqual({ paper: 'letter' });
+      expect(result.current.values).toEqual({ layout: 'rendered', paper: 'a4', copies: 1 });
+      rerender();
+      expect(warn).not.toHaveBeenCalled();
+      // The URL moves on, then arrives with paper=letter under the rendered layout: not the group's write, so it warns, once.
+      act(() => store.write([{ key: 'paper', raw: 'a5' }], 'replace'));
+      act(() => store.write([{ key: 'paper', raw: 'letter' }], 'replace'));
+      rerender();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith("Field 'paper': stored value 'letter' is not one of its choices, using 'a4'");
+    });
+  });
+
   it('values keeps its identity when a store change leaves every shown value the same', () => {
     warnings(() => {
       const store = memoryStore();

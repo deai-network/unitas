@@ -565,7 +565,10 @@ and the stored value is never rewritten (the search above hides `toc`; `?toc=` s
 raw value that does not parse, or does not fit its field, warns once, in the render that first
 reads it, as `useStoredField`'s does; one that does not parse reads as the current default. A
 value that another field's change makes fall back later does not warn: that is how a group
-behaves, not bad input. `resetAll(method = 'replace')` removes every field's key in one store
+behaves, not bad input. Nor does a raw value the group itself wrote:
+`layout.setValue('rendered'); paper.setValue('letter')` in one handler (Letter offered under the
+original layout) stores `letter`, which falls back at once; the warnings are for raw values from
+elsewhere (the URL, another tab). `resetAll(method = 'replace')` removes every field's key in one store
 write (one history entry). Switching between the two storages is a change of shape: it throws
 (remount with a React `key`).
 
