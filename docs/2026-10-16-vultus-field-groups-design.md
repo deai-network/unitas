@@ -83,21 +83,37 @@ group.isDefault(id), group.changedCount, group.resetAll()
   - `stored: true`: the nearest `ArgStore` (the URL, localStorage) under each field's id, as
     `useStoredField` does: a value equal to the field's current default is kept as an absent
     key, so an absent key reads as the current default; `hrefFor` links each value; a stored
-    value that does not parse or falls back warns once per raw value, as `useStoredField` does.
-    `resetAll(method = 'replace')` resets every key in one write.
+    raw value that does not parse, or falls back, warns once, in the render that first reads
+    it, as `useStoredField`'s does. A value that falls back later, because another field
+    changed, does not warn. `resetAll(method = 'replace')` resets every key in one write.
   - Mixing storage modes in one group: not in this design.
 - **Controls**: each field's controls are exactly what its kind's hook returns, with the same
   types, so every widget works unchanged; `setValue` (through the kind's own checks) writes the
   kept value; the component running the group re-renders and every option recomputes.
+- **Chained writes in one event** (`layout.setValue('original'); paper.setValue('letter')` in
+  one handler): each write goes through the kind's own request check against the rendered
+  options, so a request that becomes valid only through an earlier write in the same event is
+  refused (`Field 'paper': 'letter' is not one of its choices`), as with plain hooks. Whether a
+  write equals the field's default (and so is kept as nothing) is decided under the kept values
+  at write time, the event's earlier writes included, in both storage modes.
 - **`isDefault(id)` / `changedCount`**: whether a field's shown value equals its current default,
-  and how many do not; `isDefault` throws for an id not in the group.
+  and how many do not; `isDefault` throws for an id not in the group:
+  `Field group: no field 'layot' in the group (fields: layout, paper, copies)`.
 - **Shape**: the list keeps the same ids and kinds in the same order across renders (hooks run
-  per field); a changed shape throws, telling the app to remount (a React `key`) to swap lists.
-  The definitions' contents may change.
+  per field); a changed shape throws, telling the app to remount (a React `key`) to swap lists:
+  ``Field group: the fields changed from layout (oneOf), paper (oneOf), copies (numeric) to
+  layout (oneOf), paper (text), copies (numeric); a group runs hooks per field, so it keeps the
+  same ids and kinds, in order, across renders: to swap lists, remount the component running it
+  with a React `key` ``. Switching between the two storages is a change of shape too:
+  ``Field group: the storage changed from the group's own state to the nearest ArgStore
+  ({ stored: true }); a group runs other hooks for each, so it keeps its storage across renders:
+  to switch, remount the component running it with a React `key` ``. The definitions' contents
+  may change.
 - **Single fields are unchanged**: `useStoredField`, `useStoredFields`, `<Field definition>` and
   the kind hooks work as before.
-- **Typing**: `ctx.values` is `Record<string, unknown>` by default; an app wanting it typed
-  declares `values` in its context type (`createFieldContext<Ctx>()`).
+- **Typing**: `ctx.values` is `any` by default (`FieldDefinition`'s context type defaults to
+  `any`); an app wanting it typed declares `values` in its context type (`FieldDefinition<Ctx>`,
+  `createFieldContext<Ctx>()`).
 
 ## UI (vultus-antd)
 
