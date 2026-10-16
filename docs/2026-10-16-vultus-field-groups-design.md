@@ -45,7 +45,9 @@ sidedao ran every field hook in one form hook and computed options from earlier 
 - **Loud failures** (each names the field and option, as missing context keys do today):
   - reading an id that is not in the group: `Field 'paper': option 'choices': no field 'layot'
     in the group (fields: layout, paper, copies)`;
-  - reading `ctx.values` outside a group: `... ctx.values is only available inside a field group`;
+  - reading `ctx.values` outside a group, with a `FieldContextProvider` above: `... ctx.values
+    is only available inside a field group`; with none, a function declaring `ctx` gets the
+    existing `... is a function of the field context, but no FieldContextProvider is above it`;
   - reading `ctx.values` from `initialValue`: `... initialValue cannot read other fields' values`;
   - two definitions with the same id in a group.
 - **Defaults follow the options.** A field's default is its `initialValue` (resolved without
@@ -89,17 +91,20 @@ group.isDefault(id), group.changedCount, group.resetAll()
     below, may fall back at once): the warnings are for raw values from elsewhere (the URL,
     another tab). `resetAll(method = 'replace')` resets every key in one write.
   - Mixing storage modes in one group: not in this design.
-- **Controls**: each field's controls are exactly what its kind's hook returns, with the same
-  types, so every widget works unchanged; `setValue` (through the kind's own checks) writes the
-  kept value; the component running the group re-renders and every option recomputes.
+- **Controls**: each field's controls are the same objects as the kind's hook returns, typed
+  `FieldControls`; cast by kind for a kind's own controls (`group.byId.toc as
+  OneOfTreeFieldControls<string>`). Every widget works unchanged; `setValue` (through the kind's
+  own checks) writes the kept value; the component running the group re-renders and every
+  option recomputes.
 - **Chained writes in one event** (`layout.setValue('original'); paper.setValue('letter')` in
   one handler): each write goes through the kind's own request check against the rendered
   options, so a request that becomes valid only through an earlier write in the same event is
   refused (`Field 'paper': 'letter' is not one of its choices`), as with plain hooks. Whether a
   write equals the field's default (and so is kept as nothing) is decided under the kept values
   at write time, the event's earlier writes included, in both storage modes.
-- **`isDefault(id)` / `changedCount`**: whether a field's shown value equals its current default,
-  and how many do not; `isDefault` throws for an id not in the group:
+- **`isDefault(id)` / `changedCount`**: whether a field shows its current default, by
+  `useStoredFields`' rule (nothing kept, or the kept value or the value shown equals the current
+  default), and how many do not; `isDefault` throws for an id not in the group:
   `Field group: no field 'layot' in the group (fields: layout, paper, copies)`.
 - **Shape**: the list keeps the same ids and kinds in the same order across renders (hooks run
   per field); a changed shape throws, telling the app to remount (a React `key`) to swap lists:

@@ -12,7 +12,11 @@ import type { ValueType } from './valueTypes.js';
 
 /** A field group's fields as one component runs them (see useFieldGroup). */
 export interface FieldGroup {
-  /** Each field's controls, exactly as its kind's hook returns them, in definition order: what the widgets render. */
+  /**
+   * Each field's controls, exactly as its kind's hook returns them, in definition order: what the
+   * widgets render. Typed `FieldControls`; for a kind's own controls, cast by kind
+   * (`group.byId.toc as OneOfTreeFieldControls<string>`).
+   */
   fields: FieldControls<any, any>[];
   /** The same controls, by field id. */
   byId: Record<string, FieldControls<any, any>>;
@@ -237,8 +241,9 @@ function useStoredValues(definitions: readonly FieldDefinition[], appCtx: FieldC
  * field. A field's default is its `initialValue` (which cannot read `values`), else its kind's
  * implicit initial value from its options as they are now, so it moves with the fields those
  * read. It throws, naming the field (and the option), for an option reading an id not in the
- * group, two definitions with the same id, a mixed-boolean definition, an app context that
- * already has `values`, and fields whose values depend on each other (naming the cycle).
+ * group, two definitions with the same id and a mixed-boolean definition; naming the cycle for
+ * fields whose values depend on each other; and for an app context that already has `values`
+ * (`Field group: the field context already has 'values'; a field group provides it`).
  *
  * Storage, for the whole group, is the caller's choice. By default the group keeps the values in
  * its own state, as a store keeps them: a field never set, or set to its current default, keeps

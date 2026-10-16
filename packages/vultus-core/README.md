@@ -492,7 +492,9 @@ It returns `fields`, each field's controls exactly as its kind's hook returns th
 order; `byId`, the same controls by id; `values`, the shown values by id as of this render (a
 plain object, which keeps its identity until a shown value changes, so an effect keyed on it runs
 only then); `isDefault(id)` (an id not in the group throws), `changedCount` and `resetAll()`
-("more filters (3)", "clear all").
+("more filters (3)", "clear all"). The controls are typed `FieldControls`, which every widget
+takes; for a kind's own controls (a tree's `nodes`, numeric's `format`), cast by kind:
+`group.byId.toc as OneOfTreeFieldControls<string>`.
 
 **References.** Every option function of a group's definition receives `ctx.values` (`label`,
 `description`, `placeholder`, `visible` / `hidden`, `enabled` / `disabled`, `choices`, a tree's
@@ -521,7 +523,9 @@ the value shown equals the current default.
 
 - an option reading an id not in the group: `Field 'paper': option 'choices': no field 'layot'
   in the group (fields: layout, paper, copies)`;
-- reading `ctx.values` outside a group: `... ctx.values is only available inside a field group`;
+- reading `ctx.values` outside a group, with a `FieldContextProvider` above: `... ctx.values is
+  only available inside a field group`; with none, a function declaring `ctx` gets the existing
+  `... is a function of the field context, but no FieldContextProvider is above it`;
 - `initialValue` reading `ctx.values`: `... initialValue cannot read other fields' values`;
 - fields whose values depend on each other (A's choices read B, and B's read A): `Fields 'a' ->
   'b' -> 'a' depend on each other's values`. Options that never affect a value (`visible`,
