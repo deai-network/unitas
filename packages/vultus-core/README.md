@@ -533,10 +533,37 @@ the value shown equals the current default.
   a React `key`. The definitions' contents may change, and new objects of the same shape on
   every render (inline literals) are fine.
 
-**Storage.** The group keeps the values in its own state, as a store keeps them: a field without
-a kept value shows its current default, and a value set equal to it is not kept. A fallback is
-silent here, as it is the designed behaviour, not bad input. `resetAll()` clears every kept
-value. `{ stored: true }` (the nearest `ArgStore`) is not available yet: it throws.
+**Storage**, for the whole group, is the runner's choice. By default the group keeps the values
+in its own state, as a store keeps them: a field without a kept value shows its current default,
+and a value set equal to it is not kept. A fallback is silent here, as it is the designed
+behaviour, not bad input. `resetAll()` clears every kept value.
+
+With `useFieldGroup(definitions, { stored: true })` the values live in the nearest `ArgStore`
+(the URL through vultus-react-router's `<ReactRouterArgStore>`, or localStorage) under each
+field's id, as `useStoredField` keeps a single field there, all read in one store subscription:
+
+```tsx
+const filters: FieldDefinition[] = [
+  { kind: 'text', id: 'search' },
+  { kind: 'oneOfTree', id: 'toc', optional: true, nodes: CHAPTERS, widget: 'list', visible: (ctx) => ctx.values.search === '' },
+];
+
+function Filters() {
+  const group = useFieldGroup(filters, { stored: true }); // ?search=...&toc=...
+  return <>{group.fields.map((f) => <FieldWidget key={f.id} field={f} />)}</>;
+}
+```
+
+An absent key reads as the field's current default, and a value equal to it is written as an
+absent key (with `'replace'`). The default compared with is the one of the render the write
+comes from, as in `useStoredField`, so of two writes in one event the second does not see the
+first's effect on its default. Each field's `hrefFor` links a value through the store
+(`undefined` where the store has no links). The fallback rule is the same and the stored value
+is never rewritten (the search above hides `toc`; `?toc=` stays), but a stored value that does
+not parse, or falls back, warns once per raw value, as `useStoredField` does; one that does not
+parse reads as the current default. `resetAll(method = 'replace')` removes every field's key in
+one store write (one history entry). Switching between the two storages is a change of shape:
+it throws (remount with a React `key`).
 
 **Rendering.** vultus-antd's `<FieldWidget>` renders the controls (by the definition's `widget`
 hint; `item` for a labelled form item), in order as above or by id

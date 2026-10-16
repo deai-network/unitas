@@ -22,8 +22,12 @@ export interface ArgControls<T> {
   hrefFor(value: T): string | undefined;
 }
 
-/** The raw value a write needs for `value`: `undefined` (removes the key) when it equals the default, else its formatted form. */
-function rawFor<T>(value: T, defaultValue: T, valueType: ValueType<T>): string | undefined {
+/**
+ * The raw value a write needs for `value`: `undefined` (removes the key) when it equals the
+ * default, else its formatted form. Exported for the field group (useFieldGroup), which writes a
+ * store by the same rule; not part of the package's API.
+ */
+export function rawFor<T>(value: T, defaultValue: T, valueType: ValueType<T>): string | undefined {
   return valueType.isEqual(value, defaultValue) ? undefined : valueType.format(value);
 }
 

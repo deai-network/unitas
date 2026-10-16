@@ -1,6 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, type MockInstance } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { memoryStore, type ArgStore } from '../argStore.js';
+import { ArgStoreProvider } from '../ArgStoreContext.js';
 import { FieldContextProvider } from '../FieldContext.js';
 import type { FieldDefinition } from '../kinds.js';
 import type { NumericFieldControls } from '../useNumericField.js';
@@ -251,8 +253,186 @@ describe('useFieldGroup: shape', () => {
   });
 });
 
+function storing(store: ArgStore, fieldContext?: () => object) {
+  return ({ children }: { children?: ReactNode }) => {
+    const withStore = <ArgStoreProvider store={store}>{children}</ArgStoreProvider>;
+    return fieldContext === undefined ? withStore : <FieldContextProvider value={fieldContext()}>{withStore}</FieldContextProvider>;
+  };
+}
+
+/** An ArgStore whose hrefFor writes each change as `key=raw`, a removed key as `-key`. */
+function storeWithHrefFor(initial: Record<string, string> = {}): ArgStore & { snapshot(): Record<string, string> } {
+  return {
+    ...memoryStore(initial),
+    hrefFor: (changes) => `#?${changes.map((c) => (c.raw === undefined ? `-${c.key}` : `${c.key}=${c.raw}`)).join('&')}`,
+  };
+}
+
+/** Runs `check` with console.warn spied on (and silenced). */
+function warnings(check: (warn: MockInstance<typeof console.warn>) => void): void {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    check(warn);
+  } finally {
+    warn.mockRestore();
+  }
+}
+
 describe('useFieldGroup: stored', () => {
-  it('stored is not there yet', () => {
-    expect(quietly(() => renderHook(() => useFieldGroup(PRINT, { stored: true })))).toThrow('not yet');
+  it('reads each field from the store under its id; an absent key reads as the current default', () => {
+    const store = memoryStore({ layout: 'original' });
+    const { result } = renderHook(() => useFieldGroup([layout, movingPaper], { stored: true }), { wrapper: storing(store) });
+    expect(result.current.values).toEqual({ layout: 'original', paper: 'letter' });
+    expect(result.current.isDefault('paper')).toBe(true);
+    act(() => store.write([{ key: 'layout', raw: undefined }], 'replace'));
+    expect(result.current.values).toEqual({ layout: 'rendered', paper: 'a4' });
+    expect(result.current.byId.paper.value).toBe('a4');
+  });
+
+  it('a change writes the store with replace, the key absent when the value equals the current default', () => {
+    const store = memoryStore();
+    const write = vi.spyOn(store, 'write');
+    const { result } = renderHook(() => useFieldGroup([layout, movingPaper], { stored: true }), { wrapper: storing(store) });
+    act(() => result.current.byId.layout.setValue('original'));
+    expect(write).toHaveBeenLastCalledWith([{ key: 'layout', raw: 'original' }], 'replace');
+    act(() => result.current.byId.paper.setValue('letter'));
+    expect(write).toHaveBeenLastCalledWith([{ key: 'paper', raw: undefined }], 'replace');
+    expect(store.snapshot()).toEqual({ layout: 'original' });
+    act(() => result.current.byId.paper.setValue('a4'));
+    expect(store.snapshot()).toEqual({ layout: 'original', paper: 'a4' });
+    expect(result.current.isDefault('paper')).toBe(false);
+    act(() => result.current.byId.layout.setValue('rendered'));
+    expect(store.snapshot()).toEqual({ paper: 'a4' });
+    expect(result.current.isDefault('paper')).toBe(true);
+  });
+
+  it('a stored value another field made invalid falls back, warning once, and shows again once valid; the store is untouched', () => {
+    warnings((warn) => {
+      const store = memoryStore({ paper: 'letter' });
+      const { result } = renderHook(() => useFieldGroup(PRINT, { stored: true }), { wrapper: storing(store) });
+      expect(result.current.values.paper).toBe('a4');
+      expect(result.current.isDefault('paper')).toBe(true);
+      act(() => result.current.byId.layout.setValue('original'));
+      expect(result.current.byId.paper.value).toBe('letter');
+      expect(result.current.values.paper).toBe('letter');
+      expect(result.current.isDefault('paper')).toBe(false);
+      act(() => result.current.byId.layout.setValue('rendered'));
+      expect(result.current.byId.paper.value).toBe('a4');
+      expect(store.snapshot()).toEqual({ paper: 'letter' });
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith("Field 'paper': stored value 'letter' is not one of its choices, using 'a4'");
+    });
+  });
+
+  it('warns once per raw value: not again on a re-render with a new app context, again for another raw value', () => {
+    warnings((warn) => {
+      const store = memoryStore({ paper: 'letter' });
+      const { result, rerender } = renderHook(() => useFieldGroup(PRINT, { stored: true }), {
+        wrapper: storing(store, () => ({ fresh: true })),
+      });
+      rerender();
+      rerender();
+      expect(result.current.values.paper).toBe('a4');
+      expect(warn).toHaveBeenCalledTimes(1);
+      act(() => store.write([{ key: 'paper', raw: 'legal' }], 'replace'));
+      expect(warn).toHaveBeenCalledTimes(2);
+      expect(warn).toHaveBeenLastCalledWith("Field 'paper': stored value 'legal' is not one of its choices, using 'a4'");
+    });
+  });
+
+  it('a raw value that does not parse warns once, as useArg does, and reads as the current default', () => {
+    warnings((warn) => {
+      const store = memoryStore({ layout: 'original', copies: 'many' });
+      const { result, rerender } = renderHook(() => useFieldGroup(PRINT, { stored: true }), { wrapper: storing(store) });
+      rerender();
+      expect(result.current.values.copies).toBe(1);
+      expect(result.current.isDefault('copies')).toBe(true);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith("Argument 'copies': cannot read 'many', using the default");
+    });
+  });
+
+  it('resetAll removes every field\'s key in one write, with replace unless told otherwise', () => {
+    const store = memoryStore({ layout: 'original', paper: 'letter', copies: '3', other: 'x' });
+    const write = vi.spyOn(store, 'write');
+    const { result } = renderHook(() => useFieldGroup(PRINT, { stored: true }), { wrapper: storing(store) });
+    expect(result.current.changedCount).toBe(3);
+    act(() => result.current.resetAll());
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith(
+      [{ key: 'layout', raw: undefined }, { key: 'paper', raw: undefined }, { key: 'copies', raw: undefined }], 'replace',
+    );
+    expect(store.snapshot()).toEqual({ other: 'x' });
+    expect(result.current.changedCount).toBe(0);
+    act(() => result.current.resetAll('push'));
+    expect(write).toHaveBeenLastCalledWith(expect.any(Array), 'push');
+  });
+
+  it('hrefFor comes from the store\'s hrefFor, the key absent for the current default', () => {
+    const store = storeWithHrefFor({ layout: 'original' });
+    const { result } = renderHook(() => useFieldGroup([layout, movingPaper], { stored: true }), { wrapper: storing(store) });
+    expect(result.current.byId.paper.hrefFor?.('a5')).toBe('#?paper=a5');
+    expect(result.current.byId.paper.hrefFor?.('letter')).toBe('#?-paper');
+    expect(result.current.byId.layout.hrefFor?.('rendered')).toBe('#?-layout');
+  });
+
+  it('a field\'s hrefFor keeps its identity while its default stays the same, and follows a new default', () => {
+    const store = storeWithHrefFor();
+    const { result, rerender } = renderHook(() => useFieldGroup([layout, movingPaper], { stored: true }), { wrapper: storing(store) });
+    const before = result.current.byId.paper.hrefFor;
+    rerender();
+    expect(result.current.byId.paper.hrefFor).toBe(before);
+    act(() => result.current.byId.layout.setValue('original'));
+    expect(result.current.byId.paper.hrefFor?.('a4')).toBe('#?paper=a4');
+    expect(result.current.byId.paper.hrefFor?.('letter')).toBe('#?-paper');
+  });
+
+  it('hrefFor gives undefined when the store has none', () => {
+    const { result } = renderHook(() => useFieldGroup(PRINT, { stored: true }), { wrapper: storing(memoryStore()) });
+    expect(result.current.byId.paper.hrefFor?.('a5')).toBeUndefined();
+  });
+
+  it('new definition objects of the same shape on every render are fine, and do not loop', () => {
+    const store = memoryStore();
+    let renders = 0;
+    const { result } = renderHook(() => {
+      renders += 1;
+      return useFieldGroup([
+        { kind: 'oneOf', id: 'layout', choices: [{ value: 'rendered' }, { value: 'original' }] },
+        { kind: 'oneOf', id: 'paper', choices: (ctx) => (ctx.values.layout === 'rendered' ? A_SIZES : ALL_SIZES) },
+      ], { stored: true });
+    }, { wrapper: storing(store) });
+    expect(renders).toBe(1);
+    act(() => result.current.byId.layout.setValue('original'));
+    act(() => result.current.byId.paper.setValue('letter'));
+    expect(renders).toBe(3);
+    expect(store.snapshot()).toEqual({ layout: 'original', paper: 'letter' });
+  });
+
+  it('a list value keeps its identity across renders while it stays the same', () => {
+    const tags: FieldDefinition = { kind: 'manyOf', id: 'tags', choices: [{ value: 'a' }, { value: 'b' }] };
+    const store = memoryStore({ tags: 'a' });
+    const { result, rerender } = renderHook(() => useFieldGroup([layout, tags], { stored: true }), { wrapper: storing(store) });
+    const before = result.current.byId.tags.value;
+    expect(before).toEqual(['a']);
+    rerender();
+    act(() => result.current.byId.layout.setValue('original'));
+    expect(result.current.byId.tags.value).toBe(before);
+    expect(result.current.values.tags).toBe(before);
+  });
+
+  it('a stored value of a field of an unknown kind throws, naming the field', () => {
+    const when = { kind: 'date', id: 'when' } as unknown as FieldDefinition;
+    expect(quietly(() => renderHook(() => useFieldGroup([when], { stored: true }), { wrapper: storing(memoryStore({ when: 'x' })) })))
+      .toThrow("Field 'when': unknown field kind 'date'");
+  });
+
+  it('switching between the group\'s own state and the store throws, telling the app to remount with a key', () => {
+    const { rerender } = renderHook(({ stored }) => useFieldGroup(PRINT, { stored }), {
+      initialProps: { stored: false }, wrapper: storing(memoryStore()),
+    });
+    expect(quietly(() => rerender({ stored: true }))).toThrow(
+      /^Field group: the storage changed from the group's own state to the nearest ArgStore \(\{ stored: true \}\);.*remount .*React `key`/,
+    );
   });
 });

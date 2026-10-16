@@ -1,11 +1,14 @@
-import { useCallback, useRef, useState } from 'react';
-import type { UpdateMethod } from './argStore.js';
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
+import type { ArgStore, UpdateMethod } from './argStore.js';
+import { useArgStore } from './ArgStoreContext.js';
 import type { FieldControls } from './field.js';
-import { useFieldContext, withFieldContext } from './FieldContext.js';
+import { useFieldContext, withFieldContext, type FieldCtx } from './FieldContext.js';
 import { createGroupValues, type GroupValues } from './fieldGroupValues.js';
 import { useKindField } from './kindHooks.js';
 import { valueTypeOf, type FieldDefinition } from './kinds.js';
+import { rawFor } from './useArg.js';
 import { sameValue } from './useStoredField.js';
+import type { ValueType } from './valueTypes.js';
 
 /** A field group's fields as one component runs them (see useFieldGroup). */
 export interface FieldGroup {
@@ -19,7 +22,11 @@ export interface FieldGroup {
   isDefault(id: string): boolean;
   /** How many of the fields do not show their defaults ("more filters (3)"). */
   changedCount: number;
-  /** Every field back to its default: no field keeps a value any more. */
+  /**
+   * Every field back to its default: no field keeps a value any more. Stored, one store write
+   * removes every field's key (`method`, 'replace' unless told otherwise); the group's own state
+   * ignores `method`.
+   */
   resetAll(method?: UpdateMethod): void;
 }
 
@@ -41,6 +48,11 @@ function shapeOf(definitions: readonly FieldDefinition[]): string {
   return definitions.map(({ id, kind }) => `${id} (${String(kind)})`).join(', ');
 }
 
+/** Where a group keeps its values, in the words of the error for a change of it. */
+function storageOf(stored: boolean): string {
+  return stored ? 'the nearest ArgStore ({ stored: true })' : "the group's own state";
+}
+
 /**
  * Whether a field shows its default, by useStoredField's rule: nothing is kept, or the kept
  * value equals the current default, or what it shows does (a kept value that falls back to it).
@@ -50,6 +62,131 @@ function showsDefault(definition: FieldDefinition, kept: unknown, group: GroupVa
   const { isEqual } = valueTypeOf(definition.kind);
   const fallback = group.defaultOf(definition.id);
   return isEqual(kept, fallback) || isEqual(group.valueOf(definition.id), fallback);
+}
+
+/** A field's writer and link, as its kind's hook takes them (the outside form's `onChange` and `hrefFor`). */
+interface Outside {
+  onChange(value: unknown): void;
+  hrefFor?(value: unknown): string | undefined;
+}
+
+/** Where a group keeps its values (its own state, or the nearest ArgStore), as one render sees them. */
+interface Keeping {
+  /** A field's kept value; `undefined` for none, so the field shows its current default. */
+  kept(id: string): unknown;
+  /** Where a kept value's sanitizing warnings go, with the field's id (see createGroupValues). */
+  warn(id: string, message: string): void;
+  /** A field's writer and link, given this render's values. */
+  outside(definition: FieldDefinition, group: GroupValues): Outside;
+  /** Every field back to its default (see FieldGroup). */
+  resetAll(method?: UpdateMethod): void;
+}
+
+/**
+ * The group's own state: the kept values by id. A write keeps the value unless it equals the
+ * field's default under the state the write applies to, so a write batched after another
+ * field's (in one event) compares with the default that one gives. A fallback is silent: a value
+ * another field made invalid is how a group behaves, not bad input. There are no links.
+ */
+function useOwnState(definitions: readonly FieldDefinition[], appCtx: FieldCtx): Keeping {
+  const [kept, setKept] = useState<Kept>(NOTHING_KEPT);
+  const resetAll = useCallback(() => setKept((state) => (Object.keys(state).length === 0 ? state : NOTHING_KEPT)), []);
+
+  const write = ({ id, kind }: FieldDefinition) => (value: unknown) => setKept((state) => {
+    const { defaultOf } = createGroupValues({ definitions, appCtx, kept: keptIn(state), warn: silently });
+    if (!valueTypeOf(kind).isEqual(value, defaultOf(id))) return { ...state, [id]: value };
+    if (!Object.hasOwn(state, id)) return state;
+    const { [id]: _dropped, ...rest } = state;
+    return rest;
+  });
+
+  return { kept: keptIn(kept), warn: silently, outside: (definition) => ({ onChange: write(definition) }), resetAll };
+}
+
+/** How a field's value is kept in a store; an unknown kind throws, naming the field (as argOf does). */
+function valueTypeFor({ id, kind }: FieldDefinition): ValueType<any> {
+  try {
+    return valueTypeOf(kind);
+  } catch (error) {
+    throw new Error(`Field '${id}': ${(error as Error).message}`);
+  }
+}
+
+/** A field's link, with what it was made from: kept while those stay the same, so the controls' `hrefFor` keeps its identity. */
+interface Link {
+  store: ArgStore;
+  defaultValue: unknown;
+  hrefFor(value: unknown): string | undefined;
+}
+
+/**
+ * The nearest ArgStore, under each field's id, as useStoredField keeps a field there, read in one
+ * subscription (as useStoredFields): its snapshot is the fields' raw values joined into one
+ * string, which changes exactly when one of them does. A raw value is parsed by the kind's value
+ * type; one that does not parse is no kept value, so the field shows its current default.
+ *
+ * A write, and a link (the store's `hrefFor`, where it has one), carry the value's raw form: the
+ * key absent when the value equals the field's current default as of this render, as
+ * useStoredField compares with the default it rendered with. A link keeps its identity while the
+ * store and the field's default stay the same (a tree list rebuilds its rows for a new one).
+ *
+ * A raw value warns (it does not parse, or it falls back) once, as useStoredField's does: in the
+ * render that first reads it, not again on a re-render, nor when another field's change makes it
+ * fall back later; another raw value warns again.
+ */
+function useStoredValues(definitions: readonly FieldDefinition[]): Keeping {
+  const store = useArgStore();
+  // The first render's ids: the shape check keeps them the same.
+  const [ids] = useState(() => definitions.map((definition) => definition.id));
+  // Called on the store, not passed detached: a store written as a class uses `this`.
+  const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
+  const readAll = useCallback(() => JSON.stringify(ids.map((id) => store.read(id) ?? null)), [store, ids]);
+  const snapshot = useSyncExternalStore(subscribe, readAll);
+  const rawList = JSON.parse(snapshot) as (string | null)[];
+  const raws = new Map(ids.map((id, i) => [id, rawList[i]]));
+
+  const seenRef = useRef(new Map<string, string | null>());
+  const seen = seenRef.current;
+  /** The fields whose raw value this render reads first: each may warn, once. */
+  const fresh = new Set(ids.filter((id) => raws.get(id) !== null && raws.get(id) !== seen.get(id)));
+  seenRef.current = raws;
+  const warn = (id: string, message: string) => {
+    if (fresh.delete(id)) console.warn(message);
+  };
+
+  const byId = new Map(definitions.map((definition) => [definition.id, definition]));
+  const parsed = new Map<string, unknown>();
+  const kept = (id: string) => {
+    if (!parsed.has(id)) {
+      const raw = raws.get(id) ?? null;
+      const value = raw === null ? undefined : valueTypeFor(byId.get(id)!).parse(raw);
+      if (raw !== null && value === undefined) warn(id, `Argument '${id}': cannot read '${raw}', using the default`);
+      parsed.set(id, value);
+    }
+    return parsed.get(id);
+  };
+
+  const linksRef = useRef(new Map<string, Link>());
+  const outside = (definition: FieldDefinition, group: GroupValues): Outside => {
+    const { id } = definition;
+    const valueType = valueTypeFor(definition);
+    const defaultValue = group.defaultOf(id);
+    const onChange = (value: unknown) => store.write([{ key: id, raw: rawFor(value, defaultValue, valueType) }], 'replace');
+    if (store.hrefFor === undefined) return { onChange };
+    let link = linksRef.current.get(id);
+    if (link === undefined || link.store !== store || !valueType.isEqual(link.defaultValue, defaultValue)) {
+      link = { store, defaultValue, hrefFor: (value) => store.hrefFor?.([{ key: id, raw: rawFor(value, defaultValue, valueType) }]) };
+      linksRef.current.set(id, link);
+    }
+    return { onChange, hrefFor: link.hrefFor };
+  };
+
+  const resetAll = useCallback(
+    (method: UpdateMethod = 'replace') => store.write(ids.map((id) => ({ key: id, raw: undefined })), method),
+    [store, ids],
+  );
+
+  return { kept, warn, outside, resetAll };
 }
 
 /**
@@ -62,41 +199,56 @@ function showsDefault(definition: FieldDefinition, kept: unknown, group: GroupVa
  * group, two definitions with the same id, a mixed-boolean definition, an app context that
  * already has `values`, and fields whose values depend on each other (naming the cycle).
  *
- * The group keeps the values in its own state, as a store keeps them: a field never set, or set
- * to its current default, keeps nothing and shows its current default, which moves with the
- * fields its options read. A kept value that another field's change made invalid shows the
- * field's fallback, silently (that is how a group behaves, not bad input), and shows again once
- * it is valid again; it is never rewritten. `resetAll()` clears every kept value (the update
- * method is for a store; here it is ignored). `{ stored: true }` is not there yet: it throws.
+ * Storage, for the whole group, is the caller's choice. By default the group keeps the values in
+ * its own state, as a store keeps them: a field never set, or set to its current default, keeps
+ * nothing and shows its current default, which moves with the fields its options read. A kept
+ * value that another field's change made invalid shows the field's fallback, silently (that is
+ * how a group behaves, not bad input), and shows again once it is valid again; it is never
+ * rewritten. `resetAll()` clears every kept value (the update method is for a store; here it is
+ * ignored).
+ *
+ * With `{ stored: true }` the values live in the nearest ArgStore (the URL, localStorage) under
+ * each field's id, as useStoredField keeps a field there, all read in one subscription: an absent
+ * key reads as the field's current default, and a value equal to it is written as an absent key
+ * (`'replace'`). The default compared with is the one of the render the write comes from, as
+ * useStoredField's is, so of two writes in one event the second does not see the first's effect
+ * on its default. The controls' `hrefFor` links a value through the store's `hrefFor`
+ * (`undefined` where the store has none). The fallback rule is the same, and the stored value is
+ * never rewritten either, but a raw value that does not parse, or falls back, warns once, as
+ * useStoredField's does: an unparsable one reads as the current default. `resetAll(method =
+ * 'replace')` removes every field's key in one write.
  *
  * Each field runs its kind's hook with the definition in its outside form (the group's value and
  * writer), with the group's context as its field context, so its controls are the kind's own,
  * and a request goes through the kind's own checks before it is kept. The hooks run per field,
- * so the ids and kinds, in order, are kept from the first render: a list of another shape
- * throws (remount the component running the group, with a React `key`, to swap lists). The
- * definitions' contents may change, and new objects of the same shape on every render (inline
- * literals) are fine.
+ * so the ids and kinds, in order, are kept from the first render, and so is the storage: a list
+ * of another shape, or another `stored`, throws (remount the component running the group, with a
+ * React `key`, to swap lists). The definitions' contents may change, and new objects of the same
+ * shape on every render (inline literals) are fine.
  *
  * A shown value keeps its identity while it stays the same element by element, as useStoredField's
  * does, so a list does not become a new array on every render.
  */
 export function useFieldGroup(definitions: readonly FieldDefinition[], options: { stored?: boolean } = {}): FieldGroup {
-  if (options.stored) throw new Error(`${WHERE}: { stored: true } is not yet supported`);
+  const stored = options.stored === true;
   const appCtx = useFieldContext();
 
   const shape = shapeOf(definitions);
-  const shapeRef = useRef(shape);
-  if (shape !== shapeRef.current) {
-    throw new Error(`${WHERE}: the fields changed from ${shapeRef.current} to ${shape}; a group runs hooks per field, so it `
+  const firstRef = useRef({ shape, stored });
+  const first = firstRef.current;
+  if (stored !== first.stored) {
+    throw new Error(`${WHERE}: the storage changed from ${storageOf(first.stored)} to ${storageOf(stored)}; a group runs `
+      + 'other hooks for each, so it keeps its storage across renders: to switch, remount the component running it with a React `key`');
+  }
+  if (shape !== first.shape) {
+    throw new Error(`${WHERE}: the fields changed from ${first.shape} to ${shape}; a group runs hooks per field, so it `
       + 'keeps the same ids and kinds, in order, across renders: to swap lists, remount the component running it with a React `key`');
   }
 
-  const [kept, setKept] = useState<Kept>(NOTHING_KEPT);
-  const resetAll = useCallback(() => setKept((state) => (Object.keys(state).length === 0 ? state : NOTHING_KEPT)), []);
   const shownRef = useRef(new Map<string, unknown>());
-
-  const valuesUnder = (state: Kept) => createGroupValues({ definitions, appCtx, kept: keptIn(state), warn: silently });
-  const group = valuesUnder(kept);
+  // The storage is the first render's (checked above), so the hooks it runs stay the same.
+  const keeping = stored ? useStoredValues(definitions) : useOwnState(definitions, appCtx);
+  const group = createGroupValues({ definitions, appCtx, kept: keeping.kept, warn: keeping.warn });
 
   const previous = shownRef.current;
   const shown = new Map<string, unknown>();
@@ -106,24 +258,16 @@ export function useFieldGroup(definitions: readonly FieldDefinition[], options: 
   }
   shownRef.current = shown;
 
-  // The default compared with is the one under the state the write applies to, so a write
-  // batched after another field's (in one event) compares with the default that one gives.
-  const write = ({ id, kind }: FieldDefinition) => (value: unknown) => setKept((state) => {
-    if (!valueTypeOf(kind).isEqual(value, valuesUnder(state).defaultOf(id))) return { ...state, [id]: value };
-    if (!Object.hasOwn(state, id)) return state;
-    const { [id]: _dropped, ...rest } = state;
-    return rest;
-  });
-
   // One kind hook per definition, in order; the shape check above keeps the hooks' order.
   const fields = definitions.map((definition) => {
     const { initialValue: _default, ...outside } = definition;
+    const { onChange, hrefFor } = keeping.outside(definition, group);
     return withFieldContext(group.ctx, () => useKindField(definition, {
-      ...outside, value: shown.get(definition.id), onChange: write(definition),
+      ...outside, value: shown.get(definition.id), onChange, hrefFor,
     }));
   });
 
-  const changed = new Set(definitions.filter((d) => !showsDefault(d, keptIn(kept)(d.id), group)).map((d) => d.id));
+  const changed = new Set(definitions.filter((d) => !showsDefault(d, keeping.kept(d.id), group)).map((d) => d.id));
   const isDefault = (id: string) => {
     if (!shown.has(id)) {
       throw new Error(`${WHERE}: no field '${id}' in the group (fields: ${definitions.map((d) => d.id).join(', ')})`);
@@ -137,6 +281,6 @@ export function useFieldGroup(definitions: readonly FieldDefinition[], options: 
     values: Object.fromEntries(shown),
     isDefault,
     changedCount: changed.size,
-    resetAll,
+    resetAll: keeping.resetAll,
   };
 }
