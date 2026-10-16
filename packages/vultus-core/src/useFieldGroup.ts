@@ -64,6 +64,17 @@ function showsDefault(definition: FieldDefinition, kept: unknown, group: GroupVa
   return isEqual(kept, fallback) || isEqual(group.valueOf(definition.id), fallback);
 }
 
+/**
+ * A field's default under the given kept values (the state a write applies to, not necessarily
+ * this render's), computed afresh and silently. A write compares with it, so a write batched
+ * after another field's (in one event) compares with the default that one gives.
+ */
+function defaultUnder(
+  definitions: readonly FieldDefinition[], appCtx: FieldCtx, kept: (id: string) => unknown, id: string,
+): unknown {
+  return createGroupValues({ definitions, appCtx, kept, warn: silently }).defaultOf(id);
+}
+
 /** A field's writer and link, as its kind's hook takes them (the outside form's `onChange` and `hrefFor`). */
 interface Outside {
   onChange(value: unknown): void;
@@ -93,8 +104,7 @@ function useOwnState(definitions: readonly FieldDefinition[], appCtx: FieldCtx):
   const resetAll = useCallback(() => setKept((state) => (Object.keys(state).length === 0 ? state : NOTHING_KEPT)), []);
 
   const write = ({ id, kind }: FieldDefinition) => (value: unknown) => setKept((state) => {
-    const { defaultOf } = createGroupValues({ definitions, appCtx, kept: keptIn(state), warn: silently });
-    if (!valueTypeOf(kind).isEqual(value, defaultOf(id))) return { ...state, [id]: value };
+    if (!valueTypeOf(kind).isEqual(value, defaultUnder(definitions, appCtx, keptIn(state), id))) return { ...state, [id]: value };
     if (!Object.hasOwn(state, id)) return state;
     const { [id]: _dropped, ...rest } = state;
     return rest;
@@ -110,6 +120,11 @@ function valueTypeFor({ id, kind }: FieldDefinition): ValueType<any> {
   } catch (error) {
     throw new Error(`Field '${id}': ${(error as Error).message}`);
   }
+}
+
+/** A stored raw value as the field's value: `undefined` for an absent key, or for a raw value its kind's value type cannot read. */
+function parseRaw(definition: FieldDefinition, raw: string | undefined): unknown {
+  return raw === undefined ? undefined : valueTypeFor(definition).parse(raw);
 }
 
 /** A field's link, with what it was made from: kept while those stay the same, so the controls' `hrefFor` keeps its identity. */
@@ -162,24 +177,16 @@ function useStoredValues(definitions: readonly FieldDefinition[], appCtx: FieldC
   const parsed = new Map<string, unknown>();
   const kept = (id: string) => {
     if (!parsed.has(id)) {
-      const raw = raws.get(id) ?? null;
-      const value = raw === null ? undefined : valueTypeFor(byId.get(id)!).parse(raw);
-      if (raw !== null && value === undefined) warn(id, `Argument '${id}': cannot read '${raw}', using the default`);
+      const raw = raws.get(id) ?? undefined;
+      const value = parseRaw(byId.get(id)!, raw);
+      if (raw !== undefined && value === undefined) warn(id, `Argument '${id}': cannot read '${raw}', using the default`);
       parsed.set(id, value);
     }
     return parsed.get(id);
   };
 
-  /** A field's default as the store has it now: the values computed afresh from its current raw values, without warnings. */
-  const defaultNow = (id: string) => createGroupValues({
-    definitions,
-    appCtx,
-    kept: (key) => {
-      const raw = store.read(key);
-      return raw === undefined ? undefined : valueTypeFor(byId.get(key)!).parse(raw);
-    },
-    warn: silently,
-  }).defaultOf(id);
+  /** A field's default as the store has it now: under its current raw values, its own writes not rendered yet included. */
+  const defaultNow = (id: string) => defaultUnder(definitions, appCtx, (key) => parseRaw(byId.get(key)!, store.read(key)), id);
 
   const linksRef = useRef(new Map<string, Link>());
   const outside = (definition: FieldDefinition, group: GroupValues): Outside => {

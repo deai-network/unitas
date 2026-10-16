@@ -447,4 +447,13 @@ describe('useFieldGroup: stored', () => {
       /^Field group: the storage changed from the group's own state to the nearest ArgStore \(\{ stored: true \}\);.*remount .*React `key`/,
     );
   });
+
+  it('switching from the store to the group\'s own state throws too', () => {
+    const { rerender } = renderHook(({ stored }) => useFieldGroup(PRINT, { stored }), {
+      initialProps: { stored: true }, wrapper: storing(memoryStore()),
+    });
+    expect(quietly(() => rerender({ stored: false }))).toThrow(
+      /^Field group: the storage changed from the nearest ArgStore \(\{ stored: true \}\) to the group's own state;.*remount .*React `key`/,
+    );
+  });
 });

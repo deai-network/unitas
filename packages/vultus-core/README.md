@@ -559,12 +559,14 @@ absent key (with `'replace'`). The default compared with is the one under the st
 the moment of the write (a store reads its own writes back at once), so, as in the group's own
 state, `layout.setValue('original'); paper.setValue('a4')` in one handler keeps `a4` even where
 `a4` was paper's default under the old layout. Each field's `hrefFor` links a value through the
-store, as rendered (`undefined` where the store has no links). The fallback rule is the same and the stored value
-is never rewritten (the search above hides `toc`; `?toc=` stays), but a stored value that does
-not parse, or falls back, warns once per raw value, as `useStoredField` does; one that does not
-parse reads as the current default. `resetAll(method = 'replace')` removes every field's key in
-one store write (one history entry). Switching between the two storages is a change of shape:
-it throws (remount with a React `key`).
+store, as rendered (`undefined` where the store has no links). The fallback rule is the same,
+and the stored value is never rewritten (the search above hides `toc`; `?toc=` stays). A stored
+raw value that does not parse, or does not fit its field, warns once, in the render that first
+reads it, as `useStoredField`'s does; one that does not parse reads as the current default. A
+value that another field's change makes fall back later does not warn: that is how a group
+behaves, not bad input. `resetAll(method = 'replace')` removes every field's key in one store
+write (one history entry). Switching between the two storages is a change of shape: it throws
+(remount with a React `key`).
 
 **Rendering.** vultus-antd's `<FieldWidget>` renders the controls (by the definition's `widget`
 hint; `item` for a labelled form item), in order as above or by id
