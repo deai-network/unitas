@@ -31,8 +31,28 @@ function isProbe(key: string): boolean {
   return PROBED_KEYS.has(key) || key.startsWith('@@');
 }
 
-/** What the guard throws for a key no provider gave, so readingContext can tell it from the function's own errors. */
-class MissingKeyError extends Error {}
+/**
+ * What the guard throws for a key no provider gave, so readingContext can tell it from the
+ * function's own errors. Exported for the field group (fieldGroupValues), whose own reads that
+ * fail (an id not in the group, `values` read from `initialValue`) get the field and option in
+ * front the same way; not part of the package's API.
+ */
+export class MissingKeyError extends Error {}
+
+/**
+ * `raw` guarded against reading a key it lacks: such a read throws a MissingKeyError with
+ * `missing(key)` as its message, which readingContext puts the field and the option in front
+ * of. Probes and symbol keys read as usual. Exported for the field group's `values` (an id not
+ * in the group); not part of the package's API.
+ */
+export function guardKeys(raw: object, missing: (key: string) => string): object {
+  return new Proxy(raw, {
+    get(target, key, receiver) {
+      if (typeof key === 'string' && !isProbe(key) && !(key in target)) throw new MissingKeyError(missing(key));
+      return Reflect.get(target, key, receiver);
+    },
+  });
+}
 
 /**
  * The context value as the definitions' functions receive it: reading a key that no provider
@@ -41,15 +61,9 @@ class MissingKeyError extends Error {}
  * key a field group adds (extendFieldContext), so reading it from any other context says so.
  */
 function guard(raw: object): object {
-  return new Proxy(raw, {
-    get(target, key, receiver) {
-      if (typeof key === 'string' && !isProbe(key) && !(key in target)) {
-        if (key === 'values') throw new MissingKeyError('ctx.values is only available inside a field group');
-        throw new MissingKeyError(`Field context: '${key}' was never provided (provided: ${Object.keys(target).join(', ')})`);
-      }
-      return Reflect.get(target, key, receiver);
-    },
-  });
+  return guardKeys(raw, (key) => (key === 'values'
+    ? 'ctx.values is only available inside a field group'
+    : `Field context: '${key}' was never provided (provided: ${Object.keys(raw).join(', ')})`));
 }
 
 /**
@@ -99,12 +113,13 @@ export function createFieldContext<Ctx extends object>(): {
  * provider's value is: how a field group gives its fields' functions `values` beside the app's
  * own keys. `extra`'s properties are copied as defined, so a getter among them runs when its
  * key is read, not here. A key of `extra` that `base` already has throws, `where` in front,
- * instead of shadowing the app's value.
+ * instead of shadowing the app's value; every key the copy takes is checked (non-enumerable
+ * and symbol keys too).
  */
 export function extendFieldContext(base: FieldCtx, extra: Record<string, unknown>, where: string): object {
   const raw: object = base === NO_FIELD_CONTEXT ? {} : { ...base };
-  for (const key of Object.keys(extra)) {
-    if (Object.hasOwn(raw, key)) throw new Error(`${where}: the field context already has '${key}'; a field group provides it`);
+  for (const key of Reflect.ownKeys(extra)) {
+    if (Object.hasOwn(raw, key)) throw new Error(`${where}: the field context already has '${String(key)}'; a field group provides it`);
   }
   return guard(Object.defineProperties(raw, Object.getOwnPropertyDescriptors(extra)));
 }

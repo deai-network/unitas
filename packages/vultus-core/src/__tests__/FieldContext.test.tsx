@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { render, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import {
   FieldContextProvider, NO_FIELD_CONTEXT, createFieldContext, extendFieldContext, useFieldContext, withFieldContext,
+  type FieldCtx,
 } from '../FieldContext.js';
 import { useBoolField } from '../useBoolField.js';
 import { useOneOfField } from '../useOneOfField.js';
@@ -163,6 +164,13 @@ describe('field context: groups', () => {
       .toThrow(/^Field group: the field context already has 'values'; a field group provides it$/);
   });
 
+  it('extending with a key the base already has throws, even when the key is not enumerable', () => {
+    const { result } = renderHook(() => useFieldContext(), { wrapper: providing({ values: { mine: 1 } }) });
+    const extra = Object.defineProperty({}, 'values', { value: {}, enumerable: false });
+    expect(() => extendFieldContext(result.current, extra, 'Field group'))
+      .toThrow(/^Field group: the field context already has 'values'; a field group provides it$/);
+  });
+
   it('a hook called inside withFieldContext sees the given context', () => {
     const ctx = extendFieldContext(appContext(), { values: { layout: 'original' } }, 'Field group');
     const { result } = renderHook(() => withFieldContext(ctx, () => useBoolField({
@@ -203,6 +211,42 @@ describe('field context: groups', () => {
     expect(result.current[0]).toBe(outer);
     expect(result.current[1]).toBe(inner);
     expect(result.current[2]).toBe(outer);
+  });
+
+  it('a throw inside a nested withFieldContext restores the outer one', () => {
+    const outer = extendFieldContext(NO_FIELD_CONTEXT, { values: { n: 1 } }, 'Field group');
+    const inner = extendFieldContext(NO_FIELD_CONTEXT, { values: { n: 2 } }, 'Field group');
+    const { result } = renderHook(() => withFieldContext(outer, () => {
+      let thrown: unknown;
+      try {
+        withFieldContext(inner, () => {
+          useFieldContext();
+          throw new Error('boom');
+        });
+      } catch (error) {
+        thrown = error;
+      }
+      return { thrown, after: useFieldContext() };
+    }));
+    expect(result.current.thrown).toEqual(new Error('boom'));
+    expect(result.current.after).toBe(outer);
+  });
+
+  it('a component rendered after one that used withFieldContext sees the provider\'s context', () => {
+    const given = extendFieldContext(NO_FIELD_CONTEXT, { values: {} }, 'Field group');
+    const seen: Record<string, FieldCtx> = {};
+    function Group() {
+      seen.group = withFieldContext(given, () => useFieldContext());
+      return null;
+    }
+    function Sibling() {
+      seen.sibling = useFieldContext();
+      return null;
+    }
+    render(<FieldContextProvider value={{ lang: 'hu' }}><Group /><Sibling /></FieldContextProvider>);
+    expect(seen.group).toBe(given);
+    expect(seen.sibling).not.toBe(given);
+    expect((seen.sibling as { lang: string }).lang).toBe('hu');
   });
 
   it('reading ctx.values outside a field group throws, naming the field and the option', () => {
