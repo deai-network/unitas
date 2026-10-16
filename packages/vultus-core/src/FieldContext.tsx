@@ -37,12 +37,14 @@ class MissingKeyError extends Error {}
 /**
  * The context value as the definitions' functions receive it: reading a key that no provider
  * gave throws, naming it and the keys present, so a forgotten value fails loudly instead of
- * passing `undefined` along. A key provided with the value `undefined` is fine.
+ * passing `undefined` along. A key provided with the value `undefined` is fine. `values` is the
+ * key a field group adds (extendFieldContext), so reading it from any other context says so.
  */
 function guard(raw: object): object {
   return new Proxy(raw, {
     get(target, key, receiver) {
       if (typeof key === 'string' && !isProbe(key) && !(key in target)) {
+        if (key === 'values') throw new MissingKeyError('ctx.values is only available inside a field group');
         throw new MissingKeyError(`Field context: '${key}' was never provided (provided: ${Object.keys(target).join(', ')})`);
       }
       return Reflect.get(target, key, receiver);
@@ -92,7 +94,47 @@ export function createFieldContext<Ctx extends object>(): {
   return { Provider: FieldContextProvider };
 }
 
-/** The field context the hooks resolve functions with: the guarded value, or NO_FIELD_CONTEXT. */
+/**
+ * A field context with `base`'s keys (none for NO_FIELD_CONTEXT) and `extra`'s, guarded as a
+ * provider's value is: how a field group gives its fields' functions `values` beside the app's
+ * own keys. `extra`'s properties are copied as defined, so a getter among them runs when its
+ * key is read, not here. A key of `extra` that `base` already has throws, `where` in front,
+ * instead of shadowing the app's value.
+ */
+export function extendFieldContext(base: FieldCtx, extra: Record<string, unknown>, where: string): object {
+  const raw: object = base === NO_FIELD_CONTEXT ? {} : { ...base };
+  for (const key of Object.keys(extra)) {
+    if (Object.hasOwn(raw, key)) throw new Error(`${where}: the field context already has '${key}'; a field group provides it`);
+  }
+  return guard(Object.defineProperties(raw, Object.getOwnPropertyDescriptors(extra)));
+}
+
+/** The context withFieldContext gives the hooks it is running, if any. */
+let override: FieldCtx | undefined;
+
+/**
+ * Runs `run` with `ctx` as the field context: a hook it calls gets `ctx` from useFieldContext
+ * instead of the providers' value. It is for a hook that calls other hooks in its own render,
+ * each with its own context (a field group runs each field's kind hook with the group's); the
+ * components rendered below do not see it. `run` must be synchronous: the previous context
+ * comes back when it returns or throws. Calls nest.
+ */
+export function withFieldContext<T>(ctx: FieldCtx, run: () => T): T {
+  const previous = override;
+  override = ctx;
+  try {
+    return run();
+  } finally {
+    override = previous;
+  }
+}
+
+/**
+ * The field context the hooks resolve functions with: the one withFieldContext gives while it
+ * runs, else the providers' guarded value, or NO_FIELD_CONTEXT.
+ */
 export function useFieldContext(): FieldCtx {
-  return useContext(FieldContext)?.guarded ?? NO_FIELD_CONTEXT;
+  // Called under an override too, so that the hooks' order never depends on one.
+  const provided = useContext(FieldContext);
+  return override ?? provided?.guarded ?? NO_FIELD_CONTEXT;
 }

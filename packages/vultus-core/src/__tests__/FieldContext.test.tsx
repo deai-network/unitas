@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { FieldContextProvider, createFieldContext, useFieldContext } from '../FieldContext.js';
+import {
+  FieldContextProvider, NO_FIELD_CONTEXT, createFieldContext, extendFieldContext, useFieldContext, withFieldContext,
+} from '../FieldContext.js';
 import { useBoolField } from '../useBoolField.js';
 import { useOneOfField } from '../useOneOfField.js';
 
@@ -127,5 +129,85 @@ describe('field context: functions in the options', () => {
     const wrapper = ({ children }: { children?: ReactNode }) => <C.Provider value={{ t: () => 'T' }}>{children}</C.Provider>;
     const { result } = renderHook(() => useBoolField({ id: 'sec', label: (ctx: Translate) => ctx.t('x') }), { wrapper });
     expect(result.current.label).toBe('T');
+  });
+});
+
+describe('field context: groups', () => {
+  const appContext = () => renderHook(() => useFieldContext(), { wrapper: providing({ t: (k: string) => k, lang: 'hu' }) }).result.current;
+
+  it('extending keeps the base\'s keys and adds the extra ones, guarded', () => {
+    const ctx = extendFieldContext(appContext(), { values: { layout: 'rendered' } }, 'Field group') as {
+      t: (k: string) => string; lang: string; values: { layout: string }; items?: unknown;
+    };
+    expect(ctx.t('x')).toBe('x');
+    expect(ctx.lang).toBe('hu');
+    expect(ctx.values.layout).toBe('rendered');
+    expect(() => ctx.items).toThrow(/^Field context: 'items' was never provided \(provided: t, lang, values\)$/);
+  });
+
+  it('extending no context gives just the extra keys', () => {
+    const ctx = extendFieldContext(NO_FIELD_CONTEXT, { values: { layout: 'rendered' } }, 'Field group');
+    expect(Object.keys(ctx)).toEqual(['values']);
+    expect(() => (ctx as { t?: unknown }).t).toThrow(/^Field context: 't' was never provided \(provided: values\)$/);
+  });
+
+  it('extending reads the extra keys when they are read, not before', () => {
+    const extra = { get values(): never { throw new Error('read too early'); } };
+    const ctx = extendFieldContext(appContext(), extra, 'Field group');
+    expect(() => (ctx as { values?: unknown }).values).toThrow('read too early');
+  });
+
+  it('extending with a key the base already has throws', () => {
+    const { result } = renderHook(() => useFieldContext(), { wrapper: providing({ values: { mine: 1 } }) });
+    expect(() => extendFieldContext(result.current, { values: {} }, 'Field group'))
+      .toThrow(/^Field group: the field context already has 'values'; a field group provides it$/);
+  });
+
+  it('a hook called inside withFieldContext sees the given context', () => {
+    const ctx = extendFieldContext(appContext(), { values: { layout: 'original' } }, 'Field group');
+    const { result } = renderHook(() => withFieldContext(ctx, () => useBoolField({
+      id: 'copies', label: (c: { values: { layout: string } }) => c.values.layout,
+    })), { wrapper: providing({ t: (k: string) => k }) });
+    expect(result.current.label).toBe('original');
+  });
+
+  it('withFieldContext restores the context after run, and after run throws', () => {
+    const given = extendFieldContext(NO_FIELD_CONTEXT, { values: {} }, 'Field group');
+    const { result } = renderHook(() => {
+      const inside = withFieldContext(given, () => useFieldContext());
+      const after = useFieldContext();
+      let thrown: unknown;
+      try {
+        withFieldContext(given, () => {
+          useFieldContext();
+          throw new Error('boom');
+        });
+      } catch (error) {
+        thrown = error;
+      }
+      return { inside, after, thrown, afterThrow: useFieldContext() };
+    }, { wrapper: providing({ lang: 'hu' }) });
+    expect(result.current.inside).toBe(given);
+    expect(result.current.after).not.toBe(given);
+    expect((result.current.after as { lang: string }).lang).toBe('hu');
+    expect(result.current.thrown).toEqual(new Error('boom'));
+    expect(result.current.afterThrow).toBe(result.current.after);
+  });
+
+  it('withFieldContext nests', () => {
+    const outer = extendFieldContext(NO_FIELD_CONTEXT, { values: { n: 1 } }, 'Field group');
+    const inner = extendFieldContext(NO_FIELD_CONTEXT, { values: { n: 2 } }, 'Field group');
+    const { result } = renderHook(() => withFieldContext(outer, () => [
+      useFieldContext(), withFieldContext(inner, () => useFieldContext()), useFieldContext(),
+    ]));
+    expect(result.current[0]).toBe(outer);
+    expect(result.current[1]).toBe(inner);
+    expect(result.current[2]).toBe(outer);
+  });
+
+  it('reading ctx.values outside a field group throws, naming the field and the option', () => {
+    expect(quietly(() => renderHook(() => useBoolField({ id: 'sec', label: (ctx) => ctx.values.layout }), {
+      wrapper: providing({ t: (k: string) => k }),
+    }))).toThrow(/^Field 'sec': option 'label': ctx\.values is only available inside a field group$/);
   });
 });
