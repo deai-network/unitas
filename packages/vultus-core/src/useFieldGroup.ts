@@ -248,8 +248,11 @@ function useStoredValues(definitions: readonly FieldDefinition[], appCtx: FieldC
  * React `key`, to swap lists). The definitions' contents may change, and new objects of the same
  * shape on every render (inline literals) are fine.
  *
- * A shown value keeps its identity while it stays the same element by element, as useStoredField's
- * does, so a list does not become a new array on every render.
+ * A field's shown value, in `values` and as passed to its kind's hook, keeps its identity while it
+ * stays equal (element by element, as useStoredField's does), so a list does not become a new array
+ * on every render; the `values` object itself is new on each render. A kind's own controls may
+ * still rebuild a composite value: range's `[from, to]` pair is put in order and within bounds
+ * anew on every render.
  */
 export function useFieldGroup(definitions: readonly FieldDefinition[], options: { stored?: boolean } = {}): FieldGroup {
   const stored = options.stored === true;
