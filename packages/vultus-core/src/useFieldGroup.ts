@@ -125,16 +125,20 @@ interface Link {
  * string, which changes exactly when one of them does. A raw value is parsed by the kind's value
  * type; one that does not parse is no kept value, so the field shows its current default.
  *
- * A write, and a link (the store's `hrefFor`, where it has one), carry the value's raw form: the
- * key absent when the value equals the field's current default as of this render, as
- * useStoredField compares with the default it rendered with. A link keeps its identity while the
- * store and the field's default stay the same (a tree list rebuilds its rows for a new one).
+ * A write carries the value's raw form, the key absent when the value equals the field's default
+ * as the store has it at that moment: the values computed afresh, silently, from the store's
+ * current raw values, which include its own writes not rendered yet (every store reads them back
+ * at once). So, as in the group's own state, a write batched after another field's (in one
+ * event) compares with the default that one gives. A link (the store's `hrefFor`, where it has
+ * one) is the render's: its key is absent when the value equals the default as rendered, and it
+ * keeps its identity while the store and that default stay the same (a tree list rebuilds its
+ * rows for a new one, and asks again when a link is used).
  *
  * A raw value warns (it does not parse, or it falls back) once, as useStoredField's does: in the
  * render that first reads it, not again on a re-render, nor when another field's change makes it
  * fall back later; another raw value warns again.
  */
-function useStoredValues(definitions: readonly FieldDefinition[]): Keeping {
+function useStoredValues(definitions: readonly FieldDefinition[], appCtx: FieldCtx): Keeping {
   const store = useArgStore();
   // The first render's ids: the shape check keeps them the same.
   const [ids] = useState(() => definitions.map((definition) => definition.id));
@@ -166,13 +170,24 @@ function useStoredValues(definitions: readonly FieldDefinition[]): Keeping {
     return parsed.get(id);
   };
 
+  /** A field's default as the store has it now: the values computed afresh from its current raw values, without warnings. */
+  const defaultNow = (id: string) => createGroupValues({
+    definitions,
+    appCtx,
+    kept: (key) => {
+      const raw = store.read(key);
+      return raw === undefined ? undefined : valueTypeFor(byId.get(key)!).parse(raw);
+    },
+    warn: silently,
+  }).defaultOf(id);
+
   const linksRef = useRef(new Map<string, Link>());
   const outside = (definition: FieldDefinition, group: GroupValues): Outside => {
     const { id } = definition;
     const valueType = valueTypeFor(definition);
-    const defaultValue = group.defaultOf(id);
-    const onChange = (value: unknown) => store.write([{ key: id, raw: rawFor(value, defaultValue, valueType) }], 'replace');
+    const onChange = (value: unknown) => store.write([{ key: id, raw: rawFor(value, defaultNow(id), valueType) }], 'replace');
     if (store.hrefFor === undefined) return { onChange };
+    const defaultValue = group.defaultOf(id);
     let link = linksRef.current.get(id);
     if (link === undefined || link.store !== store || !valueType.isEqual(link.defaultValue, defaultValue)) {
       link = { store, defaultValue, hrefFor: (value) => store.hrefFor?.([{ key: id, raw: rawFor(value, defaultValue, valueType) }]) };
@@ -210,13 +225,13 @@ function useStoredValues(definitions: readonly FieldDefinition[]): Keeping {
  * With `{ stored: true }` the values live in the nearest ArgStore (the URL, localStorage) under
  * each field's id, as useStoredField keeps a field there, all read in one subscription: an absent
  * key reads as the field's current default, and a value equal to it is written as an absent key
- * (`'replace'`). The default compared with is the one of the render the write comes from, as
- * useStoredField's is, so of two writes in one event the second does not see the first's effect
- * on its default. The controls' `hrefFor` links a value through the store's `hrefFor`
- * (`undefined` where the store has none). The fallback rule is the same, and the stored value is
- * never rewritten either, but a raw value that does not parse, or falls back, warns once, as
- * useStoredField's does: an unparsable one reads as the current default. `resetAll(method =
- * 'replace')` removes every field's key in one write.
+ * (`'replace'`). The default compared with is the one under the store's values at the moment of
+ * the write, as in the group's own state, so a write batched after another field's (in one
+ * event) compares with the default that one gives. The controls' `hrefFor` links a value
+ * through the store's `hrefFor` (`undefined` where the store has none), as rendered. The fallback
+ * rule is the same, and the stored value is never rewritten either, but a raw value that does not
+ * parse, or falls back, warns once, as useStoredField's does: an unparsable one reads as the
+ * current default. `resetAll(method = 'replace')` removes every field's key in one write.
  *
  * Each field runs its kind's hook with the definition in its outside form (the group's value and
  * writer), with the group's context as its field context, so its controls are the kind's own,
@@ -247,7 +262,7 @@ export function useFieldGroup(definitions: readonly FieldDefinition[], options: 
 
   const shownRef = useRef(new Map<string, unknown>());
   // The storage is the first render's (checked above), so the hooks it runs stay the same.
-  const keeping = stored ? useStoredValues(definitions) : useOwnState(definitions, appCtx);
+  const keeping = stored ? useStoredValues(definitions, appCtx) : useOwnState(definitions, appCtx);
   const group = createGroupValues({ definitions, appCtx, kept: keeping.kept, warn: keeping.warn });
 
   const previous = shownRef.current;

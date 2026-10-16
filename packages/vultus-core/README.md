@@ -555,10 +555,11 @@ function Filters() {
 ```
 
 An absent key reads as the field's current default, and a value equal to it is written as an
-absent key (with `'replace'`). The default compared with is the one of the render the write
-comes from, as in `useStoredField`, so of two writes in one event the second does not see the
-first's effect on its default. Each field's `hrefFor` links a value through the store
-(`undefined` where the store has no links). The fallback rule is the same and the stored value
+absent key (with `'replace'`). The default compared with is the one under the store's values at
+the moment of the write (a store reads its own writes back at once), so, as in the group's own
+state, `layout.setValue('original'); paper.setValue('a4')` in one handler keeps `a4` even where
+`a4` was paper's default under the old layout. Each field's `hrefFor` links a value through the
+store, as rendered (`undefined` where the store has no links). The fallback rule is the same and the stored value
 is never rewritten (the search above hides `toc`; `?toc=` stays), but a stored value that does
 not parse, or falls back, warns once per raw value, as `useStoredField` does; one that does not
 parse reads as the current default. `resetAll(method = 'replace')` removes every field's key in

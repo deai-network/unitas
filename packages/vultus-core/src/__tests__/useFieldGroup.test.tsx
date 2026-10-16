@@ -306,6 +306,18 @@ describe('useFieldGroup: stored', () => {
     expect(result.current.isDefault('paper')).toBe(true);
   });
 
+  it('a write compares with the default under the writes before it in the same batch, as in the group\'s own state', () => {
+    const store = memoryStore();
+    const { result } = renderHook(() => useFieldGroup([layout, movingPaper], { stored: true }), { wrapper: storing(store) });
+    act(() => {
+      result.current.byId.layout.setValue('original');
+      result.current.byId.paper.setValue('a4');
+    });
+    expect(result.current.values).toEqual({ layout: 'original', paper: 'a4' });
+    expect(result.current.isDefault('paper')).toBe(false);
+    expect(store.snapshot()).toEqual({ layout: 'original', paper: 'a4' });
+  });
+
   it('a stored value another field made invalid falls back, warning once, and shows again once valid; the store is untouched', () => {
     warnings((warn) => {
       const store = memoryStore({ paper: 'letter' });
