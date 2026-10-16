@@ -413,6 +413,22 @@ describe('useFieldGroup: stored', () => {
     });
   });
 
+  it('a write the group undoes before any render is not remembered: the same value arriving later warns', () => {
+    warnings((warn) => {
+      const store = memoryStore({ layout: 'original' });
+      const { result, rerender } = renderHook(() => useFieldGroup(PRINT, { stored: true }), { wrapper: storing(store) });
+      act(() => {
+        result.current.byId.paper.setValue('letter');
+        result.current.resetAll();
+      });
+      act(() => store.write([{ key: 'paper', raw: 'letter' }], 'replace'));
+      rerender();
+      expect(result.current.values.paper).toBe('a4');
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith("Field 'paper': stored value 'letter' is not one of its choices, using 'a4'");
+    });
+  });
+
   it('values keeps its identity when a store change leaves every shown value the same', () => {
     warnings(() => {
       const store = memoryStore();

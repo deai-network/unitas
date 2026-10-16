@@ -159,8 +159,8 @@ interface Link {
  * A raw value warns (it does not parse, or it falls back) once, as useStoredField's does: in the
  * render that first reads it, not again on a re-render, nor when another field's change makes it
  * fall back later; another raw value warns again. The warnings are for raw values from elsewhere
- * (the URL, another tab): the one the group itself last wrote for a field, until a render reads
- * it, does not warn, as a write chained after another field's in one event may fall back at once
+ * (the URL, another tab): the one the group itself last wrote for a field, read by the next render,
+ * does not warn, as a write chained after another field's in one event may fall back at once
  * (`layout.setValue('rendered'); paper.setValue('letter')`, Letter offered under the old layout).
  */
 function useStoredValues(definitions: readonly FieldDefinition[], appCtx: FieldCtx): Keeping {
@@ -175,7 +175,7 @@ function useStoredValues(definitions: readonly FieldDefinition[], appCtx: FieldC
   const raws = new Map(ids.map((id, i) => [id, rawList[i]]));
 
   const seenRef = useRef(new Map<string, string | null>());
-  /** The raw value the group itself last wrote for a field, until a render reads a new raw value for it. */
+  /** The raw value the group itself last wrote for a field, until the next render reads the store. */
   const writtenRef = useRef(new Map<string, string | undefined>());
   const seen = seenRef.current;
   const written = writtenRef.current;
@@ -183,10 +183,11 @@ function useStoredValues(definitions: readonly FieldDefinition[], appCtx: FieldC
   const fresh = new Set<string>();
   for (const id of ids) {
     const raw = raws.get(id) ?? null;
-    if (raw === seen.get(id)) continue;
-    if (raw !== null && raw !== written.get(id)) fresh.add(id);
-    written.delete(id);
+    if (raw !== seen.get(id) && raw !== null && raw !== written.get(id)) fresh.add(id);
   }
+  // Every store reads its own writes back at once, so the render after a write reads it: the memory
+  // lasts until then, and a write undone before any render is not remembered later.
+  written.clear();
   seenRef.current = raws;
   const warn = (id: string, message: string) => {
     if (fresh.delete(id)) console.warn(message);
