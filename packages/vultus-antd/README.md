@@ -440,6 +440,10 @@ call: `<MessageSinkContext.Provider value={SILENT}>`, with a module-level no-op
 (`const SILENT: MessageSink = () => {};`) — a new function on every render would re-create the
 field's setter.
 
+A field group's controls (vultus-core's `useFieldGroup`) render the same way,
+`group.fields.map((f) => <FieldWidget key={f.id} field={f} item />)` or one by id; they never
+commit, so there are no messages, and no sink to silence.
+
 ## Typing confirmation
 
 A `{ kind: 'typing', title, entityName, description, prompt? }` confirmation
