@@ -76,9 +76,10 @@ group.isDefault(id), group.changedCount, group.resetAll()
 ```
 
 - **Storage, for the whole group, is the runner's choice.**
-  - Default: the group's own state, one kept value per field, starting at each field's default
-    (computed once, at mount). `resetAll()` puts every field back to its current default. A
-    fallback here is silent (it is the designed behaviour, not bad input).
+  - Default: the group's own state, kept exactly as a store keeps it: a field never set (or set
+    to its current default) has no kept value and reads as its current default, so both storage
+    modes behave alike. `resetAll()` clears every kept value. A fallback here is silent (it is
+    the designed behaviour, not bad input).
   - `stored: true`: the nearest `ArgStore` (the URL, localStorage) under each field's id, as
     `useStoredField` does: a value equal to the field's current default is kept as an absent
     key, so an absent key reads as the current default; `hrefFor` links each value; a stored
