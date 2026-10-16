@@ -86,6 +86,21 @@ describe('field group values: the fallback rule', () => {
     expect(snapshot(kept).values.paper).toBe('letter');
   });
 
+  it('a one-of tree\'s kept node that can no longer be chosen falls back, and shows again once choosable', () => {
+    const toc: FieldDefinition = {
+      kind: 'oneOfTree', id: 'toc',
+      nodes: (ctx) => [{ value: 'ch1', choosable: ctx.values.layout === 'original', children: [{ value: 's1' }, { value: 's2' }] }],
+    };
+    const warn = vi.fn();
+    const kept: Record<string, unknown> = { layout: 'original', toc: 'ch1' };
+    expect(snapshot(kept, { definitions: [layout, toc], warn }).values.toc).toBe('ch1');
+    kept.layout = 'rendered';
+    expect(snapshot(kept, { definitions: [layout, toc], warn }).values.toc).toBe('s1');
+    expect(warn).toHaveBeenCalledWith('toc', "Field 'toc': stored value 'ch1' cannot be chosen, using 's1'");
+    kept.layout = 'original';
+    expect(snapshot(kept, { definitions: [layout, toc], warn }).values.toc).toBe('ch1');
+  });
+
   it('the other fields see the fallback', () => {
     const note: FieldDefinition = { kind: 'text', id: 'note', placeholder: (ctx) => `on ${ctx.values.paper}` };
     const { ctx } = snapshot({ layout: 'rendered', paper: 'letter' }, { definitions: [...PRINT, note] });
@@ -134,6 +149,17 @@ describe('field group values: defaults follow the options', () => {
     expect(snapshot({ layout: 'rendered' }, { definitions: [layout, count] }).defaultOf('copies')).toBe(1);
   });
 
+  it('a one-of tree whose nodes read another field defaults to its first choosable node, which moves', () => {
+    const toc: FieldDefinition = {
+      kind: 'oneOfTree', id: 'toc',
+      nodes: (ctx) => [{ value: 'ch1', choosable: ctx.values.layout === 'original', children: [{ value: 's1' }, { value: 's2' }] }],
+    };
+    expect(snapshot({ layout: 'rendered' }, { definitions: [layout, toc] }).defaultOf('toc')).toBe('s1');
+    expect(snapshot({ layout: 'original' }, { definitions: [layout, toc] }).defaultOf('toc')).toBe('ch1');
+    expect(snapshot({ layout: 'rendered' }, { definitions: [layout, toc] }).values.toc).toBe('s1');
+    expect(snapshot({ layout: 'original' }, { definitions: [layout, toc] }).values.toc).toBe('ch1');
+  });
+
   it('initialValue reads the app\'s context', () => {
     const preferred: FieldDefinition = { kind: 'oneOf', id: 'paper', choices: ALL_SIZES, initialValue: (ctx) => ctx.preferredPaper };
     const group = snapshot({}, { definitions: [preferred], appCtx: { preferredPaper: 'letter' } });
@@ -171,6 +197,14 @@ describe('field group values: loud failures', () => {
       .toThrow(/^Field 'paper': option 'choices': no field 'layot' in the group \(fields: layout, paper, copies\)$/);
   });
 
+  it('an id that names a member every object has is not in the group either', () => {
+    const { values, ctx } = snapshot({});
+    expect(() => values.toString).toThrow(/^no field 'toString' in the group \(fields: layout, paper, copies\)$/);
+    expect(() => values.constructor).toThrow(/^no field 'constructor' in the group \(fields: layout, paper, copies\)$/);
+    const typo: FieldDefinition = { kind: 'text', id: 'note', placeholder: (c) => String(c.values.constructor) };
+    expect(() => option(typo, 'placeholder', ctx)).toThrow(/^no field 'constructor' in the group/);
+  });
+
   it('asking for an id that is not in the group throws', () => {
     expect(() => snapshot({}).valueOf('layot')).toThrow(/^no field 'layot' in the group \(fields: layout, paper, copies\)$/);
     expect(() => snapshot({}).defaultOf('layot')).toThrow(/^no field 'layot' in the group \(fields: layout, paper, copies\)$/);
@@ -196,6 +230,12 @@ describe('field group values: loud failures', () => {
     // A kept value that falls back falls back to the default, so initialValue runs there too.
     expect(() => snapshot({ paper: 'b5' }, { definitions: [layout, following] }).valueOf('paper')).toThrow(message);
   });
+
+  it('initialValue reading a key the app never provided lists the keys it can read, not values', () => {
+    const preferred: FieldDefinition = { kind: 'oneOf', id: 'paper', choices: ALL_SIZES, initialValue: (ctx) => ctx.preferredPaper };
+    expect(() => snapshot({}, { definitions: [preferred], appCtx: { t: (k: string) => k, lang: 'hu' } }).defaultOf('paper'))
+      .toThrow(/^Field 'paper': option 'initialValue': Field context: 'preferredPaper' was never provided \(provided: t, lang\)$/);
+  });
 });
 
 describe('field group values: cycles', () => {
@@ -211,6 +251,14 @@ describe('field group values: cycles', () => {
   it('kept values do not hide a cycle', () => {
     expect(() => snapshot({ a: 'x', b: 'y' }, { definitions: [a, b] }).valueOf('a'))
       .toThrow(/^Fields 'a' -> 'b' -> 'a' depend on each other's values$/);
+  });
+
+  it('after a cycle throws, the fields outside it still compute in the same snapshot', () => {
+    const group = snapshot({ layout: 'original', paper: 'letter' }, { definitions: [a, b, layout, paper] });
+    expect(() => group.valueOf('a')).toThrow(/^Fields 'a' -> 'b' -> 'a' depend on each other's values$/);
+    expect(group.valueOf('paper')).toBe('letter');
+    expect(group.values.layout).toBe('original');
+    expect(() => group.valueOf('b')).toThrow(/^Fields 'b' -> 'a' -> 'b' depend on each other's values$/);
   });
 
   it('the cycle is named without the fields leading into it', () => {

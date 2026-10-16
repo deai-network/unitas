@@ -102,13 +102,15 @@ export function createGroupValues({ definitions, appCtx, kept, warn }: GroupValu
 
   const getters: Record<string, unknown> = {};
   for (const id of ids) Object.defineProperty(getters, id, { get: () => valueOf(id), enumerable: true });
-  const values = guardKeys(getters, noField) as Readonly<Record<string, unknown>>;
+  // Own keys only: `values.toString` is a typo for an id, not Object's member.
+  const values = guardKeys(getters, noField, Object.hasOwn) as Readonly<Record<string, unknown>>;
   const ctx = extendFieldContext(appCtx, { values }, WHERE);
-  const initialCtx = extendFieldContext(appCtx, {
-    get values(): never {
+  // `values` not enumerable: a missing key's message lists the keys provided, and this one only throws.
+  const initialCtx = extendFieldContext(appCtx, Object.defineProperty<Record<string, unknown>>({}, 'values', {
+    get(): never {
       throw new MissingKeyError(INITIAL_VALUE_READS_VALUES);
     },
-  }, WHERE);
+  }), WHERE);
   const computingDefinitions = new Map(definitions.map((definition) => [definition.id, forComputingValues(definition, initialCtx)]));
 
   const shown = new Map<string, unknown>();

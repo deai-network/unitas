@@ -42,13 +42,18 @@ export class MissingKeyError extends Error {}
 /**
  * `raw` guarded against reading a key it lacks: such a read throws a MissingKeyError with
  * `missing(key)` as its message, which readingContext puts the field and the option in front
- * of. Probes and symbol keys read as usual. Exported for the field group's `values` (an id not
- * in the group); not part of the package's API.
+ * of. `has` says whether `raw` has the key; by default inherited members (`toString`) count,
+ * and `Object.hasOwn` makes them missing too. Probes and symbol keys read as usual. Exported for
+ * the field group's `values` (an id not in the group); not part of the package's API.
  */
-export function guardKeys(raw: object, missing: (key: string) => string): object {
+export function guardKeys(
+  raw: object,
+  missing: (key: string) => string,
+  has: (target: object, key: string) => boolean = (target, key) => key in target,
+): object {
   return new Proxy(raw, {
     get(target, key, receiver) {
-      if (typeof key === 'string' && !isProbe(key) && !(key in target)) throw new MissingKeyError(missing(key));
+      if (typeof key === 'string' && !isProbe(key) && !has(target, key)) throw new MissingKeyError(missing(key));
       return Reflect.get(target, key, receiver);
     },
   });
