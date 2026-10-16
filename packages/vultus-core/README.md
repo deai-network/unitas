@@ -31,7 +31,8 @@ npm install vultus-core
   `initialValueOf`, `valueTypeOf`, `sanitizeStored`); the argument layer
   (the value types, `memoryStore`, `localStorageStore`, `ArgStoreProvider` /
   `useArgStore`, `useArg`, `useArgWriter`, `setArg` / `resetArg`, `argOf`,
-  `useStoredField` / `useStoredFields`); `InternalLinkContext` /
+  `useStoredField` / `useStoredFields`); field groups (`useFieldGroup` and
+  its `FieldGroup` type); `InternalLinkContext` /
   `useInternalLink` / `InternalLinkComponent`, `MessageSinkContext` /
   `useMessageSink` / `MessageSink`, and `VultusComponentsContext` /
   `useVultusComponents` / `SpinnerScope` / `useSpinnerKey` /
@@ -465,6 +466,83 @@ function Category() {
   // ...
 }
 ```
+
+## Field groups
+
+A field's options sometimes depend on another field's value: a print dialog offers some paper
+sizes only for one layout, a filter shows a sub-filter only when another is on. With hooks, an
+option takes a value computed from the other field's controls. Definitions as data say it
+through the field context: `useFieldGroup(definitions)` runs a list of definitions together, and
+every option function of each one receives `ctx.values`, the group's values by field id.
+
+```tsx
+const printOptions: FieldDefinition[] = [
+  { kind: 'oneOf', id: 'layout', choices: [{ value: 'rendered' }, { value: 'original' }] },
+  { kind: 'oneOf', id: 'paper', choices: (ctx) => (ctx.values.layout === 'rendered' ? A_SIZES : ALL_SIZES) },
+  { kind: 'numeric', id: 'copies', min: 1, visible: (ctx) => ctx.values.layout === 'original' },
+];
+
+function PrintDialog() {
+  const group = useFieldGroup(printOptions);
+  return <>{group.fields.map((f) => <FieldWidget key={f.id} field={f} item />)}</>;
+}
+```
+
+It returns `fields`, each field's controls exactly as its kind's hook returns them, in definition
+order; `byId`, the same controls by id; `values`, the shown values by id as of this render (a
+plain object); `isDefault(id)` (an id not in the group throws), `changedCount` and `resetAll()`
+("more filters (3)", "clear all").
+
+**References.** Every option function of a group's definition receives `ctx.values` (`label`,
+`description`, `placeholder`, `visible` / `hidden`, `enabled` / `disabled`, `choices`, a tree's
+`nodes`, `min` / `max`, numeric's `format(n, ctx)`, ...), beside the keys of the app's own field
+context (the nearest `FieldContextProvider`), which keep working. A function the controls keep
+and call later (`format`, through `field.format(n)`) sees the group's values too. `initialValue`
+cannot read them. In a plain `FieldDefinition` the context is untyped (`any`); an app wanting
+`ctx.values` typed declares `values` in its context type (`FieldDefinition<Ctx>`,
+`createFieldContext<Ctx>()`).
+
+**The fallback rule.** A field's shown value is its kept value checked as a stored value is
+(`sanitizeStored`), with its options evaluated in the group's context. A value that another
+field's change made invalid (a paper size the layout no longer offers) shows the field's
+fallback, and the other fields see that fallback. Nothing is rewritten: the kept value shows
+again once it is valid again (the layout back). A hidden field keeps its value, and the others
+still see it.
+
+**Defaults follow the options.** A field's default is its `initialValue`, else its kind's
+implicit initial value from its options as they are now (the first enabled choice of its current
+`choices`, a tree's first choosable node, `min`, ...), so it moves with the fields those options
+read. A field never set, or set to its current default, keeps nothing and shows its current
+default as it moves. `isDefault(id)` is useStoredFields' rule: nothing kept, or the kept value or
+the value shown equals the current default.
+
+**Errors.** These fail loudly, naming the field and the option where there is one:
+
+- an option reading an id not in the group: `Field 'paper': option 'choices': no field 'layot'
+  in the group (fields: layout, paper, copies)`;
+- reading `ctx.values` outside a group: `... ctx.values is only available inside a field group`;
+- `initialValue` reading `ctx.values`: `... initialValue cannot read other fields' values`;
+- fields whose values depend on each other (A's choices read B, and B's read A): `Fields 'a' ->
+  'b' -> 'a' depend on each other's values`. Options that never affect a value (`visible`,
+  `enabled`, `label`, `unit`, `format`, ...) cannot form a cycle;
+- two definitions with the same id; a mixed-boolean definition (it shows an aggregate of other
+  data, not a value of its own); an app field context that already has `values` (the group
+  would shadow it);
+- a list of another shape than the first render's. The hooks run per field, so the ids and kinds
+  stay the same, in the same order: to swap lists, remount the component running the group with
+  a React `key`. The definitions' contents may change, and new objects of the same shape on
+  every render (inline literals) are fine.
+
+**Storage.** The group keeps the values in its own state, as a store keeps them: a field without
+a kept value shows its current default, and a value set equal to it is not kept. A fallback is
+silent here, as it is the designed behaviour, not bad input. `resetAll()` clears every kept
+value. `{ stored: true }` (the nearest `ArgStore`) is not available yet: it throws.
+
+**Rendering.** vultus-antd's `<FieldWidget>` renders the controls (by the definition's `widget`
+hint; `item` for a labelled form item), in order as above or by id
+(`<FieldWidget field={group.byId.paper} />`). A request goes through the kind's own checks (a
+paper size the layout does not offer is refused with a warning, as the kind's hook alone refuses
+it). The group then keeps the value and re-renders, so every option is computed again.
 
 ## Components
 

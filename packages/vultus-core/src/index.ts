@@ -72,6 +72,7 @@ export {
 export {
   argOf, useStoredField, useStoredFields, type StoredField, type StoredFields,
 } from './useStoredField.js';
+export { useFieldGroup, type FieldGroup } from './useFieldGroup.js';
 export { InternalLinkContext, useInternalLink, type InternalLinkComponent } from './LinkContext.js';
 export { MessageSinkContext, useMessageSink, type MessageSink } from './MessageSink.js';
 export {

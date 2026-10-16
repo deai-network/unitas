@@ -32,9 +32,11 @@ function warnOnConsole(message: string): void {
 /**
  * The same value element by element: a list in the same order, a range with the same ends, a
  * scalar. Stricter than the value types' `isEqual` (lists as sets), because the order a field
- * shows (choice order, tree order) matters to the identity kept below.
+ * shows (choice order, tree order) matters to the identity kept below. Exported for the field
+ * group (useFieldGroup), which keeps its values' identity by the same rule; not part of the
+ * package's API.
  */
-function sameValue(a: unknown, b: unknown): boolean {
+export function sameValue(a: unknown, b: unknown): boolean {
   if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((v, i) => v === b[i]);
   return a === b;
 }
