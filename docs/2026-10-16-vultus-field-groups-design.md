@@ -71,7 +71,7 @@ sidedao ran every field hook in one form hook and computed options from earlier 
 const group = useFieldGroup(printOptions, { stored: true });
 group.fields          // each field's controls, in definition order
 group.byId.paper      // the same controls, by id
-group.values          // the shown values, by id
+group.values          // the shown values, by id (the same object until one changes)
 group.isDefault(id), group.changedCount, group.resetAll()
 ```
 

@@ -16,7 +16,10 @@ export interface FieldGroup {
   fields: FieldControls<any, any>[];
   /** The same controls, by field id. */
   byId: Record<string, FieldControls<any, any>>;
-  /** The fields' shown values by id (after the fallback rule), as of this render: a plain object. */
+  /**
+   * The fields' shown values by id (after the fallback rule), as of this render: a plain object,
+   * which keeps its identity until a shown value changes (an effect keyed on it runs only then).
+   */
   values: Readonly<Record<string, unknown>>;
   /** Whether the field with this id shows its current default; an id not in the group throws. */
   isDefault(id: string): boolean;
@@ -250,9 +253,10 @@ function useStoredValues(definitions: readonly FieldDefinition[], appCtx: FieldC
  *
  * A field's shown value, in `values` and as passed to its kind's hook, keeps its identity while it
  * stays equal (element by element, as useStoredField's does), so a list does not become a new array
- * on every render; the `values` object itself is new on each render. A kind's own controls may
- * still rebuild a composite value: range's `[from, to]` pair is put in order and within bounds
- * anew on every render.
+ * on every render; the `values` object keeps its identity until a shown value changes, so an
+ * effect keyed on it (one that loads data, say, and feeds the app's field context) runs only
+ * then. A kind's own controls may still rebuild a composite value: range's `[from, to]` pair is
+ * put in order and within bounds anew on every render.
  */
 export function useFieldGroup(definitions: readonly FieldDefinition[], options: { stored?: boolean } = {}): FieldGroup {
   const stored = options.stored === true;
@@ -271,6 +275,7 @@ export function useFieldGroup(definitions: readonly FieldDefinition[], options: 
   }
 
   const shownRef = useRef(new Map<string, unknown>());
+  const valuesRef = useRef<Readonly<Record<string, unknown>> | undefined>(undefined);
   // The storage is the first render's (checked above), so the hooks it runs stay the same.
   const keeping = stored ? useStoredValues(definitions, appCtx) : useOwnState(definitions, appCtx);
   const group = createGroupValues({ definitions, appCtx, kept: keeping.kept, warn: keeping.warn });
@@ -282,6 +287,12 @@ export function useFieldGroup(definitions: readonly FieldDefinition[], options: 
     shown.set(id, previous.has(id) && sameValue(previous.get(id), value) ? previous.get(id) : value);
   }
   shownRef.current = shown;
+  // The previous object while every shown value is the previous one (kept above while it stays
+  // equal): a host's effect keyed on `values` runs when a value changes, not on every render.
+  const unchanged = valuesRef.current !== undefined
+    && definitions.every(({ id }) => previous.has(id) && Object.is(previous.get(id), shown.get(id)));
+  const values = unchanged ? valuesRef.current! : Object.fromEntries(shown);
+  valuesRef.current = values;
 
   // One kind hook per definition, in order; the shape check above keeps the hooks' order.
   const fields = definitions.map((definition) => {
@@ -303,7 +314,7 @@ export function useFieldGroup(definitions: readonly FieldDefinition[], options: 
   return {
     fields,
     byId: Object.fromEntries(definitions.map((d, i) => [d.id, fields[i]])),
-    values: Object.fromEntries(shown),
+    values,
     isDefault,
     changedCount: changed.size,
     resetAll: keeping.resetAll,

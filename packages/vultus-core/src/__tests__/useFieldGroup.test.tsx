@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, type MockInstance } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { memoryStore, type ArgStore } from '../argStore.js';
 import { ArgStoreProvider } from '../ArgStoreContext.js';
 import { FieldContextProvider } from '../FieldContext.js';
@@ -69,6 +69,45 @@ describe('useFieldGroup: the fields', () => {
   it('values is a plain snapshot: an id not in the group reads as undefined', () => {
     const { result } = renderHook(() => useFieldGroup(PRINT));
     expect((result.current.values as Record<string, unknown>).nope).toBeUndefined();
+  });
+
+  it('values keeps its identity until a shown value changes, a re-render with a new app context included', () => {
+    const tags: FieldDefinition = { kind: 'manyOf', id: 'tags', choices: [{ value: 'a' }, { value: 'b' }] };
+    const { result, rerender } = renderHook(() => useFieldGroup([...PRINT, tags]), {
+      wrapper: ({ children }: { children?: ReactNode }) => <FieldContextProvider value={{ fresh: true }}>{children}</FieldContextProvider>,
+    });
+    const first = result.current.values;
+    rerender();
+    expect(result.current.values).toBe(first);
+    act(() => result.current.byId.layout.setValue('original'));
+    expect(result.current.values).not.toBe(first);
+    expect(result.current.values).toEqual({ layout: 'original', paper: 'a4', copies: 1, tags: [] });
+    act(() => result.current.byId.tags.setValue(['a']));
+    const withTags = result.current.values;
+    rerender();
+    expect(result.current.values).toBe(withTags);
+  });
+
+  it('an effect keyed on values that feeds the app\'s field context runs once, not in a loop', () => {
+    let setCounts: (counts: Record<string, number>) => void = () => {};
+    function Counts({ children }: { children?: ReactNode }) {
+      const [counts, set] = useState<Record<string, number>>({});
+      setCounts = set;
+      return <FieldContextProvider value={{ counts }}>{children}</FieldContextProvider>;
+    }
+    const counted: FieldDefinition = { ...paper, label: (ctx) => `Paper (${ctx.counts.a4 ?? 0})` };
+    let effects = 0;
+    const { result } = renderHook(() => {
+      const group = useFieldGroup([layout, counted]);
+      useEffect(() => {
+        effects += 1;
+        // Bounded, so that a loop fails the test instead of hanging it.
+        if (effects < 10) setCounts({ [String(group.values.paper)]: effects });
+      }, [group.values]);
+      return group;
+    }, { wrapper: Counts });
+    expect(effects).toBe(1);
+    expect(result.current.byId.paper.label).toBe('Paper (1)');
   });
 });
 
@@ -349,6 +388,19 @@ describe('useFieldGroup: stored', () => {
       act(() => store.write([{ key: 'paper', raw: 'legal' }], 'replace'));
       expect(warn).toHaveBeenCalledTimes(2);
       expect(warn).toHaveBeenLastCalledWith("Field 'paper': stored value 'legal' is not one of its choices, using 'a4'");
+    });
+  });
+
+  it('values keeps its identity when a store change leaves every shown value the same', () => {
+    warnings(() => {
+      const store = memoryStore();
+      const { result } = renderHook(() => useFieldGroup(PRINT, { stored: true }), { wrapper: storing(store) });
+      const first = result.current.values;
+      act(() => store.write([{ key: 'paper', raw: 'letter' }], 'replace'));
+      expect(result.current.values).toBe(first);
+      act(() => store.write([{ key: 'layout', raw: 'original' }], 'replace'));
+      expect(result.current.values).not.toBe(first);
+      expect(result.current.values).toEqual({ layout: 'original', paper: 'letter', copies: 1 });
     });
   });
 

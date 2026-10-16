@@ -490,7 +490,8 @@ function PrintDialog() {
 
 It returns `fields`, each field's controls exactly as its kind's hook returns them, in definition
 order; `byId`, the same controls by id; `values`, the shown values by id as of this render (a
-plain object); `isDefault(id)` (an id not in the group throws), `changedCount` and `resetAll()`
+plain object, which keeps its identity until a shown value changes, so an effect keyed on it runs
+only then); `isDefault(id)` (an id not in the group throws), `changedCount` and `resetAll()`
 ("more filters (3)", "clear all").
 
 **References.** Every option function of a group's definition receives `ctx.values` (`label`,
