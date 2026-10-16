@@ -200,9 +200,30 @@ describe('field group values: loud failures', () => {
   it('an id that names a member every object has is not in the group either', () => {
     const { values, ctx } = snapshot({});
     expect(() => values.toString).toThrow(/^no field 'toString' in the group \(fields: layout, paper, copies\)$/);
-    expect(() => values.constructor).toThrow(/^no field 'constructor' in the group \(fields: layout, paper, copies\)$/);
-    const typo: FieldDefinition = { kind: 'text', id: 'note', placeholder: (c) => String(c.values.constructor) };
-    expect(() => option(typo, 'placeholder', ctx)).toThrow(/^no field 'constructor' in the group/);
+    expect(() => values.hasOwnProperty).toThrow(/^no field 'hasOwnProperty' in the group \(fields: layout, paper, copies\)$/);
+    const typo: FieldDefinition = { kind: 'text', id: 'note', placeholder: (c) => String(c.values.toString) };
+    expect(() => option(typo, 'placeholder', ctx)).toThrow(/^no field 'toString' in the group/);
+  });
+
+  it('values.constructor and the probes read as usual, so printers can name the object', () => {
+    const { values } = snapshot({});
+    expect(values.constructor).toBe(Object);
+    expect([values.then, values.toJSON, values.$$typeof, values['@@__IMMUTABLE_ITERABLE__@@']]).toEqual([undefined, undefined, undefined, undefined]);
+  });
+
+  it('vitest can print a group context\'s values', () => {
+    const { ctx } = snapshot({ layout: 'original', paper: 'letter' });
+    const { values } = ctx as GroupCtx;
+    // The snapshot prints with pretty-format and its plugins, as a failed toEqual's diff does; its message words them with loupe.
+    expect(values).toMatchInlineSnapshot(`
+      {
+        "copies": 1,
+        "layout": "original",
+        "paper": "letter",
+      }
+    `);
+    expect(() => expect(values).toEqual({ layout: 'rendered' }))
+      .toThrow(/^expected \{ layout: 'original', …\(2\) \} to deeply equal \{ layout: 'rendered' \}$/);
   });
 
   it('asking for an id that is not in the group throws', () => {
