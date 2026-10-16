@@ -1,32 +1,15 @@
-import { describe, it, expect, afterAll, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { App as AntApp } from 'antd';
 import type { ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { useStoredField, useTextField, type FieldDefinition, type TextFieldControls } from 'vultus-core';
-import { ReactRouterArgStore } from 'vultus-react-router';
-import { Field } from '../Field.js';
+import { ReactRouterArgStore } from '../index.js';
+import { Field } from 'vultus-antd';
 
 // <Field stored> over the URL store: the store reads its own writes back at once (before the
 // router renders the navigation), so widgets do not lose the caret, keystrokes or the moved-to value.
-
-// react-router's data routers build each navigation's Request with the global AbortController's
-// signal; under jsdom that is jsdom's AbortSignal, which Node's Request refuses. As in
-// vultus-react-router's vitest.setup.ts, the signal is kept beside the request instead.
-const NodeRequest = globalThis.Request;
-globalThis.Request = class extends NodeRequest {
-  readonly #signal: AbortSignal | undefined;
-  constructor(input: RequestInfo | URL, init?: RequestInit) {
-    super(input, init === undefined ? undefined : { ...init, signal: undefined });
-    this.#signal = init?.signal ?? undefined;
-  }
-  get signal(): AbortSignal {
-    return this.#signal ?? super.signal;
-  }
-} as typeof Request;
-afterAll(() => {
-  globalThis.Request = NodeRequest;
-});
+// The widgets are vultus-antd's (a devDependency here): the store is tested with real widgets on it.
 
 const disposers: (() => void)[] = [];
 afterEach(() => {

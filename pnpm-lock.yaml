@@ -50,18 +50,12 @@ importers:
       react-i18next:
         specifier: ^17.0.0
         version: 17.0.9(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
-      react-router:
-        specifier: ^7.18.2
-        version: 7.18.4(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/debug@4.1.13)(jsdom@29.1.1)
-      vultus-react-router:
-        specifier: workspace:*
-        version: link:../vultus-react-router
 
   packages/vultus-core:
     devDependencies:
@@ -164,6 +158,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.17)
+      antd:
+        specifier: ^6.6.5
+        version: 6.6.5(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       i18next:
         specifier: ^25.0.0
         version: 25.10.10(typescript@5.9.3)
@@ -188,6 +185,9 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/debug@4.1.13)(jsdom@29.1.1)
+      vultus-antd:
+        specifier: workspace:*
+        version: link:../vultus-antd
       vultus-core:
         specifier: workspace:*
         version: link:../vultus-core

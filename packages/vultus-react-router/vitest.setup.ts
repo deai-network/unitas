@@ -27,3 +27,27 @@ globalThis.Request = class extends NodeRequest {
     return this.#signal ?? super.signal;
   }
 } as typeof Request;
+
+// StoredOverRouter.test.tsx runs vultus-antd's widgets over the store. jsdom implements neither
+// matchMedia (antd's responsive layout uses it) nor ResizeObserver: stub both so they can mount.
+if (typeof window !== 'undefined' && !window.matchMedia) {
+  window.matchMedia = (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }) as unknown as MediaQueryList;
+}
+
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+if (!('ResizeObserver' in globalThis)) {
+  (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverStub;
+}
