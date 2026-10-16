@@ -38,7 +38,7 @@ const PRINT_OPTIONS: FieldDefinition[] = [
   },
 ];
 
-/** The dialog: each field of the group as a labelled form item, and a reset counting the changed fields. */
+/** The dialog: each field of the group as a labelled form item, and a reset counting the fields that do not show their defaults. */
 function PrintCard({ group, onReset, children }: { group: FieldGroup; onReset: () => void; children?: ReactNode }) {
   return (
     <Card title="Print the task sheet" style={{ width: 380 }}>
@@ -79,7 +79,7 @@ export const OwnState: StoryObj = {
   render: () => (
     <Showcase
       title="A print dialog whose options depend on each other"
-      note="useFieldGroup(PRINT_OPTIONS), each field's controls rendered with <FieldWidget item>. Paper's choices read ctx.values.layout: A4 and A5 for the rendered layout, Letter too for the original one. Copies show for the original layout only; hidden, they keep their value. Choose Original, then Letter, then Rendered: paper shows its fallback, A4, but keeps Letter, which shows again once the layout is Original again. 'Reset' clears every kept value."
+      note="useFieldGroup(PRINT_OPTIONS), each field's controls rendered with <FieldWidget item>. Paper's choices read ctx.values.layout: A4 and A5 for the rendered layout, Letter too for the original one. Copies show for the original layout only; hidden, they keep their value. Choose Original, then Letter, then Rendered: paper shows its fallback, A4, but keeps Letter, which shows again once the layout is Original again. 'Reset' counts the fields that show something other than their default, and clears every kept value. A value kept behind a fallback (Letter under Rendered) is not counted (with nothing else changed, Reset is disabled), and comes back when its field allows it."
     >
       <OwnStatePrint />
     </Showcase>
@@ -119,7 +119,7 @@ export const InTheUrl: StoryObj = {
     return (
       <Showcase
         title="The same dialog, kept in the URL"
-        note="useFieldGroup(PRINT_OPTIONS, { stored: true }) under <ReactRouterArgStore> inside a memory router: each field is stored under its id, the URL beside the dialog follows each change (a replace), and a field at its current default leaves the query. The page opened with the original layout and Letter paper. Choose Rendered: paper shows A4, since the rendered layout offers no Letter, while ?paper=letter stays in the URL; choose Original again and Letter is back. 'Reset' removes every key in one navigation, pushed, so Back brings the values back."
+        note="useFieldGroup(PRINT_OPTIONS, { stored: true }) under <ReactRouterArgStore> inside a memory router: each field is stored under its id, the URL beside the dialog follows each change (a replace), and a field at its current default leaves the query. The page opened with the original layout and Letter paper. Choose Rendered: paper shows A4, since the rendered layout offers no Letter, while ?paper=letter stays in the URL; choose Original again and Letter is back. 'Reset' counts the fields that show something other than their default; a value kept behind a fallback (?paper=letter under Rendered) is not counted, and comes back when its field allows it. Reset removes every key in one navigation, pushed, so Back brings the values back."
       >
         <RouterProvider router={router} />
       </Showcase>
