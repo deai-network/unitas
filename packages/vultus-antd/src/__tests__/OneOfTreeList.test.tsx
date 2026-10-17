@@ -576,6 +576,9 @@ describe('OneOfTreeList: links', () => {
     ['focus', (a) => { act(() => a.focus()); }],
     ['mousedown', (a) => { fireEvent.mouseDown(a); }],
     ['contextmenu', (a) => { fireEvent.contextMenu(a); }],
+    // A touch screen's long press ("open in new tab") fires neither a mouse event nor a focus.
+    ['pointerdown', (a) => { fireEvent.pointerDown(a); }],
+    ['touchstart', (a) => { fireEvent.touchStart(a); }],
   ])('on %s a link asks hrefFor again: the URL as it is now', (_, use) => {
     let base = '#';
     wrap(<Linked hrefFor={(value) => `${base}?toc=${value}`} />);

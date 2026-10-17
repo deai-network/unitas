@@ -161,6 +161,8 @@ describe('a stored OneOfTreeList over the URL store: its links follow the URL', 
     ['focus', (a: HTMLElement) => { act(() => a.focus()); }],
     ['mousedown', (a: HTMLElement) => { fireEvent.mouseDown(a); }],
     ['contextmenu', (a: HTMLElement) => { fireEvent.contextMenu(a); }],
+    ['pointerdown', (a: HTMLElement) => { fireEvent.pointerDown(a); }],
+    ['touchstart', (a: HTMLElement) => { fireEvent.touchStart(a); }],
     ['a click with Ctrl', ctrlClick],
   ])('another field writes the URL; on %s a row link\'s href is the URL as it is now', async (_, interact) => {
     const { search } = mount('/m?toc=1.1', <><Field stored definition={TOC} widget="list" /><Lang /></>);

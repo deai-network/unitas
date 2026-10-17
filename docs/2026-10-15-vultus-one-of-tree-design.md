@@ -96,10 +96,10 @@ the many-of tree.
   `field.hrefFor?.(field.next.value)`.
 - Freshness: an href computed at render is as fresh as that render, and another query key or the
   path can change without re-rendering the field. OneOfTreeList asks `hrefFor` again when a link
-  is used (hover, focus, press, context menu, a modified click); its rows keep
-  the href they were first rendered with across a new value (vultus-antd 0.7.2, below). An app's
-  own links should live in a component that re-renders on location changes, or be computed when
-  used.
+  is used (hover, focus, press, a touch or pen down, context menu, a modified click); its rows
+  keep the href they were first rendered with across a new value (vultus-antd 0.7.2, below). An
+  app's own links should live in a component that re-renders on location changes, or be computed
+  when used.
 
 ## Widgets (vultus-antd)
 

@@ -62,9 +62,10 @@ type ListDataNode<T extends string> = Omit<FieldTreeDataNode<T | ''>, 'children'
  * `href` is the link as the list first rendered the row; the URL may have changed since without
  * the row rendering again (a new value, another query parameter, the path), so whenever the link
  * may be used — the pointer entering it, its focus, a button pressed on it (the middle one's
- * auxclick comes after), its context menu ("open in new tab", "copy link"), a modified click
- * before its default — it takes `fresh()` (`field.hrefFor` asked again: a URL store answers from
- * the URL as it is then).
+ * auxclick comes after), a touch or pen put down on it (a long press's "open in new tab" fires no
+ * mouse event), its context menu ("open in new tab", "copy link"), a modified click before its
+ * default — it takes `fresh()` (`field.hrefFor` asked again: a URL store answers from the URL as
+ * it is then).
  */
 function rowLink(href: string, title: ReactNode, fresh: () => string | undefined): ReactNode {
   const refresh = (e: SyntheticEvent<HTMLAnchorElement>) => {
@@ -79,6 +80,8 @@ function rowLink(href: string, title: ReactNode, fresh: () => string | undefined
       onMouseEnter={refresh}
       onFocus={refresh}
       onMouseDown={refresh}
+      onPointerDown={refresh}
+      onTouchStart={refresh}
       onContextMenu={refresh}
       onClick={(e) => {
         if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
@@ -162,7 +165,7 @@ function listRows<T extends string>(
  * is left to the browser and requests nothing. The optional row links to `''` likewise. A row's
  * `href` is the one it was first rendered with: a new value alone renders no row again. A link
  * asks `field.hrefFor` again whenever it may be used (the pointer entering it, its focus, a
- * button pressed on it, its context menu, a modified click), so it follows
+ * button, a touch or a pen put down on it, its context menu, a modified click), so it follows
  * the URL as it is then (a new value, another parameter of the query, the path).
  *
  * Rendering: a new value alone (a click, the previous / next buttons, the URL) hands antd's Tree

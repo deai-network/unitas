@@ -290,9 +290,9 @@ through the field's confirmation, the browser not following the link; a click wi
 Shift or Alt, or the middle button, is left to the browser (a new tab, which reads the value from
 its own URL) and requests nothing. A link's href is the one its row was first rendered with (a new
 value alone renders no row again, see below), asked of `hrefFor` again whenever the link may be
-used (the pointer entering it, its focus, a button pressed on it, its context menu, a modified
-click), so it follows the URL as it is then (a new value, another parameter of the query, the
-path). `OneOfTreePicker` does not use `hrefFor` — the closed field is not a link.
+used (the pointer entering it, its focus, a button, a touch or a pen put down on it, its context
+menu, a modified click), so it follows the URL as it is then (a new value, another parameter of
+the query, the path). `OneOfTreePicker` does not use `hrefFor` — the closed field is not a link.
 
 **Rendering.** A new value alone (a click, previous / next, the URL) hands antd's Tree the same tree
 data, and the same expanded keys while the value's ancestors are open already, so it renders its
