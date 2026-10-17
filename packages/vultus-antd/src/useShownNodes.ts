@@ -25,8 +25,9 @@ type EveryNodeFieldIsPlaced = Assert<Same<
 >>;
 
 /**
- * Whether two lists of nodes show the same: every node's SHOWN_NODE_FIELDS, and its children
- * likewise, in order. `current` and `onPath` are not compared.
+ * Whether two lists of nodes show the same: every node's SHOWN_NODE_FIELDS, by identity (a
+ * string by value, an `icon` element by reference: one built anew counts as a change), and its
+ * children likewise, in order. `current` and `onPath` are not compared.
  */
 export function sameShown<T extends string>(a: OneOfTreeNodeControls<T>[], b: OneOfTreeNodeControls<T>[]): boolean {
   if (a === b) return true;

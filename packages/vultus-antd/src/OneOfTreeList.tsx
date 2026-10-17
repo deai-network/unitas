@@ -59,9 +59,9 @@ type ListDataNode<T extends string> = Omit<FieldTreeDataNode<T | ''>, 'children'
  * and in the tree's text colour; a click still focuses it, and Enter there is the tree's (see
  * OneOfTreeList's root), never the link's.
  *
- * `href` is the link as the list first rendered the row; the URL may have changed since without
- * the row rendering again (a new value, another query parameter, the path), so whenever the link
- * may be used — the pointer entering it, its focus, a button pressed on it (the middle one's
+ * `href` is the link as of the tree data's last build; the URL may have changed since without the
+ * data being rebuilt (a new value, another query parameter, the path), so whenever the link may
+ * be used — the pointer entering it, its focus, a button pressed on it (the middle one's
  * auxclick comes after), a touch or pen put down on it (a long press's "open in new tab" fires no
  * mouse event), its context menu ("open in new tab", "copy link"), a modified click before its
  * default — it takes `fresh()` (`field.hrefFor` asked again: a URL store answers from the URL as
@@ -163,17 +163,20 @@ function listRows<T extends string>(
  * pending (otherwise plain text). A plain click requests the node as any click does, the
  * browser not following the link; a click with Ctrl, Cmd, Shift or Alt, or the middle button,
  * is left to the browser and requests nothing. The optional row links to `''` likewise. A row's
- * `href` is the one it was first rendered with: a new value alone renders no row again. A link
- * asks `field.hrefFor` again whenever it may be used (the pointer entering it, its focus, a
- * button, a touch or a pen put down on it, its context menu, a modified click), so it follows
- * the URL as it is then (a new value, another parameter of the query, the path).
+ * `href` is the one the tree data was last built with (a new value alone does not rebuild it; see
+ * Rendering). A link asks `field.hrefFor` again whenever it may be used (the pointer entering it,
+ * its focus, a button, a touch or a pen put down on it, its context menu, a modified click), so it
+ * follows the URL as it is then (a new value, another parameter of the query, the path).
  *
  * Rendering: a new value alone (a click, the previous / next buttons, the URL) hands antd's Tree
- * the same tree data and, while the value's ancestors are open already, the same expansion, so
- * rc-tree renders its rows once; the strong path reaches the titles through a context. The tree
- * data is rebuilt when a node would show something else (its label, note, tooltip, ...; see
- * useShownNodes), and when the field's enabled state, its `hrefFor` (a new function: vultus-core's
- * stores and field groups keep theirs), the search or a confirmation changes.
+ * the same tree data and, while the value's ancestors are open already, the same expansion:
+ * rc-tree renders the rows once, and their titles and links are not rebuilt; the strong path
+ * reaches the titles through a context. The tree data, with each link's href, is rebuilt when a
+ * node would show something else (its label, note, tooltip, icon, ...; compared by identity, see
+ * useShownNodes: a `nodes` function building icon elements anew rebuilds it on every render), when
+ * the field is enabled or disabled, when a commit starts or ends, when `field.hrefFor` is a new
+ * function (vultus-core's stores and field groups keep theirs), and when the search or a
+ * confirmation changes.
  *
  * `search` adds ManyOfTreeChecklist's search box (placeholder `texts.search`, named
  * "<search> <label>"): the nodes filterTree keeps, accent- and case-insensitive (the matches,

@@ -96,10 +96,10 @@ the many-of tree.
   `field.hrefFor?.(field.next.value)`.
 - Freshness: an href computed at render is as fresh as that render, and another query key or the
   path can change without re-rendering the field. OneOfTreeList asks `hrefFor` again when a link
-  is used (hover, focus, press, a touch or pen down, context menu, a modified click); its rows
-  keep the href they were first rendered with across a new value (vultus-antd 0.7.2, below). An
-  app's own links should live in a component that re-renders on location changes, or be computed
-  when used.
+  is used (hover, focus, press, a touch or pen down, context menu, a modified click); a new value
+  alone does not rebuild its links, each keeping the href the tree data was last built with until
+  used (vultus-antd 0.7.2, below). An app's own links should live in a component that re-renders
+  on location changes, or be computed when used.
 
 ## Widgets (vultus-antd)
 
@@ -143,8 +143,10 @@ control and `data-value` per row in the list and on the picker's root.
 - Rendering (vultus-antd 0.7.2): a new value alone hands antd's Tree the same tree data, and the
   same expanded keys while the value's ancestors are open already; the strong path reaches the
   titles through a context. New data or keys make rc-tree render every row four times over; this
-  way it renders them once. The data is rebuilt when a node's shown fields change (every node
-  field but `current` and `onPath`, a compile-time check placing each one).
+  way it renders them once, their titles and links not rebuilt. The data is rebuilt when a node's
+  shown fields change (every node field but `current` and `onPath`, compared by identity, a
+  compile-time check placing each one), when the field is enabled or disabled, a commit starts or
+  ends, `hrefFor` is a new function, or the search or a confirmation changes.
 
 **Registration**: `<FieldWidget>` and `<Field>` map `oneOfTree` to `{ picker, list }`, default
 `picker`; the hint names gain `'list'`. Under `stored`, the keys the store layer reads (`nodes`,

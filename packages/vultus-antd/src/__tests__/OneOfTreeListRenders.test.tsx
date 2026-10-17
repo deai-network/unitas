@@ -77,14 +77,32 @@ async function settle() {
   await act(() => new Promise((resolve) => { setTimeout(resolve, 50); }));
 }
 
-/** Mounts the list at `from`, settles it, and clears the counts. */
+type TreeGiven = (typeof given)[number];
+
+/**
+ * Mounts the list at `from` and settles it, then renders the page once more with the same value
+ * (as a page's own re-render does): what antd's Tree was given then is `before`, the reference a
+ * change is compared with. The counts start from there.
+ */
 async function mountAt(from: Toc, expand?: 'all' | 'selected') {
   const view = render(counted(<Outside value={from} expand={expand} />));
   await settle();
+  const changeTo = (to: Toc) => view.rerender(counted(<Outside value={to} expand={expand} />));
+  changeTo(from);
+  const before = given.at(-1)!;
   given.length = 0;
   titles.clear();
   commits = 0;
-  return (to: Toc) => view.rerender(counted(<Outside value={to} expand={expand} />));
+  return { changeTo, before };
+}
+
+/** Every render of antd's Tree since `before` was handed its tree data (and, with `keys`, its expanded keys). */
+function expectKept(before: TreeGiven, { keys }: { keys: boolean }) {
+  expect(given.length).toBeGreaterThan(0);
+  for (const props of given) {
+    expect(props.treeData).toBe(before.treeData);
+    if (keys) expect(props.expandedKeys).toBe(before.expandedKeys);
+  }
 }
 
 beforeEach(() => {
@@ -95,45 +113,40 @@ beforeEach(() => {
 
 describe('OneOfTreeList: a new value alone', () => {
   it('a sibling: antd\'s Tree keeps its data and expansion, no title renders, one commit', async () => {
-    const changeTo = await mountAt('c1');
-    const before = { treeData: undefined as unknown, expandedKeys: undefined as unknown };
-    changeTo('c1'); // a render of the page with the same value: the reference
-    Object.assign(before, given.at(-1));
-    given.length = 0;
-    titles.clear();
-    commits = 0;
+    const { changeTo, before } = await mountAt('c1');
     changeTo('c2');
     await waitFor(() => expect(isSelected('Chapter two')).toBe(true));
     await settle();
-    expect(given.length).toBeGreaterThan(0);
-    for (const props of given) {
-      expect(props.treeData).toBe(before.treeData);
-      expect(props.expandedKeys).toBe(before.expandedKeys);
-    }
+    expectKept(before, { keys: true });
     expect(Object.fromEntries(titles)).toEqual({});
+    // The identities above are the contract; the commit count is their effect through rc-tree's
+    // internals (four with new data or keys, one without), pinned by antd's version in the lockfile.
     expect(commits).toBe(1);
   });
 
   it('another branch: only the titles whose strong path changes render, each once; one commit', async () => {
-    const changeTo = await mountAt('c1');
+    const { changeTo, before } = await mountAt('c1');
     changeTo('c3');
     await waitFor(() => expect(isSelected('Chapter three')).toBe(true));
     await settle();
+    expectKept(before, { keys: true });
     // Part one leaves the path, Part two joins it; nothing else renders again.
     expect(Object.fromEntries(titles)).toEqual({ p1: 1, p2: 1 });
-    const data = new Set(given.map((props) => props.treeData));
-    expect(data.size).toBe(1);
+    // rc-tree's internals, as in the sibling's case: the identities are the contract.
     expect(commits).toBe(1);
   });
 
   it('a value under a closed node: the expansion opens it, the tree data stays', async () => {
-    const changeTo = await mountAt('c1', 'selected');
+    const { changeTo, before } = await mountAt('c1', 'selected');
     expect(screen.queryByText('Chapter three')).toBeNull();
     changeTo('c3');
     await waitFor(() => expect(isSelected('Chapter three')).toBe(true));
     await settle();
     expect(screen.getByText('Chapter one')).toBeInTheDocument();
-    expect(new Set(given.map((props) => props.treeData)).size).toBe(1);
+    // New keys, Part two added (it must open); the same tree data.
+    expectKept(before, { keys: false });
+    expect(given.at(-1)!.expandedKeys).not.toBe(before.expandedKeys);
+    expect(given.at(-1)!.expandedKeys).toEqual(['p1', 'p2']);
     // The rows the expansion shows render for the first time; of the rows shown before, only
     // those whose strong path changes render again.
     expect(titles.get('c1')).toBeUndefined();

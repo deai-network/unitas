@@ -1,9 +1,10 @@
 # vultus-antd
 
-Ant Design action-button and markdown components for vultus. Depends on and
-re-exports `vultus-core`, adding the Ant Design bindings for its injection
-seams (`antd.message` for `MessageSinkContext`, Ant Design's `Form` for the
-`FormLike` interface, and so on).
+Ant Design widgets for vultus: action buttons, the field widgets (`<Field>`,
+`<FieldWidget>` and a widget per field kind), form helpers and markdown.
+Depends on and re-exports `vultus-core`, adding the Ant Design bindings for its
+injection seams (`antd.message` for `MessageSinkContext`, Ant Design's `Form`
+for the `FormLike` interface, and so on).
 
 ## Install
 
@@ -288,19 +289,24 @@ node's title as `<a href>` (the optional row's `''` likewise), while the field i
 commit is pending (otherwise plain text, as a disabled node is). A plain click requests the node
 through the field's confirmation, the browser not following the link; a click with Ctrl, Cmd,
 Shift or Alt, or the middle button, is left to the browser (a new tab, which reads the value from
-its own URL) and requests nothing. A link's href is the one its row was first rendered with (a new
-value alone renders no row again, see below), asked of `hrefFor` again whenever the link may be
-used (the pointer entering it, its focus, a button, a touch or a pen put down on it, its context
-menu, a modified click), so it follows the URL as it is then (a new value, another parameter of
-the query, the path). `OneOfTreePicker` does not use `hrefFor` — the closed field is not a link.
+its own URL) and requests nothing. A link's href is the one the tree data was last built with (a
+new value alone does not rebuild it; see Rendering below), asked of `hrefFor` again whenever the
+link may be used (the pointer entering it, its focus, a button, a touch or a pen put down on it,
+its context menu, a modified click), so it follows the URL as it is then (a new value, another
+parameter of the query, the path). `OneOfTreePicker` does not use `hrefFor` — the closed field is
+not a link.
 
 **Rendering.** A new value alone (a click, previous / next, the URL) hands antd's Tree the same tree
-data, and the same expanded keys while the value's ancestors are open already, so it renders its
-rows once (new data or new keys make rc-tree render every row four times over); the strong path
-reaches the titles through a context. The data is rebuilt when a node would show something else
-(its label, note, tooltip, icon, ...), and when the field's enabled state, the search, a
-confirmation or the field's `hrefFor` changes: give a hand-made field a stable `hrefFor` (the
-stores' and field groups' are).
+data, and the same expanded keys while the value's ancestors are open already: rc-tree renders the
+rows once (new data or new keys make it render every row four times over), and their titles and
+links are not rebuilt; the strong path reaches the titles through a context. The tree data, with
+each link's href, is rebuilt when a node would show something else (its label, note, tooltip,
+icon, ...), when the field is enabled or disabled, when a commit starts or ends, when the field's
+`hrefFor` is a new function, and when the search or a confirmation changes. Both are compared by
+identity: give a hand-made field a stable `hrefFor` (the stores' and field groups' are), and keep a
+node's `icon` element the same object (a module constant) — a `nodes` function that builds icon
+JSX on every call rebuilds the data on every render. Nothing goes stale either way; only the
+speed-up is lost.
 
 An app's own links built from `hrefFor` (a previous / next pair) are as fresh as their
 component's last render: render them in a component that re-renders on location changes (one

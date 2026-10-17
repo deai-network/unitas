@@ -444,7 +444,10 @@ describe("OneOfTreeList: a node's own fields", () => {
     ['dimmed', 'alg', { dimmed: true }, () => expect(labelLook('Algebra').color).not.toBe('')],
     ['variant', 'alg', { variant: 'primary' }, () => expect(labelLook('Algebra').fontWeight).toBe('600')],
     ['icon', 'kor', { icon: <span data-testid="kor-icon" /> }, () => expect(screen.getByTestId('kor-icon')).toBeInTheDocument()],
-    ['enabled', 'alg', { disabled: { verdict: true, reason: 'soon' } }, async () => {
+    // A folder disabled without a reason: `enabled` alone changes (no reason; a folder could not
+    // be chosen before either).
+    ['enabled', 'geo', { disabled: true }, () => expect(row('Geometria')).toHaveAttribute('aria-disabled', 'true')],
+    ['enabled, with a reason', 'alg', { disabled: { verdict: true, reason: 'soon' } }, async () => {
       expect(row('Algebra')).toHaveAttribute('aria-disabled', 'true');
       await hover('Algebra', 'soon');
     }],
