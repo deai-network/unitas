@@ -3,10 +3,12 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { App as AntApp } from 'antd';
 import { useState } from 'react';
 import {
-  denyWithReason, useOneOfTreeField, type FieldCommit, type FieldDefinition, type OneOfTreeFieldOptions, type TreeNode,
+  denyWithReason, useOneOfTreeField, type FieldCommit, type FieldDefinition, type OneOfTreeFieldOptions,
+  type OneOfTreeNodeControls, type TreeNode,
 } from 'vultus-core';
 import { Field } from '../Field.js';
 import { OneOfTreeList } from '../OneOfTreeList.js';
+import { NODE_FIELDS_ELSEWHERE, SHOWN_NODE_FIELDS } from '../useShownNodes.js';
 
 type Geo = 'geo' | 'sik' | 'kor' | 'ter' | 'alg';
 
@@ -384,6 +386,102 @@ describe('OneOfTreeList: following the value', () => {
     expect(rowTexts()).toEqual(['Geometria', 'Síkgeometria', 'Kör (3)', 'Térgeometria', 'Algebra']);
     expect(isSelected('Algebra')).toBe(true);
   });
+
+  it('a value under an ancestor the user closed opens it again', async () => {
+    const { rerender } = wrap(<Outside value="kor" />);
+    fireEvent.click(label('Geometria'));
+    await settled();
+    expect(rowTexts()).toEqual(['Geometria', 'Algebra']);
+    rerender(<AntApp><Outside value="sik" /></AntApp>);
+    await waitFor(() => expect(row('Síkgeometria')).toBeInTheDocument());
+    expect(isSelected('Síkgeometria')).toBe(true);
+  });
+
+  it('the strong path follows the value: to a sibling, deeper, to another branch and back', async () => {
+    /** The rows whose title is strong. */
+    const strong = () => screen.queryAllByRole('treeitem').filter((r) => r.querySelector('strong')).map((r) => r.textContent);
+    const { rerender } = wrap(<Outside value="sik" />);
+    expect(strong()).toEqual(['Geometria']);
+    rerender(<AntApp><Outside value="ter" /></AntApp>); // Síkgeometria's sibling: the same path
+    await settled();
+    expect(root()).toHaveAttribute('data-value', 'ter');
+    expect(strong()).toEqual(['Geometria']);
+    rerender(<AntApp><Outside value="kor" /></AntApp>);
+    await waitFor(() => expect(strong()).toEqual(['Geometria', 'Síkgeometria']));
+    rerender(<AntApp><Outside value="alg" /></AntApp>);
+    await waitFor(() => expect(strong()).toEqual([]));
+    rerender(<AntApp><Outside value="kor" /></AntApp>);
+    await waitFor(() => expect(strong()).toEqual(['Geometria', 'Síkgeometria']));
+  });
+});
+
+describe("OneOfTreeList: a node's own fields", () => {
+  /** A field over nodes the render site gives (a definition's nodes function, resolved anew), every node open. */
+  function Over({ nodes }: { nodes: TreeNode<Geo>[] }) {
+    const field = useOneOfTreeField<Geo>({
+      id: 'cat', label: 'Category', nodes, expand: 'all', value: 'alg', onChange: () => {}, hrefFor: toc,
+    });
+    return <OneOfTreeList field={field} />;
+  }
+  /** GEO with one node's own fields changed. */
+  const changed = (value: Geo, fields: Partial<TreeNode<Geo>>): TreeNode<Geo>[] => {
+    const map = (node: TreeNode<Geo>): TreeNode<Geo> => {
+      const own = node.value === value ? { ...node, ...fields } : node;
+      return { ...own, children: own.children?.map(map) };
+    };
+    return GEO.map(map);
+  };
+  /** A node's label element (ChoiceLabel's), for its style. */
+  const labelLook = (text: string) => label(text).closest('span')!.style;
+  const hover = async (text: string, expected: string) => {
+    fireEvent.mouseEnter(label(text));
+    await waitFor(() => expect(screen.getByText(expected)).toBeInTheDocument());
+  };
+
+  it.each<[string, Geo, Partial<TreeNode<Geo>>, () => Promise<void> | void]>([
+    ['label', 'kor', { label: 'Körív' }, () => expect(row('Körív')!.textContent).toBe('Körív (3)')],
+    ['note', 'kor', { note: '4' }, () => expect(row('Kör')!.textContent).toBe('Kör (4)')],
+    ['dimmed', 'alg', { dimmed: true }, () => expect(labelLook('Algebra').color).not.toBe('')],
+    ['variant', 'alg', { variant: 'primary' }, () => expect(labelLook('Algebra').fontWeight).toBe('600')],
+    ['icon', 'kor', { icon: <span data-testid="kor-icon" /> }, () => expect(screen.getByTestId('kor-icon')).toBeInTheDocument()],
+    ['enabled', 'alg', { disabled: { verdict: true, reason: 'soon' } }, async () => {
+      expect(row('Algebra')).toHaveAttribute('aria-disabled', 'true');
+      await hover('Algebra', 'soon');
+    }],
+    ["a disabled node's reason", 'ter', { disabled: { verdict: true, reason: 'not yet' } }, async () => {
+      await hover('Térgeometria', 'not yet');
+      expect(screen.queryByText('later')).toBeNull();
+    }],
+    ['description', 'alg', { description: 'Only equations' }, async () => {
+      await hover('Algebra', 'Only equations');
+      expect(screen.queryByText('Equations and identities')).toBeNull();
+    }],
+    ['choosable', 'sik', { choosable: false }, () => expect(link('Síkgeometria')).toBeNull()],
+    ['children', 'geo', { children: [{ value: 'sik', label: 'Síkgeometria' }] }, () => {
+      expect(rowTexts()).toEqual(['Geometria', 'Síkgeometria', 'Algebra']);
+    }],
+  ])('%s, changed alone, shows in its row', async (_, value, fields, check) => {
+    const { rerender } = wrap(<Over nodes={GEO} />);
+    expect(link('Síkgeometria')).not.toBeNull();
+    rerender(<AntApp><Over nodes={changed(value, fields)} /></AntApp>);
+    await check();
+  });
+
+  it('every field vultus-core gives a node is compared, or one the rows take from elsewhere', () => {
+    let nodes: OneOfTreeNodeControls<Geo>[] = [];
+    function Probe() {
+      nodes = useOneOfTreeField<Geo>({ id: 'cat', label: 'Category', nodes: GEO }).nodes;
+      return null;
+    }
+    render(<Probe />);
+    const keys = new Set<string>();
+    const walk = (list: OneOfTreeNodeControls<Geo>[]) => list.forEach((node) => {
+      Object.keys(node).forEach((key) => keys.add(key));
+      if (node.children) walk(node.children);
+    });
+    walk(nodes);
+    expect([...keys].sort()).toEqual([...SHOWN_NODE_FIELDS, ...NODE_FIELDS_ELSEWHERE].sort());
+  });
 });
 
 describe('OneOfTreeList: links', () => {
@@ -471,6 +569,29 @@ describe('OneOfTreeList: links', () => {
   it('optional: the first row links to the empty value', () => {
     wrap(<Linked optional placeholder="All categories" />);
     expect(screen.getAllByRole('treeitem')[0].querySelector('a')).toHaveAttribute('href', '#?toc=');
+  });
+
+  it.each<[string, (a: HTMLElement) => void]>([
+    ['mouseenter', (a) => { fireEvent.mouseEnter(a); }],
+    ['focus', (a) => { act(() => a.focus()); }],
+    ['mousedown', (a) => { fireEvent.mouseDown(a); }],
+    ['contextmenu', (a) => { fireEvent.contextMenu(a); }],
+  ])('on %s a link asks hrefFor again: the URL as it is now', (_, use) => {
+    let base = '#';
+    wrap(<Linked hrefFor={(value) => `${base}?toc=${value}`} />);
+    expect(link('Kör')).toHaveAttribute('href', '#?toc=kor');
+    base = '#/moved';
+    use(link('Kör')!);
+    expect(link('Kör')).toHaveAttribute('href', '#/moved?toc=kor');
+  });
+
+  it("after a value change, a link used gives the URL for the new value's page", async () => {
+    let page: Geo | '' = 'alg';
+    wrap(<Linked hrefFor={(value) => `#?toc=${value}&from=${page}`} onChange={(next) => { page = next; }} />);
+    fireEvent.click(link('Kör')!);
+    await waitFor(() => expect(shown()).toBe('kor'));
+    fireEvent.mouseEnter(link('Algebra')!);
+    expect(link('Algebra')).toHaveAttribute('href', '#?toc=alg&from=kor');
   });
 });
 

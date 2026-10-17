@@ -1,5 +1,7 @@
 import { Empty, Tree } from 'antd';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type SyntheticEvent } from 'react';
+import {
+  createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type SyntheticEvent,
+} from 'react';
 import { filterTree, type OneOfTreeFieldControls, type OneOfTreeNodeControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { useVultusTexts } from './texts.js';
@@ -7,6 +9,7 @@ import {
   collectValues, nextShown, openOrder, treeData, TreeSearchBox, TreeSwitcherIcon, type FieldTreeDataNode,
 } from './treeData.js';
 import { useOneOfTreeRequest } from './useOneOfTreeRequest.js';
+import { useShownNodes } from './useShownNodes.js';
 import { withTooltip } from './WithReason.js';
 
 export interface OneOfTreeListProps<T extends string> {
@@ -56,11 +59,12 @@ type ListDataNode<T extends string> = Omit<FieldTreeDataNode<T | ''>, 'children'
  * and in the tree's text colour; a click still focuses it, and Enter there is the tree's (see
  * OneOfTreeList's root), never the link's.
  *
- * `href` is the link as the list rendered; the URL may have changed since without the list
- * rendering again (another query parameter, the path), so whenever the link may be used — the
- * pointer entering it, its focus, a button pressed on it (the middle one's auxclick comes after),
- * its context menu ("open in new tab", "copy link"), a modified click before its default — it
- * takes `fresh()` (`field.hrefFor` asked again: a URL store answers from the URL as it is then).
+ * `href` is the link as the list first rendered the row; the URL may have changed since without
+ * the row rendering again (a new value, another query parameter, the path), so whenever the link
+ * may be used — the pointer entering it, its focus, a button pressed on it (the middle one's
+ * auxclick comes after), its context menu ("open in new tab", "copy link"), a modified click
+ * before its default — it takes `fresh()` (`field.hrefFor` asked again: a URL store answers from
+ * the URL as it is then).
  */
 function rowLink(href: string, title: ReactNode, fresh: () => string | undefined): ReactNode {
   const refresh = (e: SyntheticEvent<HTMLAnchorElement>) => {
@@ -89,23 +93,37 @@ function rowLink(href: string, title: ReactNode, fresh: () => string | undefined
 }
 
 /**
- * treeData's rows as the list shows them: each with its `data-value`, an ancestor of the value
- * (`onPath`) in strong text, and a node that can be chosen a link where `hrefFor` gives one.
+ * The values of the value's ancestors (the nodes `onPath`), for the rows' titles. They come
+ * through this context, not the tree data, so a new value alone leaves the data as it is: antd's
+ * Tree then renders its rows once, where new data (or a new expansion) has rc-tree re-flatten
+ * them and render every row four times over.
+ */
+const OnPathContext = createContext<ReadonlySet<string>>(new Set());
+
+/** A row's title, in strong text while its node is an ancestor of the value (OnPathContext). */
+function PathTitle({ value, children }: { value: string; children: ReactNode }) {
+  return useContext(OnPathContext).has(value) ? <strong>{children}</strong> : <>{children}</>;
+}
+
+/**
+ * treeData's rows (made from `nodes`, row for node) as the list shows them: each with its
+ * `data-value`, its title strong while the node is an ancestor of the value (PathTitle), and a
+ * node that can be chosen a link where `hrefFor` gives one.
  */
 function listRows<T extends string>(
   rows: FieldTreeDataNode<T>[],
-  byValue: Map<T, OneOfTreeNodeControls<T>>,
+  nodes: OneOfTreeNodeControls<T>[],
   hrefFor: ((value: T) => string | undefined) | undefined,
 ): ListDataNode<T>[] {
-  return rows.map((row) => {
-    const node = byValue.get(row.value)!;
-    const title = node.onPath ? <strong>{row.title}</strong> : row.title;
+  return rows.map((row, i) => {
+    const node = nodes[i];
+    const title = <PathTitle value={row.value}>{row.title}</PathTitle>;
     const href = node.choosable ? hrefFor?.(row.value) : undefined;
     return {
       ...row,
       title: typeof href === 'string' ? rowLink(href, title, () => hrefFor?.(row.value)) : title,
       'data-value': row.value,
-      children: row.children && listRows(row.children, byValue, hrefFor),
+      children: row.children && listRows(row.children, node.children ?? [], hrefFor),
     };
   });
 }
@@ -141,10 +159,18 @@ function listRows<T extends string>(
  * a URL store), its title is a link (`<a href>`), while the field is enabled and no commit is
  * pending (otherwise plain text). A plain click requests the node as any click does, the
  * browser not following the link; a click with Ctrl, Cmd, Shift or Alt, or the middle button,
- * is left to the browser and requests nothing. The optional row links to `''` likewise. A link
+ * is left to the browser and requests nothing. The optional row links to `''` likewise. A row's
+ * `href` is the one it was first rendered with: a new value alone renders no row again. A link
  * asks `field.hrefFor` again whenever it may be used (the pointer entering it, its focus, a
- * button pressed on it, its context menu, a modified click), so it follows a URL that changed
- * without the list rendering again (another parameter of the query, the path).
+ * button pressed on it, its context menu, a modified click), so it follows
+ * the URL as it is then (a new value, another parameter of the query, the path).
+ *
+ * Rendering: a new value alone (a click, the previous / next buttons, the URL) hands antd's Tree
+ * the same tree data and, while the value's ancestors are open already, the same expansion, so
+ * rc-tree renders its rows once; the strong path reaches the titles through a context. The tree
+ * data is rebuilt when a node would show something else (its label, note, tooltip, ...; see
+ * useShownNodes), and when the field's enabled state, its `hrefFor` (a new function: vultus-core's
+ * stores and field groups keep theirs), the search or a confirmation changes.
  *
  * `search` adds ManyOfTreeChecklist's search box (placeholder `texts.search`, named
  * "<search> <label>"): the nodes filterTree keeps, accent- and case-insensitive (the matches,
@@ -177,11 +203,16 @@ export function OneOfTreeList<T extends string>({
 
   // Following the value: when it changes, its ancestors join the expansion, set while
   // rendering so the tree never shows the new value under a closed node...
+  const ancestors = field.path.slice(0, -1).map((node) => node.value);
   const [followed, setFollowed] = useState(field.value);
   if (followed !== field.value) {
     setFollowed(field.value);
-    const ancestors = field.path.slice(0, -1).map((node) => node.value);
-    setExpanded((keys) => [...keys, ...ancestors.filter((key) => !keys.includes(key))]);
+    // The same keys while every ancestor is open already: new ones make rc-tree re-flatten its
+    // rows and render them all again, four times over.
+    setExpanded((keys) => {
+      const closed = ancestors.filter((key) => !keys.includes(key));
+      return closed.length === 0 ? keys : [...keys, ...closed];
+    });
   }
   // ...and its row scrolls into view once shown (not on mount: the page is the reader's).
   const scrolledTo = useRef(field.value);
@@ -197,19 +228,23 @@ export function OneOfTreeList<T extends string>({
     });
   }, [field.value]);
 
+  // The nodes as their rows show them: the same list across a new value alone (vultus-core builds
+  // the nodes afresh on every render). Only their shown fields are read here (useShownNodes).
+  const nodes = useShownNodes(field.nodes);
   const kept = useMemo(
-    () => (search && query.trim() !== '' ? collectValues(filterTree(field.nodes, query)) : undefined),
-    [search, field.nodes, query],
+    () => (search && query.trim() !== '' ? collectValues(filterTree(nodes, query)) : undefined),
+    [search, nodes, query],
   );
   const linking = field.enabled && !field.pending;
-  // The same tree data while the field and the search stay the same: a re-render of its own
-  // (the keyboard's active row) would otherwise hand rc-tree new data, cutting short a node's
-  // opening or closing.
+  // The same tree data while the nodes as shown, the field and the search stay the same: a new
+  // value alone changes only the selected row and the strong path (OnPathContext), and a
+  // re-render of the list's own (the keyboard's active row) would otherwise hand rc-tree new
+  // data, cutting short a node's opening or closing.
   const data = useMemo(() => {
     const hrefFor = linking ? field.hrefFor : undefined;
-    const rows = listRows(treeData(field.nodes, {
+    const rows = listRows(treeData(nodes, {
       noteStyle: 'brackets', tooltips: field.enabled, holdTooltips: asking, shown: kept?.all,
-    }), field.byValue, hrefFor);
+    }), nodes, hrefFor);
     if (!field.optional) return rows;
     const label = field.placeholder || texts.none;
     const href = hrefFor?.('');
@@ -220,13 +255,20 @@ export function OneOfTreeList<T extends string>({
       style: kept ? { display: 'none' } : undefined,
     };
     return [none, ...rows];
-  }, [field.nodes, field.byValue, field.enabled, field.optional, field.placeholder, field.hrefFor, linking, asking, kept, texts.none]);
+  }, [nodes, field.enabled, field.optional, field.placeholder, field.hrefFor, linking, asking, kept, texts.none]);
+  const currentValue = field.current?.value;
+  const selectedKeys = useMemo<(T | '')[]>(
+    () => (currentValue !== undefined ? [currentValue] : field.optional && field.value === '' ? [''] : []),
+    [currentValue, field.optional, field.value],
+  );
+  // The strong path: the same set while the value's ancestors stay the same (a sibling chosen).
+  const ancestorsKey = JSON.stringify(ancestors);
+  const onPath = useMemo<ReadonlySet<string>>(() => new Set(JSON.parse(ancestorsKey) as string[]), [ancestorsKey]);
   if (!field.visible) return null;
 
   const disabled = !field.enabled || field.pending;
   const expandedKeys = !kept ? expanded : searchExpanded ?? kept.parents;
   const setExpandedKeys = (keys: T[]) => (kept ? setSearchExpanded(keys) : setExpanded(keys));
-  const selectedKeys: (T | '')[] = field.current ? [field.current.value] : field.optional && field.value === '' ? [''] : [];
   /** Whether a row is shown: every row but while searching, when the kept nodes are (the optional row is not). */
   const isShown = (key: T | '') => !kept || (key !== '' && kept.all.has(key));
 
@@ -250,30 +292,32 @@ export function OneOfTreeList<T extends string>({
   };
 
   const tree = (
-    <Tree<ListDataNode<T>>
-      blockNode
-      switcherIcon={<TreeSwitcherIcon />}
-      disabled={disabled}
-      treeData={data}
-      selectedKeys={selectedKeys}
-      expandedKeys={expandedKeys}
-      onExpand={(keys) => setExpandedKeys(keys as T[])}
-      // A click on a row that can be chosen, the row selected or not, and Enter or Space on one.
-      onSelect={(_, { node }) => choose(node.key as T | '')}
-      // A click on any row, before the selection: a node with children that cannot be chosen
-      // opens or closes, and while the field is disabled any node with children does (browsing).
-      onClick={(_, { key }) => {
-        const node = field.byValue.get(key as T);
-        if (!node?.children?.length || (node.choosable && field.enabled)) return;
-        setExpandedKeys(expandedKeys.includes(node.value)
-          ? expandedKeys.filter((k) => k !== node.value)
-          : [...expandedKeys, node.value]);
-      }}
-      activeKey={active !== null && isShown(active) ? active : null}
-      onActiveChange={(key) => activate((key ?? null) as T | '' | null)}
-      aria-label={field.label || undefined}
-      aria-description={fieldAccessibleDescription(field, texts)}
-    />
+    <OnPathContext.Provider value={onPath}>
+      <Tree<ListDataNode<T>>
+        blockNode
+        switcherIcon={<TreeSwitcherIcon />}
+        disabled={disabled}
+        treeData={data}
+        selectedKeys={selectedKeys}
+        expandedKeys={expandedKeys}
+        onExpand={(keys) => setExpandedKeys(keys as T[])}
+        // A click on a row that can be chosen, the row selected or not, and Enter or Space on one.
+        onSelect={(_, { node }) => choose(node.key as T | '')}
+        // A click on any row, before the selection: a node with children that cannot be chosen
+        // opens or closes, and while the field is disabled any node with children does (browsing).
+        onClick={(_, { key }) => {
+          const node = field.byValue.get(key as T);
+          if (!node?.children?.length || (node.choosable && field.enabled)) return;
+          setExpandedKeys(expandedKeys.includes(node.value)
+            ? expandedKeys.filter((k) => k !== node.value)
+            : [...expandedKeys, node.value]);
+        }}
+        activeKey={active !== null && isShown(active) ? active : null}
+        onActiveChange={(key) => activate((key ?? null) as T | '' | null)}
+        aria-label={field.label || undefined}
+        aria-description={fieldAccessibleDescription(field, texts)}
+      />
+    </OnPathContext.Provider>
   );
   const control = (
     <div

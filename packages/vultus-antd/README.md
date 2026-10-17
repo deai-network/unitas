@@ -288,11 +288,19 @@ node's title as `<a href>` (the optional row's `''` likewise), while the field i
 commit is pending (otherwise plain text, as a disabled node is). A plain click requests the node
 through the field's confirmation, the browser not following the link; a click with Ctrl, Cmd,
 Shift or Alt, or the middle button, is left to the browser (a new tab, which reads the value from
-its own URL) and requests nothing. A link's href is the one the list rendered, asked of `hrefFor`
-again whenever the link may be used (the pointer entering it, its focus, a button pressed on it,
-its context menu, a modified click), so it follows a URL that changed without the list rendering
-again (another parameter of the query, the path). `OneOfTreePicker` does not use `hrefFor` — the
-closed field is not a link.
+its own URL) and requests nothing. A link's href is the one its row was first rendered with (a new
+value alone renders no row again, see below), asked of `hrefFor` again whenever the link may be
+used (the pointer entering it, its focus, a button pressed on it, its context menu, a modified
+click), so it follows the URL as it is then (a new value, another parameter of the query, the
+path). `OneOfTreePicker` does not use `hrefFor` — the closed field is not a link.
+
+**Rendering.** A new value alone (a click, previous / next, the URL) hands antd's Tree the same tree
+data, and the same expanded keys while the value's ancestors are open already, so it renders its
+rows once (new data or new keys make rc-tree render every row four times over); the strong path
+reaches the titles through a context. The data is rebuilt when a node would show something else
+(its label, note, tooltip, icon, ...), and when the field's enabled state, the search, a
+confirmation or the field's `hrefFor` changes: give a hand-made field a stable `hrefFor` (the
+stores' and field groups' are).
 
 An app's own links built from `hrefFor` (a previous / next pair) are as fresh as their
 component's last render: render them in a component that re-renders on location changes (one
