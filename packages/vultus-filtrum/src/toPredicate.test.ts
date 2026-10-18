@@ -115,6 +115,35 @@ describe('toPredicate', () => {
       .toThrow(UnsupportedFieldKindError);
   });
 
+  test('a value of the wrong shape throws a TypeError naming the filter and the shape', () => {
+    const STRING = 'must be a string';
+    const STRINGS = 'must be an array or a Set of strings';
+    const cases: [FieldDefinition<Ctx>, unknown, string][] = [
+      // A string is not spread into characters.
+      [tags, 'a,b', `Field 'tags': a manyOf filter's value ${STRINGS}, got a string`],
+      [tags, new Set(['easy', 2]), `Field 'tags': a manyOf filter's value ${STRINGS}, got a Set holding a number`],
+      [category, ['x'], `Field 'category': a oneOf filter's value ${STRING}, got an array`],
+      // An object never reaches the query, where its keys could act as operators.
+      [category, { $gt: '' }, `Field 'category': a oneOf filter's value ${STRING}, got an object`],
+      [search, { $gt: '' }, `Field 'search': a text filter's value ${STRING}, got an object`],
+      [toc, ['ch1'], `Field 'toc': a oneOfTree filter's value ${STRING}, got an array`],
+      [topics, [1], `Field 'topics': a manyOfTree filter's value ${STRINGS}, got an array holding a number`],
+      [category, null, `Field 'category': a oneOf filter's value ${STRING}, got null`],
+      // Shown or not: a hidden filter's value is checked too.
+      [{ ...tags, visible: false }, 'a,b', `Field 'tags': a manyOf filter's value ${STRINGS}, got a string`],
+    ];
+    for (const [definition, value, message] of cases) {
+      let error: unknown;
+      try {
+        predicateOf([definition], { [definition.id]: value });
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeInstanceOf(TypeError);
+      expect((error as TypeError).message).toBe(message);
+    }
+  });
+
   test('no definitions give {}', () => {
     expect(predicateOf([], { search: 'prime' })).toEqual({});
   });

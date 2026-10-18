@@ -37,8 +37,32 @@ const predicate = toPredicate(definitions, values, {
 // { AND: [{ category: { eq: 'algebra' } }, { text: { search: 'prime numbers' } }] }
 ```
 
-`values` are the filters' values by id, as the page shows them (already
-parsed and sanitized: vultus-core's `valueTypeOf` and `sanitizeStored`).
+## The caller's part: the values
+
+`values` must be the values the page shows, by filter id, **defaults
+included**. A store (the URL, localStorage) omits a value equal to its
+default, so what it holds is not yet what the page shows: fill in each
+missing filter's default before calling. A definition's default is its
+`initialValue`, else its kind's own: the first enabled choice for a
+`oneOf` (so a `oneOf` without a `''` choice always filters by one of
+them); `''` for an `optional` `oneOfTree`, else the first node it can
+choose (in pre-order); the empty list for `manyOf` and `manyOfTree`; `''`
+for `text`. A filter whose value is missing here filters nothing, which
+is not what the page shows when its default is a choice.
+
+The values must also be parsed (a list as a list, not as the store's
+`a,b` string) and sanitized against the definitions as they are now (a
+value no longer among the choices or nodes replaced or dropped).
+vultus-core's `valueTypeOf`, `sanitizeStored` and `initialValueOf` do all
+of this in the browser, but vultus-core's entry loads React and
+react-i18next: a server that calls them depends on both.
+
+Each value that is not empty must have its kind's shape: a string for
+`oneOf`, `oneOfTree` and `text`; an array or a `Set` of strings for
+`manyOf` and `manyOfTree`. Anything else (`'a,b'` for a `manyOf`, a list
+for a `oneOf`, a number, `null`, an object such as `{ $gt: '' }`) throws a
+`TypeError` naming the filter and the shape it needs, whether the filter
+is shown or not, so nothing but strings reaches the query.
 
 ## The rules
 
@@ -74,6 +98,8 @@ Each filter gives one leaf on its record field: the filter's id, unless
   not know. It is thrown for the definition, whatever its value and
   visibility, so a caller learns at once that these definitions need their
   own query.
+- **Values of the wrong shape throw** a `TypeError` (see the caller's part
+  above).
 
 ## Distribution
 
