@@ -93,6 +93,22 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/debug@4.1.13)(jsdom@29.1.1)
 
+  packages/vultus-filtrum:
+    dependencies:
+      filtrum-core:
+        specifier: ^0.1.1
+        version: 0.1.1
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/debug@4.1.13)(jsdom@29.1.1)
+      vultus-core:
+        specifier: workspace:*
+        version: link:../vultus-core
+
   packages/vultus-gallery:
     devDependencies:
       '@ant-design/icons':
@@ -1677,6 +1693,9 @@ packages:
       picomatch:
         optional: true
 
+  filtrum-core@0.1.1:
+    resolution: {integrity: sha512-1dWwdBbEBOL49gG6Y7b5vwGecPk9syNk4BjOYIWxo7tMFTriigzdbHTMdVA/tMfSYV6qdqgsgsQdtoVmvGBx0A==}
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -2453,6 +2472,9 @@ packages:
 
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
+
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
@@ -3858,6 +3880,10 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.5
 
+  filtrum-core@0.1.1:
+    dependencies:
+      zod: 3.25.76
+
   fsevents@2.3.3:
     optional: true
 
@@ -4930,5 +4956,7 @@ snapshots:
   xmlchars@2.2.0: {}
 
   yallist@3.1.1: {}
+
+  zod@3.25.76: {}
 
   zwitch@2.0.4: {}

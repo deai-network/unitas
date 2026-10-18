@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.base.json",
+  // `jsx`: the workspace link gives vultus-core's source (.tsx among it) to the type checker; this package has no JSX.
+  "compilerOptions": { "outDir": "dist", "rootDir": "src", "jsx": "react-jsx", "noEmit": true },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/__tests__"]
+}
