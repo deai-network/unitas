@@ -222,7 +222,8 @@ their own, with no cascading). The hook normalizes the value under
 `selection` on every render — with `'topmost'`, a node and all its checked
 children collapse to the node alone — and exposes `expandedKeys` (which
 nodes a widget opens at first, controlled by `expand`: `'top'` (default),
-`'none'`, `'selected'`, `'all'`) and `toggle(value)` (refused, with a
+`'none'`, `'selected'`, `'all'`, or a list of node values: those with children,
+and the value's ancestors) and `toggle(value)` (refused, with a
 warning, for an unknown or disabled node, as many-of's does).
 `coveredNodes(nodes, value, selection)` expands a value to every node it
 stands for — what a module matches an item's categories against.
@@ -291,7 +292,8 @@ be chosen, e.g. a value naming a folder or a node a context change disabled, sti
 neighbours; undefined at the ends, and with no `current`, `previous` undefined and `next` the
 first choosable node), `optional`, `choose` and `expandedKeys`
 (from `expand`, default `'selected'` — the value's ancestors, so a table of contents opens where
-the reader is; `'top'`, `'none'` and `'all'` as the many-of tree's). The field's current state is
+the reader is; `'top'`, `'none'`, `'all'` and a list as the many-of tree's: a list opens a
+book's printed shape, its chapters open and its sections folded, the reader's place shown). The field's current state is
 the chosen node's description, unless `valueDescriptions` words it differently (as `oneOf`).
 Implicit initial value: `initialValue`, else `''` when `optional`, else the first node that can be
 chosen in tree pre-order, else `''` (no node can be chosen; as `oneOf`'s undefined choice).

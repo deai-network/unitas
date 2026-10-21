@@ -40,9 +40,12 @@ export type TreeSelection = 'topmost' | 'all' | 'leaves' | 'independent';
 /**
  * Which nodes a tree widget opens at first: `'top'` (the default), the roots with children;
  * `'none'`; `'selected'` (moxb's `expandValues`), the ancestors of the value's nodes; `'all'`,
- * every node with children.
+ * every node with children; or a list of node values, those of them with children and, as
+ * `'selected'`, the ancestors of the value's nodes (a book's printed table of contents: its
+ * chapters open, its sections folded, the current section shown). A listed leaf, or a value
+ * naming no node, opens nothing.
  */
-export type TreeExpand = 'top' | 'none' | 'selected' | 'all';
+export type TreeExpand = 'top' | 'none' | 'selected' | 'all' | readonly string[];
 
 function hasChildren(node: { children?: unknown[] }): boolean {
   return (node.children?.length ?? 0) > 0;
@@ -196,11 +199,11 @@ export function expandedTreeKeys<T extends string>(nodes: TreeNode<T>[], value: 
   if (expand === 'top') return nodes.filter(hasChildren).map((node) => node.value);
   const { order, parent } = indexTree(nodes);
   if (expand === 'all') return order.filter(hasChildren).map((node) => node.value);
-  const ancestors = new Set<T>();
+  const open = new Set<string>(typeof expand === 'string' ? [] : expand);
   for (const v of value) {
-    for (let up = parent.get(v); up !== undefined; up = parent.get(up)) ancestors.add(up);
+    for (let up = parent.get(v); up !== undefined; up = parent.get(up)) open.add(up);
   }
-  return order.filter((node) => ancestors.has(node.value)).map((node) => node.value);
+  return order.filter((node) => hasChildren(node) && open.has(node.value)).map((node) => node.value);
 }
 
 /**

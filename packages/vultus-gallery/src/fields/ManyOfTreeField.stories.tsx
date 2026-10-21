@@ -96,10 +96,10 @@ export const TaskCategories: StoryObj<CategoryArgs> = {
       >
         <Space size={32} align="start" wrap>
           <Example label="ManyOfTreePicker">
-            <ManyOfTreePicker key={expand} field={field} style={{ width: 380 }} />
+            <ManyOfTreePicker key={String(expand)} field={field} style={{ width: 380 }} />
           </Example>
           <Example label="ManyOfTreeChecklist">
-            <div style={{ width: 380 }}><ManyOfTreeChecklist key={expand} field={field} /></div>
+            <div style={{ width: 380 }}><ManyOfTreeChecklist key={String(expand)} field={field} /></div>
           </Example>
           <Example label="field.value"><Tag>{field.value.join(', ') || '(none)'}</Tag></Example>
           <Example label="stored on the server"><Tag color="green">{stored.join(', ') || '(none)'}</Tag></Example>

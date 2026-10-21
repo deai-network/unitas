@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  canChooseNode, choosableValues, coveredNodes, filterTree, normalizeTreeValue, toggleTreeValue, treePath, type TreeNode,
+  canChooseNode, choosableValues, coveredNodes, expandedTreeKeys, filterTree, normalizeTreeValue, toggleTreeValue, treePath,
+  type TreeNode,
 } from '../tree.js';
 
 type Id = 'A' | 'A1' | 'A2' | 'A2a' | 'A2b' | 'B' | 'B1';
@@ -339,5 +340,23 @@ describe('choosable nodes', () => {
     it('a value naming no node: empty', () => {
       expect(treePath(geo, 'nope')).toEqual([]);
     });
+  });
+});
+
+describe('expandedTreeKeys: a list', () => {
+  it('the listed nodes with children, in pre-order', () => {
+    expect(expandedTreeKeys(NODES, [], ['B', 'A2'])).toEqual(['A2', 'B']);
+  });
+
+  it("and the value's ancestors, so its node shows", () => {
+    expect(expandedTreeKeys(NODES, ['A2a'], ['B'])).toEqual(['A', 'A2', 'B']);
+  });
+
+  it('a listed leaf, or a value naming no node, opens nothing', () => {
+    expect(expandedTreeKeys(NODES, [], ['A1', 'nincs'])).toEqual([]);
+  });
+
+  it('an empty list: only the value\'s ancestors', () => {
+    expect(expandedTreeKeys(NODES, ['B1'], [])).toEqual(['B']);
   });
 });

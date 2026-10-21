@@ -193,4 +193,11 @@ describe('useOneOfTreeField: expandedKeys', () => {
     const { result } = renderHook(() => useOneOfTreeField({ id: 'category', nodes: geo, initialValue: 'kor', expand: 'top' }));
     expect(result.current.expandedKeys).toEqual(['geo']);
   });
+
+  it("a list: the listed nodes, and the value's ancestors", () => {
+    const { result } = renderHook(() => useOneOfTreeField({ id: 'category', nodes: geo, initialValue: 'alg', expand: ['geo'] }));
+    expect(result.current.expandedKeys).toEqual(['geo']);
+    const { result: deep } = renderHook(() => useOneOfTreeField({ id: 'category', nodes: geo, initialValue: 'kor', expand: [] }));
+    expect(deep.current.expandedKeys).toEqual(['geo', 'sik']);
+  });
 });
