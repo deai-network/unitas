@@ -135,6 +135,12 @@ export interface StoredFields {
   isDefault(id: string): boolean;
   /** How many of the fields do not show their defaults. */
   changedCount: number;
+  /**
+   * Each field's id to the value `useStoredField(definition).options.value` gives (parsed,
+   * sanitized, the default where the key is absent), read silently. An entry keeps its identity
+   * while it is the same element by element, and the object while no entry changed.
+   */
+  values: Readonly<Record<string, unknown>>;
   /** Removes every field's key in one store write (one history entry). */
   resetAll(method?: UpdateMethod): void;
 }
@@ -150,13 +156,21 @@ interface FieldReading {
   raw: string | null;
   ctx: FieldCtx;
   isDefault: boolean;
+  /** The value useStoredField would show, sanitized. */
+  value: unknown;
 }
 
-/** Whether a field with this raw value shows its default, by useStoredField's rule; silent, as a summary does not warn. */
-function readsAsDefault(definition: FieldDefinition, raw: string | null, ctx: FieldCtx): boolean {
+/**
+ * A field with this raw value, by useStoredField's rules: whether it shows its default and the
+ * value it shows. Silent, as a summary does not warn. The value is `previousValue` while it is
+ * `sameValue` to it.
+ */
+function readField(definition: FieldDefinition, raw: string | null, ctx: FieldCtx, previousValue: { value: unknown } | undefined): FieldReading {
   const arg = argOf(definition, ctx);
   const stored = (raw === null ? undefined : arg.valueType.parse(raw)) ?? arg.default;
-  return showsDefault(arg, stored, () => sanitizeStored(definition, stored, ctx, silently));
+  const sanitized = sanitizeStored(definition, stored, ctx, silently);
+  const value = previousValue !== undefined && sameValue(previousValue.value, sanitized) ? previousValue.value : sanitized;
+  return { definition, raw, ctx, isDefault: showsDefault(arg, stored, () => sanitized), value };
 }
 
 /**
@@ -175,7 +189,8 @@ export function useStoredFields(definitions: readonly FieldDefinition[]): Stored
   const snapshot = useSyncExternalStore(subscribe, readAll);
 
   const readingsRef = useRef(new Map<string, FieldReading>());
-  const changed = useMemo(() => {
+  const valuesRef = useRef<Readonly<Record<string, unknown>> | undefined>(undefined);
+  const { changed, values } = useMemo(() => {
     const raws = JSON.parse(snapshot) as (string | null)[];
     const previous = readingsRef.current;
     const readings = new Map<string, FieldReading>();
@@ -184,11 +199,18 @@ export function useStoredFields(definitions: readonly FieldDefinition[]): Stored
       const before = previous.get(definition.id);
       const reading: FieldReading = before !== undefined && before.definition === definition && before.raw === raw && before.ctx === ctx
         ? before
-        : { definition, raw, ctx, isDefault: readsAsDefault(definition, raw, ctx) };
+        : readField(definition, raw, ctx, before);
       readings.set(definition.id, reading);
     });
     readingsRef.current = readings;
-    return new Set([...readings.values()].filter((r) => !r.isDefault).map((r) => r.definition.id));
+    const previousValues = valuesRef.current;
+    const entries = [...readings.values()].map((r) => [r.definition.id, r.value] as const);
+    const unchanged = previousValues !== undefined
+      && Object.keys(previousValues).length === entries.length
+      && entries.every(([id, value]) => id in previousValues && previousValues[id] === value);
+    const values = unchanged ? previousValues : Object.fromEntries(entries);
+    valuesRef.current = values;
+    return { changed: new Set([...readings.values()].filter((r) => !r.isDefault).map((r) => r.definition.id)), values };
   }, [snapshot, definitions, ctx]);
 
   const isDefault = useCallback(
@@ -205,5 +227,5 @@ export function useStoredFields(definitions: readonly FieldDefinition[]): Stored
     [store, definitions],
   );
 
-  return { isDefault, changedCount: changed.size, resetAll };
+  return { isDefault, changedCount: changed.size, values: values as Readonly<Record<string, unknown>>, resetAll };
 }

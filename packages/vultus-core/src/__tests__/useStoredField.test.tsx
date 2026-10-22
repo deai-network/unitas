@@ -402,6 +402,57 @@ describe('useStoredFields', () => {
   });
 });
 
+describe('useStoredFields values', () => {
+  const PICK: DefinitionOf<'oneOf'> = { kind: 'oneOf', id: 'level', choices: [{ value: 'a' }, { value: 'b' }] };
+  const MANY: DefinitionOf<'manyOf'> = { kind: 'manyOf', id: 'tags', choices: [{ value: 'x' }, { value: 'y' }] };
+  const definitions = [PICK, MANY];
+
+  it('gives each field its value, the default where the key is absent', () => {
+    const store = memoryStore({ level: 'b' });
+    const { result } = renderHook(() => useStoredFields(definitions), { wrapper: providing(store) });
+    expect(result.current.values).toEqual({ level: 'b', tags: [] });
+  });
+
+  it('follows a write to the store', () => {
+    const store = memoryStore({ level: 'b' });
+    const { result } = renderHook(() => useStoredFields(definitions), { wrapper: providing(store) });
+    const raw = argOf(MANY, NO_FIELD_CONTEXT).valueType.format(['x']);
+    act(() => store.write([{ key: 'tags', raw }], 'replace'));
+    expect(result.current.values).toEqual({ level: 'b', tags: ['x'] });
+  });
+
+  it('reads a stored value no longer among the choices as the default, without warning', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const store = memoryStore({ level: 'gone' });
+      const { result } = renderHook(() => useStoredFields(definitions), { wrapper: providing(store) });
+      expect(result.current.values.level).toBe('a');
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('keeps the identity of an entry and of the object while nothing changed', () => {
+    const store = memoryStore({ tags: 'x' });
+    const { result, rerender } = renderHook(() => useStoredFields(definitions), { wrapper: providing(store) });
+    const before = result.current.values;
+    rerender();
+    expect(result.current.values).toBe(before);
+    expect(result.current.values.tags).toBe(before.tags);
+  });
+
+  it('keeps an entry that did not change when a sibling does', () => {
+    const store = memoryStore({ tags: 'x' });
+    const { result } = renderHook(() => useStoredFields(definitions), { wrapper: providing(store) });
+    const before = result.current.values;
+    act(() => store.write([{ key: 'level', raw: 'b' }], 'replace'));
+    expect(result.current.values).not.toBe(before);
+    expect(result.current.values.level).toBe('b');
+    expect(result.current.values.tags).toBe(before.tags);
+  });
+});
+
 /** An ArgStore written as a class: its methods use `this`, so a hook must call them on the store, not detached. */
 class ClassStore implements ArgStore {
   private data = new Map<string, string>();

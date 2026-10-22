@@ -432,8 +432,12 @@ at all when the key is simply absent (then the default applies, and an
 absent key is not outside input).
 `useStoredFields(definitions)` answers for several definitions over one
 store subscription: `isDefault(id)` (throws for an id not among the
-definitions), `changedCount`, and `resetAll(method)` (one write for every
-field). Being a summary, it never warns — only `useStoredField` on the
+definitions), `changedCount`, `values` (each id to the value
+`useStoredField(definition).options.value` gives — sanitized, the default where
+the key is absent — for code that needs all the values outside the `Field`
+components; an entry keeps its identity while it stays the same element by
+element, and the object while no entry changed) and `resetAll(method)` (one
+write for every field). Being a summary, it never warns — only `useStoredField` on the
 field itself does.
 
 **Links.** Every kind's hook gives its controls `hrefFor(value)`: the link that requesting `value`
