@@ -290,6 +290,18 @@ describe('ActionContextMenu', () => {
     expect(showLog.fire).not.toHaveBeenCalled();
   });
 
+  it('giving the focus back does not scroll the page (the child may be out of view in a scrolling box)', async () => {
+    const showLog = makeStatus({ id: 'show-log', label: 'Show log' });
+    render(wrap(<ActionContextMenu actions={[showLog]}>{segment()}</ActionContextMenu>));
+    link().focus();
+    const menu = await openMenu();
+    await waitFor(() => expect(menu.contains(document.activeElement)).toBe(true));
+    const focus = vi.spyOn(link(), 'focus');
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape', code: 'Escape', keyCode: 27 });
+    await waitFor(() => expect(document.activeElement).toBe(link()));
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  });
+
   it('a pick gives the focus back to the child (where a dialog the action opens returns it)', async () => {
     const showLog = makeStatus({ id: 'show-log', label: 'Show log' });
     render(wrap(<ActionContextMenu actions={[showLog]}>{segment()}</ActionContextMenu>));
