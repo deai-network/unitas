@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Button, Dropdown, Modal, Popconfirm, Space, Tooltip, theme, type ButtonProps } from 'antd';
+import { Button, Dropdown, Space, Tooltip, type ButtonProps } from 'antd';
 import { useSpinnerKey, useVultusComponents, type ActionStatus } from 'vultus-core';
-import { ConfirmTypingModal } from './ConfirmTypingModal.js';
 import { ActionButton, alignToJustifyContent } from './ActionButton.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
+import { useActionMenu } from './useActionMenu.js';
 
 interface Props {
   actions: ActionStatus[];
@@ -41,16 +41,35 @@ interface Props {
 export function CombinedActionButton({ actions, size, keepOriginalDefault = false, iconPlacement, align, className }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectionSource, setSelectionSource] = useState<'auto' | 'manual'>('auto');
-  const [typingOpen, setTypingOpen] = useState(false);
-  const [popconfirmOpen, setPopconfirmOpen] = useState(false);
-  const { token } = theme.useToken();
-  // Hook-based confirm (not static Modal.confirm): it renders through
-  // `modalHolder` inside the app's tree, so it follows the app's
-  // ConfigProvider (theme, prefix, locale).
-  const [modal, modalHolder] = Modal.useModal();
   const { Spinner } = useVultusComponents();
 
-  const visible = actions.filter((a) => !a.invisible);
+  // keepOriginalDefault: drop the pick, so the main half re-evaluates to the
+  // first enabled action (the auto rule below). A no-op otherwise.
+  const settle = () => {
+    if (!keepOriginalDefault) return;
+    setSelectedId(null);
+    setSelectionSource('auto');
+  };
+
+  // The open list's rows and the confirmation flow (shared with
+  // ActionContextMenu). `menu.fire` fires an explicit action (not the resolved
+  // `active`): menu rows cannot "select then read active" in one handler —
+  // `active` only recomputes on the next render — so the action is passed in
+  // explicitly. Picking the action also locks it as a manual pick (intent =
+  // the click, regardless of whether the operator follows through with
+  // confirmation), mirroring the old lockActive behavior. Used by both the main
+  // button and the menu rows. With keepOriginalDefault the pick lasts only
+  // until the action fires or its confirmation closes (onSettle).
+  const menu = useActionMenu(actions, {
+    iconPlacement,
+    align,
+    onPick: (action) => {
+      setSelectedId(action.id);
+      setSelectionSource('manual');
+    },
+    onSettle: settle,
+  });
+  const visible = menu.visible;
 
   // Manual picks stay put even when the picked action becomes disabled
   // (operator's choice is respected — button disables but selection holds).
@@ -78,98 +97,6 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
 
   const justifyContent = alignToJustifyContent(align);
 
-  // keepOriginalDefault: drop the pick, so the main half re-evaluates to the
-  // first enabled action (the auto rule above). A no-op otherwise.
-  const settle = () => {
-    if (!keepOriginalDefault) return;
-    setSelectedId(null);
-    setSelectionSource('auto');
-  };
-
-  // Fire an explicit action (not the resolved `active`). Menu rows cannot
-  // "select then read active" in one handler — `active` only recomputes on
-  // the next render — so the action is passed in explicitly. Selecting the
-  // action also locks it as a manual pick (intent = the click, regardless of
-  // whether the operator follows through with confirmation), mirroring the
-  // old lockActive behavior. Used by both the main button and the menu rows.
-  // With keepOriginalDefault the pick lasts only until the action fires or
-  // its confirmation closes.
-  const fire = (action: ActionStatus) => {
-    if (action.disabled || action.pending) return;
-    setSelectedId(action.id);
-    setSelectionSource('manual');
-    if (!action.confirmation) {
-      action.fire();
-      settle();
-      return;
-    }
-    if (action.confirmation.kind === 'typing') {
-      setTypingOpen(true);
-      return;
-    }
-    if (action.confirmation.kind === 'cascade-modal') {
-      const conf = action.confirmation;
-      modal.confirm({
-        title: conf.title,
-        content: conf.content,
-        okText: action.label,
-        okButtonProps: { danger: action.variant === 'danger' },
-        onOk: () => { action.fire(); settle(); },
-        onCancel: settle,
-      });
-      return;
-    }
-    // popconfirm: open the controlled bubble on the main half.
-    setPopconfirmOpen(true);
-  };
-
-  const menuItems = visible.map((a, i) => {
-    // primary → label tinted with the same token antd's primary button fills
-    // with (colorPrimary), bold; deliberately no solid fill so it does not
-    // collide with the selectedKeys highlight on the active row. danger uses
-    // antd's native menu-item danger styling (set below via `danger`).
-    // Both apply only while the entry is enabled — disabled, antd's menu
-    // does not neutralize them on its own (unlike a disabled Button), so a
-    // disabled entry would otherwise still look primary/danger (owner
-    // feedback, Fix 15; mirrors Fix 11's treatment of the opener).
-    const labelText =
-      !a.disabled && a.variant === 'primary'
-        ? <span style={{ color: token.colorPrimary, fontWeight: 600 }}>{a.label}</span>
-        : <span>{a.label}</span>;
-    const labelWithReason = a.reason
-      ? <Tooltip title={<ReasonMarkdown>{a.reason}</ReasonMarkdown>}>{labelText}</Tooltip>
-      : labelText;
-
-    // The `icon` slot antd's Menu renders is always first and is a sibling
-    // of the aligned wrapper below, not part of it — so it cannot represent
-    // "icon after label" (iconPlacement="end") nor move together with the
-    // label when `align` is set. Fold the icon out of that slot and into the
-    // row's own label node whenever either applies; otherwise keep using the
-    // slot (antd's normal, unmoved placement).
-    const iconInLabel = iconPlacement === 'end' || align !== undefined;
-    const rowIcon = iconInLabel ? a.icon : undefined;
-    const iconAfterLabel = iconPlacement === 'end';
-    const rowLabel = rowIcon
-      ? (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8, ...(justifyContent ? { justifyContent, width: '100%' } : {}) }}>
-            {iconAfterLabel ? labelWithReason : rowIcon}
-            {iconAfterLabel ? rowIcon : labelWithReason}
-          </span>
-        )
-      : justifyContent
-        ? <span style={{ display: 'flex', width: '100%', justifyContent }}>{labelWithReason}</span>
-        : labelWithReason;
-
-    return {
-      key: String(i),
-      icon: iconInLabel ? undefined : a.icon,
-      danger: !a.disabled && a.variant === 'danger',
-      label: rowLabel,
-      disabled: a.disabled,
-      onClick: () => fire(a),
-    };
-  });
-
   // The main half is its own Button, so the opener stays
   // interactive even when the active half is disabled (design §3.2 requires
   // the menu to open in the all-disabled case for per-item reason tooltips),
@@ -192,7 +119,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
         // Single path for every confirmation kind. For popconfirm, fire()
         // opens the controlled bubble (the Popconfirm no longer auto-opens
         // on child click now that it is controlled).
-        onClick={() => fire(active)}
+        onClick={() => menu.fire(active)}
         data-action-id={active.id}
       >
         {active.label}
@@ -211,22 +138,11 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
         )
       : rawButton;
 
+    // The popconfirm's bubble (opened by menu.fire, from the main button OR a
+    // menu row) points at the main half: the chevron click cannot trigger it.
+    // A popconfirm action asked is the active one (picking it made it so).
     if (active.confirmation?.kind === 'popconfirm') {
-      return (
-        <Popconfirm
-          title={<div style={{ maxWidth: 280, whiteSpace: 'normal' }}>{active.confirmation.question}</div>}
-          // Controlled: fire() drives `open` (from the main button OR a menu
-          // row). We only handle the close transition here — opening is always
-          // explicit via fire(). onConfirm closes via the same false transition.
-          open={popconfirmOpen}
-          onOpenChange={(next) => { if (!next) { setPopconfirmOpen(false); settle(); } }}
-          onConfirm={() => { active.fire(); settle(); }}
-          okButtonProps={{ danger: active.variant === 'danger' }}
-          disabled={active.disabled}
-        >
-          {withTooltip}
-        </Popconfirm>
-      );
+      return menu.anchor(withTooltip, { disabled: active.disabled });
     }
 
     return withTooltip;
@@ -247,7 +163,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
         // the opener is meant to be clicked anyway.
         trigger={['click']}
         placement="bottomRight"
-        menu={{ items: menuItems, selectedKeys: active.disabled ? [] : [String(selectedIndex)] }}
+        menu={{ items: menu.items, selectedKeys: active.disabled ? [] : [String(selectedIndex)] }}
       >
         <Button
           className={className}
@@ -263,28 +179,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
     </Space.Compact>
   );
 
-  if (active.confirmation?.kind === 'typing') {
-    const conf = active.confirmation;
-    return (
-      <>
-        {dropdownButton}
-        {modalHolder}
-        <ConfirmTypingModal
-          open={typingOpen}
-          title={conf.title}
-          entityName={conf.entityName}
-          description={conf.description}
-          prompt={conf.prompt}
-          okText={active.label}
-          danger={active.variant === 'danger'}
-          onConfirm={() => { setTypingOpen(false); active.fire(); settle(); }}
-          onCancel={() => { setTypingOpen(false); settle(); }}
-        />
-      </>
-    );
-  }
-
-  return <>{dropdownButton}{modalHolder}</>;
+  return <>{dropdownButton}{menu.dialogs}</>;
 }
 
 // antd's EllipsisOutlined (the opener icon Dropdown.Button used), inlined so

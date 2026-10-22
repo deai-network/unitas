@@ -24,8 +24,8 @@ npm install vultus-antd
 - `.` — re-exports all of `vultus-core`, plus:
   - `VultusProvider`, and its texts: `defaultVultusTexts`, `useVultusTexts`,
     `VultusTextsContext` and the `VultusTexts` type;
-  - actions: `ActionButton`, `CombinedActionButton`, `FormSubmitButton`, `FormPanel`,
-    `useConfirm` (and the `Confirm` and `ConfirmLabels` types), `ConfirmTypingModal`;
+  - actions: `ActionButton`, `CombinedActionButton`, `ActionContextMenu`, `FormSubmitButton`,
+    `FormPanel`, `useConfirm` (and the `Confirm` and `ConfirmLabels` types), `ConfirmTypingModal`;
   - `Markdown` (and the `MarkdownProps` type);
   - field widgets: `BoolSwitch`, `BoolCheckbox`, `OneOfSelect`, `OneOfSegmented`,
     `OneOfSlider`, `ManyOfCheckboxes`, `ManyOfSwitches`, `ManyOfSelect`, `NumericInput`,
@@ -67,6 +67,7 @@ Where vultus-antd shows it (all `size="small"`):
 | component | local key | where |
 |---|---|---|
 | `ActionButton`, `CombinedActionButton`, `FormSubmitButton` | `vultus:action:<id>` | the button's loading icon |
+| `ActionContextMenu` | `vultus:action:<id>` | a pending action's row, as its icon (without a lent Spinner, antd's small `Spin`) |
 | `BoolCheckbox` | `vultus:field:<id>` | after the checkbox and its label, while a commit is pending |
 | `BoolSwitch` | `vultus:field:<id>` | after the switch (antd's Switch has no icon slot, so it shows no loading state of its own) |
 | `OneOfSelect` | `vultus:field:<id>` | the select's suffix icon, while a commit is pending |
@@ -476,6 +477,25 @@ By default a menu pick becomes the main action and stays there. Pass
 `keepOriginalDefault` (to `CombinedActionButton`, or to `ActionButton` with an
 array) to return the main half to the first enabled action once the picked
 action fires or its confirmation is dismissed.
+
+## ActionContextMenu
+
+`<ActionContextMenu actions={[showLog, drop]}>{child}</ActionContextMenu>` puts a right-click
+menu of actions on one child element: a link, a bar's segment, any element that takes a ref and
+event handlers. A right click on the child, or the keyboard's menu key or Shift+F10 while it has
+the focus, opens the menu at the pointer instead of the browser's own. The child's own handlers
+stay its own: its left click is its business, and its own `onContextMenu` still runs.
+
+`actions` is an `ActionStatus[]`, as `CombinedActionButton`'s, and the rows are its open list's
+(one internal hook builds both): the label and the icon, primary and danger only while
+enabled, an invisible action left out, a disabled one greyed with its reason in a tooltip. A
+pending one is disabled, the spinner taking its icon's place (the lent `Spinner`, see Spinner
+slot, else antd's small `Spin`); `CombinedActionButton`'s rows leave that out, as its main half
+shows the pending action. A pick asks the action's confirmation as `CombinedActionButton` does:
+a popconfirm pointing at the child, a cascade modal or the typing confirmation.
+
+With no visible action the child renders alone: no menu, and the browser's own context menu is
+not suppressed. (Going from no visible action to some, or back, mounts the child anew.)
 
 ## Icon placement
 

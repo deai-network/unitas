@@ -6,6 +6,7 @@ export { BoolCheckbox } from './BoolCheckbox.js';
 export { BoolSwitch } from './BoolSwitch.js';
 export { useConfirm, type Confirm, type ConfirmLabels } from './useConfirm.js';
 export { CombinedActionButton } from './CombinedActionButton.js';
+export { ActionContextMenu } from './ActionContextMenu.js';
 export { FormSubmitButton } from './FormSubmitButton.js';
 export { FormPanel } from './FormPanel.js';
 export { ConfirmTypingModal } from './ConfirmTypingModal.js';
