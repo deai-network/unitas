@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { App as AntApp, Modal } from 'antd';
+import { App as AntApp, Modal, Tooltip } from 'antd';
 import type { SpinnerProps } from 'vultus-core';
 import { ActionContextMenu } from '../ActionContextMenu.js';
 import { VultusProvider } from '../VultusProvider.js';
@@ -267,5 +267,118 @@ describe('ActionContextMenu', () => {
     render(wrap(<ActionContextMenu actions={[]}>{segment()}</ActionContextMenu>));
     expect(fireEvent.contextMenu(link())).toBe(true);
     expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('opened from the keyboard (the menu key, Shift+F10: a contextmenu on the focused child), the menu takes the focus', async () => {
+    const showLog = makeStatus({ id: 'show-log', label: 'Show log' });
+    const drop = makeStatus({ id: 'drop', label: 'Drop' });
+    render(wrap(<ActionContextMenu actions={[showLog, drop]}>{segment()}</ActionContextMenu>));
+    link().focus();
+    const menu = await openMenu();
+    // Its first row, so the arrow keys and Enter work from there.
+    await waitFor(() => expect(document.activeElement).toBe(row(menu, 'Show log')));
+  });
+
+  it('Escape closes the menu and gives the focus back to the child', async () => {
+    const showLog = makeStatus({ id: 'show-log', label: 'Show log' });
+    render(wrap(<ActionContextMenu actions={[showLog]}>{segment()}</ActionContextMenu>));
+    link().focus();
+    const menu = await openMenu();
+    await waitFor(() => expect(menu.contains(document.activeElement)).toBe(true));
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape', code: 'Escape', keyCode: 27 });
+    await waitFor(() => expect(document.activeElement).toBe(link()));
+    expect(showLog.fire).not.toHaveBeenCalled();
+  });
+
+  it('a pick gives the focus back to the child (where a dialog the action opens returns it)', async () => {
+    const showLog = makeStatus({ id: 'show-log', label: 'Show log' });
+    render(wrap(<ActionContextMenu actions={[showLog]}>{segment()}</ActionContextMenu>));
+    link().focus();
+    const menu = await openMenu();
+    await waitFor(() => expect(document.activeElement).toBe(row(menu, 'Show log')));
+    fireEvent.click(row(menu, 'Show log'));
+    expect(showLog.fire).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(link());
+  });
+
+  it('a close by a click elsewhere leaves the focus where that click put it', async () => {
+    const showLog = makeStatus({ id: 'show-log', label: 'Show log' });
+    render(wrap(
+      <div>
+        <ActionContextMenu actions={[showLog]}>{segment()}</ActionContextMenu>
+        <button type="button">elsewhere</button>
+      </div>,
+    ));
+    link().focus();
+    const menu = await openMenu();
+    await waitFor(() => expect(menu.contains(document.activeElement)).toBe(true));
+    const elsewhere = screen.getByRole('button', { name: 'elsewhere' });
+    // A press moves the focus, then the click closes the menu.
+    fireEvent.mouseDown(elsewhere);
+    elsewhere.focus();
+    fireEvent.click(elsewhere);
+    await waitFor(() => expect(menu.closest('.ant-dropdown')!.className).toMatch(/-leave|ant-dropdown-hidden/));
+    expect(document.activeElement).toBe(elsewhere);
+    expect(showLog.fire).not.toHaveBeenCalled();
+  });
+
+  it('a menu that closes once the focus has left it does not take the focus back', async () => {
+    const showLog = makeStatus({ id: 'show-log', label: 'Show log' });
+    render(wrap(
+      <div>
+        <ActionContextMenu actions={[showLog]}>{segment()}</ActionContextMenu>
+        <button type="button">elsewhere</button>
+      </div>,
+    ));
+    link().focus();
+    const menu = await openMenu();
+    await waitFor(() => expect(menu.contains(document.activeElement)).toBe(true));
+    const elsewhere = screen.getByRole('button', { name: 'elsewhere' });
+    elsewhere.focus();
+    // A scroll closes a menu put at the pointer.
+    fireEvent.scroll(window);
+    await waitFor(() => expect(menu.closest('.ant-dropdown')!.className).toMatch(/-leave|ant-dropdown-hidden/));
+    expect(document.activeElement).toBe(elsewhere);
+  });
+
+  describe('through a child that is an antd Tooltip (as a bar\'s segment with its tooltip)', () => {
+    function tipped() {
+      return (
+        <Tooltip title="1–100" trigger={['hover', 'focus']}>
+          <span tabIndex={0} role="img" aria-label="1–100" />
+        </Tooltip>
+      );
+    }
+    const target = () => screen.getByRole('img', { name: '1–100' });
+
+    it('a right click opens the menu instead of the browser\'s, and a pick fires', async () => {
+      const showLog = makeStatus({ id: 'show-log', label: 'Show log' });
+      const drop = makeStatus({ id: 'drop', label: 'Drop' });
+      render(wrap(<ActionContextMenu actions={[showLog, drop]}>{tipped()}</ActionContextMenu>));
+      expect(fireEvent.contextMenu(target())).toBe(false);
+      const menu = await screen.findByRole('menu');
+      expect(within(menu).getAllByRole('menuitem').map((r) => r.textContent)).toEqual(['Show log', 'Drop']);
+      fireEvent.click(row(menu, 'Drop'));
+      expect(drop.fire).toHaveBeenCalledTimes(1);
+      expect(showLog.fire).not.toHaveBeenCalled();
+    });
+
+    it('the tooltip still shows on hover', async () => {
+      const showLog = makeStatus({ id: 'show-log', label: 'Show log' });
+      render(wrap(<ActionContextMenu actions={[showLog]}>{tipped()}</ActionContextMenu>));
+      fireEvent.mouseEnter(target());
+      await waitFor(() => expect(openTooltips().map((t) => t.textContent)).toEqual(['1–100']));
+    });
+
+    it('opened from the keyboard, the menu takes the focus; Escape gives it back to the child', async () => {
+      const showLog = makeStatus({ id: 'show-log', label: 'Show log' });
+      render(wrap(<ActionContextMenu actions={[showLog]}>{tipped()}</ActionContextMenu>));
+      target().focus();
+      fireEvent.contextMenu(target());
+      const menu = await screen.findByRole('menu');
+      await waitFor(() => expect(document.activeElement).toBe(row(menu, 'Show log')));
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape', code: 'Escape', keyCode: 27 });
+      await waitFor(() => expect(document.activeElement).toBe(target()));
+    });
   });
 });

@@ -483,15 +483,21 @@ action fires or its confirmation is dismissed.
 `<ActionContextMenu actions={[showLog, drop]}>{child}</ActionContextMenu>` puts a right-click
 menu of actions on one child element: a link, a bar's segment, any element that takes a ref and
 event handlers. A right click on the child, or the keyboard's menu key or Shift+F10 while it has
-the focus, opens the menu at the pointer instead of the browser's own. The child's own handlers
-stay its own: its left click is its business, and its own `onContextMenu` still runs.
+the focus, opens the menu at the pointer instead of the browser's own. The menu takes the focus
+as it opens (its first row: the arrow keys and Enter go on from there); when it closes with the
+focus in it (Escape, a pick), the focus goes back to the child, also through a child that is a
+component such as an antd `Tooltip` (whose ref is no element). The child's own handlers stay its
+own: its left click is its business, and its own `onContextMenu` still runs.
 
 `actions` is an `ActionStatus[]`, as `CombinedActionButton`'s, and the rows are its open list's
 (one internal hook builds both): the label and the icon, primary and danger only while
 enabled, an invisible action left out, a disabled one greyed with its reason in a tooltip. A
 pending one is disabled, the spinner taking its icon's place (the lent `Spinner`, see Spinner
-slot, else antd's small `Spin`); `CombinedActionButton`'s rows leave that out, as its main half
-shows the pending action. A pick asks the action's confirmation as `CombinedActionButton` does:
+slot, else antd's small `Spin`). `CombinedActionButton`'s rows leave that out: there only the
+main half shows a pending state, while the pending action is the one it shows; with
+`keepOriginalDefault` the main half goes back to the first enabled action as soon as the pick
+fires, so a picked action that is pending shows nowhere. A pick asks the action's confirmation as
+`CombinedActionButton` does:
 a popconfirm pointing at the child, a cascade modal or the typing confirmation.
 
 With no visible action the child renders alone: no menu, and the browser's own context menu is
