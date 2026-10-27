@@ -1,6 +1,6 @@
 {
   "name": "vultus-antd",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "license": "Apache-2.0",
   "description": "Ant Design widgets for vultus: action buttons, field widgets (<Field>, <FieldWidget>, a widget per field kind), form helpers and markdown (depends on and re-exports vultus-core)",
   "repository": { "type": "git", "url": "git+https://github.com/deai-network/unitas.git", "directory": "packages/vultus-antd" },
