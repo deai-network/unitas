@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useState, type ReactNode } from 'react';
 import { useBoolField } from '../useBoolField.js';
 import { useOneOfField } from '../useOneOfField.js';
@@ -57,6 +57,56 @@ describe('field: commits', () => {
   it('true with commit', () => {
     const { result } = renderHook(() => useBoolField({ id: 'f', value: false, commit: { fire: () => {} } }));
     expect(result.current.commits).toBe(true);
+  });
+});
+
+describe('field: pending (the app\'s own)', () => {
+  it('absent: not pending', () => {
+    const { result } = renderHook(() => useBoolField({ id: 'f' }));
+    expect(result.current.pending).toBe(false);
+  });
+
+  it('true with onChange: pending, and a request is refused with a warning, onChange not called', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onChange = vi.fn();
+    try {
+      const { result } = renderHook(() => useBoolField({ id: 'f', value: false, onChange, pending: true }));
+      expect(result.current.pending).toBe(true);
+      act(() => result.current.setValue(true));
+      expect(onChange).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith("Field 'f': pending — request ignored");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('a function of the field context', () => {
+    const settling = (ctx: { settling: Set<string> }) => ctx.settling.has('f');
+    const busy = renderHook(() => useBoolField({ id: 'f', pending: settling }), { wrapper: providing({ settling: new Set(['f']) }) });
+    expect(busy.result.current.pending).toBe(true);
+    const calm = renderHook(() => useBoolField({ id: 'f', pending: settling }), { wrapper: providing({ settling: new Set() }) });
+    expect(calm.result.current.pending).toBe(false);
+  });
+
+  it('inside the field too: pending, the request refused, the value kept', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const { result } = renderHook(() => useBoolField({ id: 'f', pending: true }));
+      expect(result.current.pending).toBe(true);
+      act(() => result.current.setValue(true));
+      expect(result.current.value).toBe(false);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('with commit: either a running commit or the option makes the field pending', async () => {
+    const running = renderHook(() => useBoolField({ id: 'f', value: false, pending: false, commit: { fire: () => new Promise<void>(() => {}) } }));
+    expect(running.result.current.pending).toBe(false);
+    act(() => running.result.current.setValue(true));
+    await waitFor(() => expect(running.result.current.pending).toBe(true));
+    const said = renderHook(() => useBoolField({ id: 'f', value: false, pending: true, commit: { fire: () => {} } }));
+    expect(said.result.current.pending).toBe(true);
   });
 });
 

@@ -64,6 +64,13 @@ export interface FieldBaseOptions<TValue, Ctx = any> {
   enabled?: ValueOrFn<Decision, Ctx>;
   disabled?: ValueOrFn<Decision, Ctx>;
   /**
+   * Busy for a reason of the app's: while this says so, the field is pending exactly as during a
+   * commit (widgets lock it and show a spinner; a request is refused with a warning), e.g. while
+   * the page has not yet shown what the field's last change asked for. Default false; in every
+   * storage mode, and with `commit`, a running commit makes the field pending too.
+   */
+  pending?: ValueOrFn<boolean, Ctx>;
+  /**
    * What each value means right now, keyed by value (for booleans `true` / `false`, and `mixed`
    * where the field can show it). Shown with the current value, next to `description`, which
    * says what the field is in general.
@@ -107,9 +114,9 @@ export interface FieldControls<TValue, TRequest = TValue> {
   enabled: boolean;
   whyDisabled: string | undefined;
   value: TValue;
-  /** Request a new value. Ignored (with a warning) when disabled or while a commit is pending. */
+  /** Request a new value. Ignored (with a warning) when disabled or while the field is pending. */
   setValue(next: TRequest): void;
-  /** A commit is running. */
+  /** A commit is running, or the field's `pending` option says the app is busy with it. */
   pending: boolean;
   /** The field stores through `commit` — true exactly in commit storage mode, so a widget can hold back requests while typing. */
   commits: boolean;
@@ -196,6 +203,7 @@ export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId e
   );
   const enabled = getVerdict(enabledDecision, true);
   const whyDisabled = enabled ? undefined : getReason(enabledDecision);
+  const busy = resolveIn<boolean>(opts.pending, false, ctx, where('pending'));
 
   // Hooks run unconditionally; the setter action is only fired in commit mode.
   const setter = useAction<TRequest, void, RouteId>(
@@ -211,12 +219,18 @@ export function useFieldCore<TValue, TRequest extends TValue = TValue, RouteId e
   );
 
   const value = mode === 'inside' ? inner : (opts.value as TValue);
-  const pending = mode === 'commit' && setter.pending;
+  const pending = busy || (mode === 'commit' && setter.pending);
   const valueDescription = (opts.valueDescriptions as Record<string, string | undefined> | undefined)?.[String(value)];
 
   const setValue = (next: TRequest) => {
     if (!enabled) {
       console.warn(`Field '${opts.id}': disabled — ${whyDisabled ?? '(no reason)'}`);
+      return;
+    }
+    // A running commit refuses a second request itself (its action is pending); the app's own
+    // pending is refused here, in every storage mode.
+    if (busy) {
+      console.warn(`Field '${opts.id}': pending — request ignored`);
       return;
     }
     if (mode === 'inside') setInner(next);

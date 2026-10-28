@@ -318,6 +318,21 @@ function warnings(check: (warn: MockInstance<typeof console.warn>) => void): voi
 }
 
 describe('useFieldGroup: stored', () => {
+  it('a field pending by the app\'s context (a page still settling it) is pending and refuses requests; the store stays as it is', () => {
+    warnings((warn) => {
+      const store = memoryStore();
+      const settlingLayout: FieldDefinition = { ...layout, pending: (ctx) => ctx.settling.has('layout') };
+      const { result } = renderHook(() => useFieldGroup([settlingLayout, paper], { stored: true }), {
+        wrapper: storing(store, () => ({ settling: new Set(['layout']) })),
+      });
+      expect(result.current.byId.layout.pending).toBe(true);
+      expect(result.current.byId.paper.pending).toBe(false);
+      act(() => result.current.byId.layout.setValue('original'));
+      expect(store.snapshot()).toEqual({});
+      expect(warn).toHaveBeenCalledWith("Field 'layout': pending — request ignored");
+    });
+  });
+
   it('reads each field from the store under its id; an absent key reads as the current default', () => {
     const store = memoryStore({ layout: 'original' });
     const { result } = renderHook(() => useFieldGroup([layout, movingPaper], { stored: true }), { wrapper: storing(store) });
