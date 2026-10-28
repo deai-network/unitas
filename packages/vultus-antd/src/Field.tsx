@@ -66,7 +66,7 @@ export type FieldProps<D extends FieldDefinition = FieldDefinition> = {
 
 /** Every value of a definition a render site may override, of every kind; checked against FieldDefinition below. */
 const DEFINITION_KEYS = [
-  'label', 'description', 'placeholder', 'visible', 'hidden', 'enabled', 'disabled', 'valueDescriptions', 'initialValue',
+  'label', 'description', 'placeholder', 'visible', 'hidden', 'enabled', 'disabled', 'pending', 'valueDescriptions', 'initialValue',
   'choices', 'min', 'max', 'step', 'integer', 'unit', 'format', 'nodes', 'selection', 'expand', 'control',
   'choose', 'optional',
 ] as const;

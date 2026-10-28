@@ -71,6 +71,10 @@ Where vultus-antd shows it (all `size="small"`):
 | `BoolCheckbox` | `vultus:field:<id>` | after the checkbox and its label, while a commit is pending |
 | `BoolSwitch` | `vultus:field:<id>` | after the switch (antd's Switch has no icon slot, so it shows no loading state of its own) |
 | `OneOfSelect` | `vultus:field:<id>` | the select's suffix icon, while a commit is pending |
+| `OneOfSegmented` | `vultus:field:<id>` | after the control, while it is pending (without a lent Spinner, antd's small `Spin`) |
+
+A field is pending while its commit runs, or while its `pending` option (vultus-core) says the
+app is busy with it; the widgets above show both alike.
 
 Wrap a subtree in `<SpinnerScope name="...">` (from vultus-core) to prefix every spinner
 key inside with that name, so several instances of the same view on one page get distinct,

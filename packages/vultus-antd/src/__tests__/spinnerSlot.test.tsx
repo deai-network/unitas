@@ -10,6 +10,7 @@ import { FormSubmitButton } from '../FormSubmitButton.js';
 import { BoolCheckbox } from '../BoolCheckbox.js';
 import { BoolSwitch } from '../BoolSwitch.js';
 import { OneOfSelect } from '../OneOfSelect.js';
+import { OneOfSegmented } from '../OneOfSegmented.js';
 import { makeStatus } from './helpers/makeStatus.js';
 
 const calls: SpinnerProps[] = [];
@@ -217,6 +218,53 @@ describe('OneOfSelect — spinner slot', () => {
     const notRecognized = errorSpy.mock.calls.filter((args) => args.some((a) => typeof a === 'string' && a.includes('does not recognize')));
     expect(notRecognized).toHaveLength(0);
     errorSpy.mockRestore();
+  });
+});
+
+/** A segmented one-of field the app holds pending (its `pending` option), or not. */
+function SettlingSegmented({ pending }: { pending: boolean }) {
+  const [value, setValue] = useState<'a' | 'b'>('a');
+  const field = useOneOfField<'a' | 'b'>({
+    id: 'variant',
+    label: 'Variant',
+    choices: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }],
+    value,
+    onChange: setValue,
+    pending,
+  });
+  return <OneOfSegmented field={field} />;
+}
+
+describe('OneOfSegmented — spinner slot', () => {
+  it('pending (the app\'s own): the control is locked and the provided Spinner follows it, keyed to the field, size small', () => {
+    render(wrap(<SettlingSegmented pending />));
+    const segmented = document.querySelector('.ant-segmented') as HTMLElement;
+    expect(segmented).toHaveClass('ant-segmented-disabled');
+    const spinner = screen.getByTestId('rec-spinner');
+    expect(spinner).toHaveAttribute('data-key', 'vultus:field:variant');
+    expect(segmented.compareDocumentPosition(spinner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(sizeOf('vultus:field:variant')).toBe('small');
+  });
+
+  it('without a provider: antd\'s Spin follows it while pending', () => {
+    render(wrap(<SettlingSegmented pending />, false));
+    expect(document.querySelector('.ant-spin')).not.toBeNull();
+    expect(screen.queryByTestId('rec-spinner')).toBeNull();
+  });
+
+  it('not pending: no spinner, the control enabled', () => {
+    render(wrap(<SettlingSegmented pending={false} />));
+    expect(screen.queryByTestId('rec-spinner')).toBeNull();
+    expect(document.querySelector('.ant-segmented')).not.toHaveClass('ant-segmented-disabled');
+  });
+
+  it('the control keeps its node when pending comes and goes', () => {
+    const { rerender } = render(wrap(<SettlingSegmented pending={false} />));
+    const before = document.querySelector('.ant-segmented');
+    rerender(wrap(<SettlingSegmented pending />));
+    expect(document.querySelector('.ant-segmented')).toBe(before);
+    rerender(wrap(<SettlingSegmented pending={false} />));
+    expect(document.querySelector('.ant-segmented')).toBe(before);
   });
 });
 
