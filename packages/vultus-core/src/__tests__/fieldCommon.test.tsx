@@ -100,6 +100,31 @@ describe('field: pending (the app\'s own)', () => {
     }
   });
 
+  it('disabled and pending: the disabled warning, as disabled is checked first', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const { result } = renderHook(() => useBoolField({ id: 'f', disabled: true, pending: true }));
+      act(() => result.current.setValue(true));
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith("Field 'f': disabled — (no reason)");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('with commit and the option true: the request is refused, the commit not fired', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fire = vi.fn();
+    try {
+      const { result } = renderHook(() => useBoolField({ id: 'f', value: false, pending: true, commit: { fire } }));
+      act(() => result.current.setValue(true));
+      expect(fire).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith("Field 'f': pending — request ignored");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('with commit: either a running commit or the option makes the field pending', async () => {
     const running = renderHook(() => useBoolField({ id: 'f', value: false, pending: false, commit: { fire: () => new Promise<void>(() => {}) } }));
     expect(running.result.current.pending).toBe(false);

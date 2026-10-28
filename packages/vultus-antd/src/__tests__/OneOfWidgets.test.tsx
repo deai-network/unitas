@@ -287,6 +287,15 @@ describe.each(['OneOfSelect', 'OneOfSegmented'] as Kind[])('%s icons and markdow
   });
 });
 
+describe('OneOfSegmented while pending (the app\'s own)', () => {
+  it('holds back its segments\' tooltips: a "Switch to" it could not act on would mislead', async () => {
+    wrap(<Inside kind="OneOfSegmented" pending />);
+    await hoverChoice('OneOfSegmented', 'Plan');
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 300)); });
+    expect(openTooltips()).toHaveLength(0);
+  });
+});
+
 describe('OneOfSegmented iconOnly', () => {
   it('shows only the icons; the label is the accessible name and leads the tooltip, before the field\'s description', async () => {
     wrap(<ThemeField kind="OneOfSegmented" iconOnly />);

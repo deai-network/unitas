@@ -25,8 +25,9 @@ interface Props<T extends string> {
  * CombinedActionButton styles its rows. A disabled field shows its reason for
  * the whole control instead (fieldTooltip). The field's label is the
  * accessible name; while the field is pending (a commit runs, or its
- * `pending` option says the app is busy) it is locked and the lent Spinner
- * (or antd's own) follows it; the field's confirmation for the requested
+ * `pending` option says the app is busy) it is locked, its segments hold
+ * back their tooltips (a "Switch to:" it cannot act on would mislead), and
+ * the lent Spinner (or antd's own) follows it; the field's confirmation for the requested
  * choice comes first, its OK labelled with the choice.
  */
 export function OneOfSegmented<T extends string>({ field, size, iconOnly }: Props<T>) {
@@ -46,7 +47,7 @@ export function OneOfSegmented<T extends string>({ field, size, iconOnly }: Prop
         value: c.value,
         disabled: !c.enabled,
         label: field.enabled
-          ? withTooltip(shownChoiceTooltip(tipField, c, iconOnly, choiceLead(c, c.value === field.value, texts)), !c.enabled, <ChoiceLabel choice={c} iconOnly={iconOnly} />, { open: asking ? false : undefined })
+          ? withTooltip(shownChoiceTooltip(tipField, c, iconOnly, choiceLead(c, c.value === field.value, texts)), !c.enabled, <ChoiceLabel choice={c} iconOnly={iconOnly} />, { open: asking || field.pending ? false : undefined })
           : <ChoiceLabel choice={{ ...c, enabled: false }} iconOnly={iconOnly} />,
       }))}
       aria-label={field.label || undefined}

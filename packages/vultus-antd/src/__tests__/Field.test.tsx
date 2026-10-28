@@ -161,6 +161,16 @@ describe('Field: the widget for a definition', () => {
     expect(screen.queryByRole('switch')).toBeNull();
   });
 
+  it('render-site pending locks the field', () => {
+    wrap(<Field definition={DEFINITIONS.boolean} pending />);
+    expect(screen.getByRole('switch')).toBeDisabled();
+  });
+
+  it('render-site pending={false} replaces the definition\'s pending function', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.boolean, pending: () => true }} pending={false} />);
+    expect(screen.getByRole('switch')).not.toBeDisabled();
+  });
+
   it('remaining props go to the widget (SearchInput\'s onEnter, with the typed text)', () => {
     const onEnter = vi.fn();
     wrap(<Field definition={{ ...DEFINITIONS.text, widget: 'search' }} onEnter={onEnter} />);
@@ -351,6 +361,11 @@ describe('Field: storage', () => {
     quietRenderErrors();
     expect(() => wrap(<ArgStoreProvider store={memoryStore()}><Field stored definition={definition} {...(override as object)} /></ArgStoreProvider>))
       .toThrow(STORE_READ_MESSAGE(key));
+  });
+
+  it('stored: the definition\'s pending reaches the field (the store does not read it)', () => {
+    wrap(<ArgStoreProvider store={memoryStore()}><Field stored definition={{ ...DEFINITIONS.boolean, pending: true }} /></ArgStoreProvider>);
+    expect(screen.getByRole('switch')).toBeDisabled();
   });
 
   it('stored: overriding a value the store does not read works (label, placeholder, enabled)', () => {

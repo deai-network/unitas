@@ -65,9 +65,11 @@ export interface FieldBaseOptions<TValue, Ctx = any> {
   disabled?: ValueOrFn<Decision, Ctx>;
   /**
    * Busy for a reason of the app's: while this says so, the field is pending exactly as during a
-   * commit (widgets lock it and show a spinner; a request is refused with a warning), e.g. while
-   * the page has not yet shown what the field's last change asked for. Default false; in every
-   * storage mode, and with `commit`, a running commit makes the field pending too.
+   * commit (widgets lock it, those with a spinner show it; a request is refused with a warning),
+   * e.g. while the page has not yet shown what the field's last change asked for. Default false;
+   * in every storage mode, and with `commit`, a running commit makes the field pending too.
+   * Meant for one-shot pickers (switch, select, segmented): an input being typed into loses
+   * focus, and a draft not yet requested, when pending starts.
    */
   pending?: ValueOrFn<boolean, Ctx>;
   /**
