@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Button, Card, Form, Space, Typography } from 'antd';
-import { useState, type ReactNode } from 'react';
-import { Outlet, RouterProvider, createMemoryRouter, useLocation, useNavigate } from 'react-router';
-import { FieldWidget, useFieldGroup, type FieldDefinition, type FieldGroup } from 'vultus-antd';
+import { Button, Card, Form, Space, Tag, Typography } from 'antd';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Outlet, RouterProvider, createMemoryRouter, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { FieldContextProvider, FieldWidget, useFieldGroup, type FieldDefinition, type FieldGroup } from 'vultus-antd';
 import { ReactRouterArgStore } from 'vultus-react-router';
 import { Example, Showcase } from '../Showcase.js';
 
@@ -120,6 +120,98 @@ export const InTheUrl: StoryObj = {
       <Showcase
         title="The same dialog, kept in the URL"
         note="useFieldGroup(PRINT_OPTIONS, { stored: true }) under <ReactRouterArgStore> inside a memory router: each field is stored under its id, the URL beside the dialog follows each change (a replace), and a field at its current default leaves the query. The page opened with the original layout and Letter paper. Choose Rendered: paper shows A4, since the rendered layout offers no Letter, while ?paper=letter stays in the URL; choose Original again and Letter is back. 'Reset' counts the fields that show something other than their default; a value kept behind a fallback (?paper=letter under Rendered) is not counted, and comes back when its field allows it. Reset removes every key in one navigation, pushed, so Back brings the values back."
+      >
+        <RouterProvider router={router} />
+      </Showcase>
+    );
+  },
+};
+
+/** A reading page's options: the spelling is pending while the page has not yet shown the one asked for. */
+const READING_OPTIONS: FieldDefinition[] = [
+  {
+    kind: 'oneOf', id: 'variant', label: 'Spelling', widget: 'segmented',
+    description: 'How the text is spelled.',
+    choices: [
+      { value: 'modern', label: 'Modern', description: 'Today\'s spelling' },
+      { value: 'original', label: 'Original', description: 'As first printed' },
+    ],
+    pending: (ctx) => ctx.settling.has('variant'),
+  },
+  {
+    kind: 'oneOf', id: 'size', label: 'Text size', widget: 'segmented',
+    choices: [{ value: 'normal', label: 'Normal' }, { value: 'large', label: 'Large' }],
+  },
+];
+
+const SAMPLE: Record<string, string> = {
+  modern: 'A cél: a hit és az erkölcs tanítása.',
+  original: 'A czél: a hit és az erkölcs tanítása.',
+};
+
+/** The page's fields and text; the text is in the spelling the page shows, not yet the one asked for. */
+function ReadingCard({ shown }: { shown: string }) {
+  const group = useFieldGroup(READING_OPTIONS, { stored: true });
+  const location = useLocation();
+  return (
+    <>
+      <Card title="Reading" style={{ width: 380 }}>
+        <Form layout="vertical">
+          {group.fields.map((f) => <FieldWidget key={f.id} field={f} item />)}
+        </Form>
+        <Typography.Paragraph style={{ fontSize: group.values.size === 'large' ? 20 : 14, marginBottom: 0 }}>
+          {SAMPLE[shown]}
+        </Typography.Paragraph>
+      </Card>
+      <Space orientation="vertical" size={20}>
+        <Example label="URL">
+          <Typography.Text code data-testid="url">{`${location.pathname}${location.search}`}</Typography.Text>
+        </Example>
+        <Example label="the page shows"><Tag>{shown}</Tag></Example>
+        <Example label="spelling pending"><Tag>{String(group.byId.variant.pending)}</Tag></Example>
+      </Space>
+    </>
+  );
+}
+
+/**
+ * The page: it shows the spelling the URL asks for only `settleMs` later (standing in for a
+ * document rendered anew), and until then tells its fields that 'variant' is settling.
+ */
+function ReadingPage({ settleMs }: { settleMs: number }) {
+  const [params] = useSearchParams();
+  const asked = params.get('variant') ?? 'modern';
+  const [shown, setShown] = useState(asked);
+  useEffect(() => {
+    if (shown === asked) return undefined;
+    const timer = setTimeout(() => setShown(asked), settleMs);
+    return () => clearTimeout(timer);
+  }, [asked, shown, settleMs]);
+  const context = useMemo(() => ({ settling: new Set(shown === asked ? [] : ['variant']) }), [asked, shown]);
+  return (
+    <FieldContextProvider value={context}>
+      <ReadingCard shown={shown} />
+    </FieldContextProvider>
+  );
+}
+
+export const Settling: StoryObj<{ settleMs: number }> = {
+  name: 'Pending while the page settles',
+  args: { settleMs: 1500 },
+  argTypes: { settleMs: { control: { type: 'range', min: 0, max: 5000, step: 100 } } },
+  render: function Render({ settleMs }) {
+    const router = useMemo(() => createMemoryRouter(
+      [{
+        path: '/',
+        element: <ReactRouterArgStore><Outlet /></ReactRouterArgStore>,
+        children: [{ path: 'read', element: <ReadingPage settleMs={settleMs} /> }],
+      }],
+      { initialEntries: ['/read'] },
+    ), [settleMs]);
+    return (
+      <Showcase
+        title="A field pending for the app's own reason"
+        note="useFieldGroup(READING_OPTIONS, { stored: true }) under <ReactRouterArgStore>; the spelling's definition says pending: (ctx) => ctx.settling.has('variant'). The page shows the spelling the URL asks for only settleMs later (standing in for a document rendered anew), and until then gives its fields settling = {'variant'} through <FieldContextProvider>. Choose Original: the URL changes at once, the spelling control locks with a spinner after it and its segment tooltips stay closed; once the text shows the original spelling (czél), the control is free again. Text size has no pending option and stays usable throughout. Changing settleMs restarts the page."
       >
         <RouterProvider router={router} />
       </Showcase>

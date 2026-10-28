@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Space, Tag } from 'antd';
 import { useState, type CSSProperties } from 'react';
 import {
-  ActionButton, BoolCheckbox, BoolSwitch, OneOfSelect, SpinnerScope, VultusProvider,
+  ActionButton, BoolCheckbox, BoolSwitch, OneOfSegmented, OneOfSelect, SpinnerScope, VultusProvider,
   useAction, useBoolField, useOneOfField, useSpinnerKey,
   type SpinnerComponent, type SpinnerProps,
 } from 'vultus-antd';
@@ -55,7 +55,7 @@ export default meta;
 
 interface DemoArgs { latencyMs: number }
 
-/** The four sites again: ActionButton, BoolSwitch, BoolCheckbox, OneOfSelect, plus the key each expects (read off useSpinnerKey, so this tag is live — not copy typed out by hand). */
+/** The sites again: ActionButton, BoolSwitch, BoolCheckbox, OneOfSelect, OneOfSegmented, plus the key each expects (read off useSpinnerKey, so this tag is live — not copy typed out by hand). */
 function Controls({ latencyMs }: { latencyMs: number }) {
   const [stored, setStored] = useState(true);
   const [mode, setMode] = useState<'default' | 'turbo'>('default');
@@ -83,6 +83,7 @@ function Controls({ latencyMs }: { latencyMs: number }) {
         <Example label="BoolSwitch (slow commit)"><BoolSwitch field={field} /></Example>
         <Example label="BoolCheckbox (same field)"><BoolCheckbox field={field} /></Example>
         <Example label="OneOfSelect (slow commit)"><OneOfSelect field={oneOf} /></Example>
+        <Example label="OneOfSegmented (same field)"><OneOfSegmented field={oneOf} /></Example>
       </Space>
       <Space size={8} wrap>
         <Tag>action: {actionKey}</Tag>
@@ -102,7 +103,7 @@ export const Slot: StoryObj<DemoArgs> = {
       <>
         <Showcase
           title="Unscoped: VultusProvider components={{ Spinner: DemoSpinner }}"
-          note="Click Run, flip the switch or checkbox, or pick a different mode in the select: each shows DemoSpinner (the two-colour ring, not antd's blue spin) while pending — in the button in place of its loading icon, right after the switch (which itself shows no built-in loading state), after the checkbox's label, and as the select's suffix icon. Hover any ring for its key as a tooltip (DemoSpinner's title prop); the tags below show the same keys live. Expected: vultus:action:go, vultus:field:notify (shared by the switch and checkbox), vultus:field:mode."
+          note="Click Run, flip the switch or checkbox, or pick a different mode in the select or the segmented control: each shows DemoSpinner (the two-colour ring, not antd's blue spin) while pending — in the button in place of its loading icon, right after the switch (which itself shows no built-in loading state), after the checkbox's label, as the select's suffix icon, and after the segmented control. Hover any ring for its key as a tooltip (DemoSpinner's title prop); the tags below show the same keys live. Expected: vultus:action:go, vultus:field:notify (shared by the switch and checkbox), vultus:field:mode."
         >
           <VultusProvider components={{ Spinner: DemoSpinner }}>
             <Controls latencyMs={latencyMs} />
@@ -122,7 +123,7 @@ export const Slot: StoryObj<DemoArgs> = {
 
         <Showcase
           title="No components: today's antd spinners (for comparison)"
-          note="No Spinner lent here (just the gallery's own bare VultusProvider from preview.tsx, which lends nothing) — every site falls back to its unchanged antd look: the button's own loading icon, Spin next to the checkbox, a loading Switch, the Select's default loading icon. Use the controls panel (latencyMs) to slow all three columns down together."
+          note="No Spinner lent here (just the gallery's own bare VultusProvider from preview.tsx, which lends nothing) — every site falls back to its unchanged antd look: the button's own loading icon, Spin next to the checkbox and after the segmented control, a loading Switch, the Select's default loading icon. Use the controls panel (latencyMs) to slow all three columns down together."
         >
           <Controls latencyMs={latencyMs} />
         </Showcase>
