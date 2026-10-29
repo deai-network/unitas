@@ -203,12 +203,27 @@ describe('NumericInput while pending', () => {
     await waitFor(() => expect(shown()).toBe('55'));
   });
 
-  it('an arrow key on an emptied draft while pending leaves it empty', () => {
+  it('an arrow key or Enter on an emptied draft while pending leaves it empty', () => {
     wrap(<Settling />);
     type('');
     fireEvent.click(screen.getByText('Settle'));
     fireEvent.keyDown(input(), { key: 'ArrowUp' });
     expect(input()).toHaveValue('');
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    expect(input()).toHaveValue('');
+    expect(shown()).toBe('10');
+  });
+
+  it('a cancelled confirmation: the input shows the stored value again', async () => {
+    const fire = vi.fn();
+    wrap(<Committed fire={fire} confirmation={(next) => (next > 50 ? { kind: 'popconfirm', question: 'Raise it?' } : undefined)} />);
+    type('80');
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    expect(await screen.findByText('Raise it?')).toBeInTheDocument();
+    expect(input()).toHaveValue('80');
+    fireEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.includes('Cancel'))!);
+    await waitFor(() => expect(input()).toHaveValue('10'));
+    expect(fire).not.toHaveBeenCalled();
     expect(shown()).toBe('10');
   });
 
@@ -401,6 +416,19 @@ describe('NumericSlider while pending', () => {
     expect(shown()).toBe('5');
   });
 
+  it('the app\'s own: Home, End, PageUp and PageDown move nothing (their default prevented), the focus stays; Tab passes', () => {
+    wrap(<SliderInside pending />);
+    act(() => handle().focus());
+    for (const [key, keyCode] of [['Home', 36], ['End', 35], ['PageUp', 33], ['PageDown', 34]] as const) {
+      expect(fireEvent.keyDown(handle(), { key, keyCode })).toBe(false);
+      fireEvent.keyUp(handle(), { key, keyCode });
+      expect(handle()).toHaveAttribute('aria-valuenow', '5');
+    }
+    expect(document.activeElement).toBe(handle());
+    expect(fireEvent.keyDown(handle(), { key: 'Tab', keyCode: 9 })).toBe(true);
+    expect(shown()).toBe('5');
+  });
+
   it('its commit: the handle stays on the requested value, a further move requests nothing; back to normal after', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
@@ -413,6 +441,9 @@ describe('NumericSlider while pending', () => {
     expect(handle()).toHaveAttribute('aria-valuenow', '6');
     fireEvent.keyUp(handle(), { key: 'ArrowRight', keyCode: 39 });
     expect(handle()).toHaveAttribute('aria-valuenow', '6');
+    // antd re-renders the handle on its own (its focus state), the widget not: still said unavailable.
+    act(() => handle().focus());
+    expect(handle()).toHaveAttribute('aria-disabled', 'true');
     expect(fire).toHaveBeenCalledTimes(1);
     await act(async () => { finish(); });
     expect(shown()).toBe('6');

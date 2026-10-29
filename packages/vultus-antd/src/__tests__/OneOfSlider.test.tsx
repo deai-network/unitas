@@ -261,6 +261,26 @@ describe('OneOfSlider while pending', () => {
     expect(shown()).toBe('medium');
   });
 
+  it('the app\'s own: Home, End, PageUp and PageDown move nothing (their default prevented), the focus stays; Tab passes', () => {
+    wrap(<Inside pending />);
+    act(() => handle().focus());
+    for (const [key, keyCode] of [['Home', 36], ['End', 35], ['PageUp', 33], ['PageDown', 34]] as const) {
+      expect(fireEvent.keyDown(handle(), { key, keyCode })).toBe(false);
+      fireEvent.keyUp(handle(), { key, keyCode });
+      expect(handle()).toHaveAttribute('aria-valuenow', '1');
+    }
+    expect(document.activeElement).toBe(handle());
+    expect(fireEvent.keyDown(handle(), { key: 'Tab', keyCode: 9 })).toBe(true);
+    expect(shown()).toBe('medium');
+  });
+
+  it('the app\'s own: the marks hold back their tooltips (a "Switch to:" it cannot act on would mislead)', async () => {
+    wrap(<Inside pending />);
+    fireEvent.mouseEnter(mark('High').closest('span[style]')!);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 300)); });
+    expect(openTooltips()).toHaveLength(0);
+  });
+
   it('keeps the look of a disabled slider (antd\'s own disabled class on it)', () => {
     wrap(<Inside pending />);
     expect(document.querySelector('.ant-slider')).toHaveClass('ant-slider-disabled');
@@ -277,8 +297,12 @@ describe('OneOfSlider while pending', () => {
     fireEvent.keyDown(handle(), { key: 'ArrowLeft', keyCode: 37 });
     expect(handle()).toHaveAttribute('aria-valuenow', '2');
     fireEvent.keyUp(handle(), { key: 'ArrowLeft', keyCode: 37 });
+    // antd re-renders the handle on its own (its focus state), the widget not: still said unavailable.
+    act(() => handle().focus());
+    expect(handle()).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(mark('Low'));
     expect(handle()).toHaveAttribute('aria-valuenow', '2');
+    expect(handle()).toHaveAttribute('aria-disabled', 'true');
     expect(fire).toHaveBeenCalledTimes(1);
     await act(async () => { finish(); });
     expect(shown()).toBe('high');

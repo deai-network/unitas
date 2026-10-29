@@ -36,10 +36,10 @@ export interface SliderMove<T> {
  * `value` shows again: the new one on success, the old one after a Cancel or a failure. A
  * request not taken (another one's confirmation is still open, or it names the value)
  * holds nothing, so the handle stays on the value being asked about. While `pending` the
- * slider is locked, not disabled (useLockedSlider: its handle keeps the keyboard focus, and
- * antd's Slider still moves it on an arrow key or a drag): a move shows nothing, the handle
- * staying on the held or the field's value, and its end requests nothing (refused while
- * pending).
+ * slider is locked, not disabled (useLockedSlider: its handle keeps the keyboard focus; the
+ * keys never reach antd's Slider then, but a drag or a rail click still moves it): a move
+ * shows nothing, the handle staying on the held or the field's value, and its end requests
+ * nothing (refused while pending).
  */
 export function useSliderMove<T>({ value, pending, asking, request }: {
   value: T;

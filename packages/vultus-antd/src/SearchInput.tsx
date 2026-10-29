@@ -2,7 +2,7 @@ import { Input, Spin } from 'antd';
 import type { ChangeEvent, CSSProperties, KeyboardEvent } from 'react';
 import { useSpinnerKey, useVultusComponents, type TextFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
-import { isLocked, useLockedInputLook } from './pendingLock.js';
+import { isLocked, useLockedLook } from './pendingLock.js';
 import { useTextDraft } from './useTextDraft.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -46,7 +46,7 @@ export function SearchInput({ field, onEnter, style }: SearchInputProps) {
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   const locked = isLocked(field);
-  const lockedLook = useLockedInputLook(locked);
+  const lockedLook = useLockedLook(locked);
   if (!field.visible) return null;
   // Locked, a change goes nowhere: read-only stops typing, this any change that gets past it.
   const onChange = (e: ChangeEvent<HTMLInputElement>) => { if (!locked) change(e.target.value); };

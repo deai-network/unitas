@@ -32,8 +32,8 @@ export interface NumericSliderProps {
  * is pending (useSliderMove, shared with RangeSlider). While the field is
  * pending (a commit runs, or its `pending` option says the app is busy) it
  * is locked (isLocked, useLockedSlider: the handle keeps the keyboard focus,
- * is said unavailable, and an arrow key or a drag neither moves it nor
- * requests anything).
+ * is said unavailable, and a key or a drag neither moves it nor requests
+ * anything).
  */
 export function NumericSlider({ field, style, showValue }: NumericSliderProps) {
   const texts = useVultusTexts();
@@ -65,6 +65,7 @@ export function NumericSlider({ field, style, showValue }: NumericSliderProps) {
   const body = (
     <span
       ref={lockedSlider.ref}
+      onKeyDownCapture={lockedSlider.onKeyDownCapture}
       data-field-id={field.id}
       data-value={String(field.value)}
       aria-description={fieldAccessibleDescription(field, texts)}

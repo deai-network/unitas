@@ -33,8 +33,8 @@ const equalRange = (a: NumberRange, b: NumberRange): boolean => a[0] === b[0] &&
  * while the confirmation is open or the commit is pending (useSliderMove,
  * shared with NumericSlider). While the field is pending (a commit runs, or
  * its `pending` option says the app is busy) it is locked (isLocked,
- * useLockedSlider: the handles keep the keyboard focus, are said
- * unavailable, and an arrow key or a drag neither moves them nor requests
+ * useLockedSlider: the handles keep the keyboard focus, each its own, are
+ * said unavailable, and a key or a drag neither moves them nor requests
  * anything).
  */
 export function RangeSlider({ field, style, showValue }: RangeSliderProps) {
@@ -65,6 +65,7 @@ export function RangeSlider({ field, style, showValue }: RangeSliderProps) {
   const body = (
     <span
       ref={lockedSlider.ref}
+      onKeyDownCapture={lockedSlider.onKeyDownCapture}
       data-field-id={field.id}
       data-value={`${field.value[0]}..${field.value[1]}`}
       aria-description={fieldAccessibleDescription(field, texts)}

@@ -34,9 +34,10 @@ interface Props<T extends string> {
  * the handle returns to the choice being asked about. While the field is
  * pending (a commit runs, or its `pending` option says the app is busy) it is
  * locked (isLocked, useLockedSlider: the handle keeps the keyboard focus, is
- * said unavailable, and an arrow key, a drag or a mark click neither moves it
- * nor requests anything). A disabled field shows its reason for the whole
- * control.
+ * said unavailable, and a key, a drag or a mark click neither moves it nor
+ * requests anything), and its marks hold back their tooltips (a "Switch to:"
+ * it cannot act on would mislead), as OneOfSegmented's segments do. A
+ * disabled field shows its reason for the whole control.
  */
 export function OneOfSlider<T extends string>({ field, style, markStyle }: Props<T>) {
   const texts = useVultusTexts();
@@ -67,7 +68,7 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
       min={0}
       max={Math.max(0, choices.length - 1)}
       step={null}
-      // Locked, a move shows nothing (antd's Slider still moves on a key or a drag), nor one begun before.
+      // Locked, a move shows nothing (a drag or a click still reaches antd's Slider), nor one begun before.
       value={(locked ? null : moving) ?? (held >= 0 ? held : current)}
       disabled={!field.enabled}
       classNames={lockedSlider.classNames}
@@ -81,7 +82,7 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
             : !tip ? <ChoiceLabel choice={c} />
               : (
                 <span onMouseEnter={() => setOnMark(true)} onMouseLeave={() => setOnMark(false)}>
-                  {withTooltip(tip, !c.enabled, <ChoiceLabel choice={c} />, { open: asking ? false : undefined })}
+                  {withTooltip(tip, !c.enabled, <ChoiceLabel choice={c} />, { open: asking || field.pending ? false : undefined })}
                 </span>
               ),
         }];
@@ -97,6 +98,7 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
   const body = (
     <span
       ref={lockedSlider.ref}
+      onKeyDownCapture={lockedSlider.onKeyDownCapture}
       data-field-id={field.id}
       data-value={field.value}
       aria-description={fieldAccessibleDescription(field, texts)}

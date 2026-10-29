@@ -267,6 +267,19 @@ describe('TextInput while pending', () => {
     expect(shown()).toBe('Ada');
   });
 
+  it('a cancelled confirmation: the input shows the stored value again', async () => {
+    const fire = vi.fn();
+    wrap(<Committed fire={fire} initial="Ada" confirmation={(next) => (next.length > 3 ? { kind: 'popconfirm', question: 'Use this name?' } : undefined)} />);
+    type('Adaline');
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    expect(await screen.findByText('Use this name?')).toBeInTheDocument();
+    expect(input()).toHaveValue('Adaline');
+    fireEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.includes('Cancel'))!);
+    await waitFor(() => expect(input()).toHaveValue('Ada'));
+    expect(fire).not.toHaveBeenCalled();
+    expect(shown()).toBe('Ada');
+  });
+
   it('not enabled and pending: disabled as before, not read-only', () => {
     wrap(<Inside pending enabled={denyWithReason('Locked for this task')} />);
     expect(input()).toBeDisabled();

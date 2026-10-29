@@ -2,7 +2,7 @@ import { InputNumber, Spin } from 'antd';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useSpinnerKey, useVultusComponents, type NumericFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
-import { isLocked, useLockedInputLook } from './pendingLock.js';
+import { isLocked, useLockedLook } from './pendingLock.js';
 import { useNumericRequest } from './useNumericRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -30,7 +30,7 @@ export interface NumericInputProps {
  * pending (a commit runs, or its `pending` option says the app is busy) it is
  * locked (isLocked): it is read-only, not disabled, so it keeps the keyboard
  * focus and its draft, is said unavailable, has no steppers (as when
- * disabled), and typing and the arrow keys change nothing.
+ * disabled), and typing, the arrow keys and Enter change nothing.
  */
 export function NumericInput({ field, style }: NumericInputProps) {
   const texts = useVultusTexts();
@@ -40,7 +40,7 @@ export function NumericInput({ field, style }: NumericInputProps) {
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   const locked = isLocked(field);
-  const lockedLook = useLockedInputLook(locked);
+  const lockedLook = useLockedLook(locked);
   /** The field's value the draft last adopted. */
   const adopted = useRef(field.value);
   /** A request of the widget's own was taken since the draft last adopted the field's value. */
@@ -71,19 +71,20 @@ export function NumericInput({ field, style }: NumericInputProps) {
       step={field.step}
       precision={field.integer ? 0 : undefined}
       placeholder={field.placeholder}
-      // Always a real element, never undefined, even with neither a spinner nor a unit: toggling
-      // antd's `suffix` on and off as `field.pending` flips makes antd remount the affix wrapper
-      // and drop focus (the same caveat Input itself warns about) — an always-present (if
-      // sometimes empty) slot keeps the wrapper stable instead.
+      // Always a real element, even with neither a spinner nor a unit, as TextInput's suffix.
+      // Here it is not what keeps the focus: rc-input-number has no affix wrapper to remount (its
+      // prefix, input and suffix are fixed sibling slots), so the input stays either way.
       suffix={<>{spinner}{field.unit}</>}
       disabled={!field.enabled}
       // Read-only, antd takes no typed value and renders no steppers; an arrow key's step still
-      // reports the value it leaves (0 for an empty draft), so a step goes nowhere instead.
+      // reports the unchanged value (`null` for an empty draft, which `Number()` made 0), so a step
+      // goes nowhere instead.
       readOnly={locked}
       aria-disabled={locked || undefined}
       onChange={(next) => setDraft(next)}
       onBlur={commitDraft}
-      onPressEnter={commitDraft}
+      // Locked, Enter goes nowhere either: on an emptied draft it would put the stored value back.
+      onPressEnter={locked ? undefined : commitDraft}
       onStep={locked ? undefined : (next) => { const value = Number(next); setDraft(value); take(value); }}
       aria-label={field.label || undefined}
       aria-description={fieldAccessibleDescription(field, texts)}

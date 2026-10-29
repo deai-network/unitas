@@ -179,6 +179,26 @@ describe('RangeSlider while pending', () => {
     expect(shown()).toBe('2012,2020');
   });
 
+  it('the app\'s own: a key aiming at the other handle\'s value keeps the focus where it is; Home, End, PageUp and PageDown move nothing; Tab passes', () => {
+    wrap(<Inside pending initialValue={[2010, 2025]} />);
+    const [from, to] = handles();
+    act(() => from.focus());
+    // End on "from" asks for 2025, the other handle's value: antd's Slider would focus that handle.
+    expect(fireEvent.keyDown(from, { key: 'End', keyCode: 35 })).toBe(false);
+    fireEvent.keyUp(from, { key: 'End', keyCode: 35 });
+    expect(document.activeElement).toBe(from);
+    act(() => to.focus());
+    for (const [key, keyCode] of [['Home', 36], ['PageDown', 34], ['PageUp', 33], ['End', 35]] as const) {
+      expect(fireEvent.keyDown(to, { key, keyCode })).toBe(false);
+      fireEvent.keyUp(to, { key, keyCode });
+      expect(document.activeElement).toBe(to);
+    }
+    expect(from).toHaveAttribute('aria-valuenow', '2010');
+    expect(to).toHaveAttribute('aria-valuenow', '2025');
+    expect(fireEvent.keyDown(to, { key: 'Tab', keyCode: 9 })).toBe(true);
+    expect(shown()).toBe('2010,2025');
+  });
+
   it('its commit: the handles stay on the requested ends, a further move requests nothing; back to normal after', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
@@ -195,6 +215,10 @@ describe('RangeSlider while pending', () => {
     press(from, 'ArrowRight', 39);
     expect(from).toHaveAttribute('aria-valuenow', '2012');
     expect(to).toHaveAttribute('aria-valuenow', '2021');
+    // antd re-renders the handles on its own (their focus state), the widget not: still said unavailable.
+    act(() => from.focus());
+    expect(from).toHaveAttribute('aria-disabled', 'true');
+    expect(to).toHaveAttribute('aria-disabled', 'true');
     expect(fire).toHaveBeenCalledTimes(1);
     await act(async () => { finish(); });
     expect(shown()).toBe('2012,2021');
