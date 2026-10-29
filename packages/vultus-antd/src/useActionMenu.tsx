@@ -110,6 +110,15 @@ export function useActionMenu(actions: ActionStatus[], options: ActionMenuOption
   // rc-menu sees it, which would pick the row (its fire refused) and close the
   // menu: a click, and Enter (rc-menu's own pick key), do nothing, the menu
   // staying open as it does for a disabled row.
+  //
+  // `onClickCapture` and `onKeyDownCapture` are not in antd's item type
+  // (MenuItemType types `className` and `data-*`): they reach the `<li>` only
+  // because rc-menu and antd's MenuItem spread the rest of an item's props onto
+  // it, as they do `className` and `data-*`. Spread into the item, they escape
+  // the excess-property check, so the typecheck cannot guard them; the
+  // ActionContextMenu tests "picking a locked row does nothing" and "a locked
+  // row keeps the keyboard focus: Enter on it fires nothing" do, failing if
+  // they stop reaching the row.
   const hold = (e: SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();

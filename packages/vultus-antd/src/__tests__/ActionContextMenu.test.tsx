@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { App as AntApp, Modal, Tooltip } from 'antd';
-import { useAction, type SpinnerProps } from 'vultus-core';
+import { App as AntApp, ConfigProvider, Modal, Tooltip } from 'antd';
+import { useAction, type ActionStatus, type SpinnerProps } from 'vultus-core';
 import { ActionContextMenu } from '../ActionContextMenu.js';
 import { VultusProvider } from '../VultusProvider.js';
 import * as vultusAntd from '../index.js';
@@ -314,6 +314,38 @@ describe('ActionContextMenu', () => {
     rerender(wrap(<ActionContextMenu actions={[a, { ...drop, pending: false, disabled: true }]}>{segment()}</ActionContextMenu>));
     expect(row(menu, 'Drop')).toHaveAttribute('aria-disabled', 'true');
     expect(row(menu, 'Drop').querySelector('.ant-spin')).toBeNull();
+  });
+
+  it('under an app prefix, a locked row\'s disabled class is the app\'s', async () => {
+    const a = makeStatus({ id: 'show-log', label: 'Show log' });
+    const drop = makeStatus({ id: 'drop', label: 'Drop', pending: true });
+    render(
+      <ConfigProvider prefixCls="vx">
+        <ActionContextMenu actions={[a, drop]}>{segment()}</ActionContextMenu>
+      </ConfigProvider>,
+    );
+    const dropRow = row(await openMenu(), 'Drop');
+    expect(dropRow).toHaveClass('vx-dropdown-menu-item', 'vx-dropdown-menu-item-disabled');
+    expect(dropRow).not.toHaveClass('ant-dropdown-menu-item-disabled');
+  });
+
+  it('rows reordered while one is locked: each row says what its own action is', async () => {
+    const normal = makeStatus({ id: 'show-log', label: 'Show log' });
+    const locked = makeStatus({ id: 'drop', label: 'Drop', pending: true });
+    const off = makeStatus({ id: 'reset', label: 'Reset', disabled: true });
+    const menuOf = (actions: ActionStatus[]) => wrap(<ActionContextMenu actions={actions}>{segment()}</ActionContextMenu>);
+    const { rerender } = render(menuOf([normal, locked]));
+    const menu = await openMenu();
+    // Each row, in order: its label, what it says (aria-disabled), whether the keyboard reaches it.
+    const rows = () => within(menu).getAllByRole('menuitem')
+      .map((r) => [r.textContent, r.getAttribute('aria-disabled'), r.getAttribute('tabindex')]);
+    expect(rows()).toEqual([['Show log', 'false', '-1'], ['Drop', 'true', '-1']]);
+    // The locked action moves up onto the normal one's row; a disabled one takes its old row.
+    rerender(menuOf([locked, off]));
+    expect(rows()).toEqual([['Drop', 'true', '-1'], ['Reset', 'true', null]]);
+    // And back: the first row is no longer locked, the second locked again after being disabled.
+    rerender(menuOf([normal, locked]));
+    expect(rows()).toEqual([['Show log', 'false', '-1'], ['Drop', 'true', '-1']]);
   });
 
   it('a row picked while its action runs (a fire that never resolves): locked, the second pick fires nothing', async () => {
