@@ -98,7 +98,7 @@ change. A locked widget
 - changes nothing: a click, a key, typing or a drag requests nothing. A select's or tree picker's
   list closes and stays closed until pending ends (its clear icon out of sight, no remove icon on
   its tags); a text or number input is read-only, keeping a draft typed before pending started; a
-  segmented's arrow keys leave the focus on its checked segment; a slider's handle stays on the
+  segmented's arrow keys leave the focus on the segment it is on; a slider's handle stays on the
   field's value, the focus on the handle it was on; a tree's selection and checks stay the
   field's, its arrows still moving and opening nodes, and a tree link keeps its element (a focused
   one keeps the focus) but follows nothing.
