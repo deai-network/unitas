@@ -159,9 +159,9 @@ export function OneOfTreePicker<T extends string>({
   useEffect(() => {
     setDrawerOpen(false);
   }, [field.value]);
+  // Locked, disabled or hidden, the tree is closed, which antd does not report.
+  if ((locked || !field.enabled || !field.visible) && open) setOpen(false);
   if (!field.visible) return null;
-  // Locked or disabled, the tree is closed, which antd does not report.
-  if ((locked || !field.enabled) && open) setOpen(false);
 
   const openDrawer = () => { if (field.enabled && !locked) setDrawerOpen(true); };
   /**

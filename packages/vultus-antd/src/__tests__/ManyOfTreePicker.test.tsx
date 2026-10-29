@@ -445,6 +445,18 @@ describe('ManyOfTreePicker: field conventions', () => {
     expect(input).toHaveAttribute('aria-expanded', 'false');
   });
 
+  it('a tree open as the field is hidden stays closed when it shows again', async () => {
+    const { rerender } = wrap(<Inside initialValue={['alg']} />);
+    await openTree();
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'true');
+    rerender(<AntApp><Inside initialValue={['alg']} hidden /></AntApp>);
+    expect(root()).toBeNull();
+    rerender(<AntApp><Inside initialValue={['alg']} /></AntApp>);
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false');
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)); });
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('a check that commits keeps the search: the tree closes while pending, the search stays (typing into it changes nothing) and filters the tree when it opens again', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));

@@ -434,6 +434,18 @@ describe('OneOfSelect while pending (the app\'s own)', () => {
     expect(isListOpen()).toBe(false);
   });
 
+  it('a list open as the field is hidden stays closed when it shows again', async () => {
+    const { rerender } = wrap(<Inside kind="OneOfSelect" />);
+    await openChoices('OneOfSelect');
+    expect(isListOpen()).toBe(true);
+    rerender(<AntApp><Inside kind="OneOfSelect" hidden /></AntApp>);
+    expect(selectRoot()).toBeNull();
+    rerender(<AntApp><Inside kind="OneOfSelect" /></AntApp>);
+    expect(isListOpen()).toBe(false);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)); });
+    expect(isListOpen()).toBe(false);
+  });
+
   it('keeps the disabled look: the disabled text colour and background, the not-allowed cursor', () => {
     function DisabledProbe() {
       const { token } = theme.useToken();

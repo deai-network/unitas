@@ -411,6 +411,18 @@ describe('OneOfTreePicker: field conventions', () => {
     expect(isOpen()).toBe(false);
   });
 
+  it('a tree open as the field is hidden stays closed when it shows again', async () => {
+    const { rerender } = wrap(<Inside initialValue="alg" />);
+    await openTree();
+    expect(isOpen()).toBe(true);
+    rerender(<AntApp><Inside initialValue="alg" hidden /></AntApp>);
+    expect(root()).toBeNull();
+    rerender(<AntApp><Inside initialValue="alg" /></AntApp>);
+    expect(isOpen()).toBe(false);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)); });
+    expect(isOpen()).toBe(false);
+  });
+
   it('pending keeps the disabled look: the disabled text colour and background, the not-allowed cursor; the clear icon out of sight', () => {
     function DisabledProbe() {
       const { token } = theme.useToken();

@@ -255,6 +255,18 @@ describe('ManyOfSelect', () => {
     expect(shown()).toBe('a');
   });
 
+  it('a list open as the field is hidden stays closed when it shows again', async () => {
+    const { rerender } = wrap(<Inside />);
+    await openChoices();
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'true');
+    rerender(<AntApp><Inside hidden /></AntApp>);
+    expect(root()).toBeNull();
+    rerender(<AntApp><Inside /></AntApp>);
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false');
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)); });
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('pending keeps the disabled look: the disabled text colour and background, the not-allowed cursor, no remove icon on the tags', async () => {
     measureTags();
     function DisabledProbe() {

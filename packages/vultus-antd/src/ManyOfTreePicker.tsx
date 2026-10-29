@@ -139,9 +139,9 @@ export function ManyOfTreePicker<T extends string>({
   const data = useMemo(() => treeData(field.nodes, {
     noteStyle: 'aside', tooltips: field.enabled, holdTooltips: asking, tooltipPlacement: 'right',
   }), [field.nodes, field.enabled, asking]);
+  // Locked, disabled or hidden, the tree is closed, which antd does not report.
+  if ((locked || !field.enabled || !field.visible) && open) setOpen(false);
   if (!field.visible) return null;
-  // Locked or disabled, the tree is closed, which antd does not report.
-  if ((locked || !field.enabled) && open) setOpen(false);
 
   const strict = field.selection === 'independent';
   const known = field.value.filter((v) => field.byValue.has(v));

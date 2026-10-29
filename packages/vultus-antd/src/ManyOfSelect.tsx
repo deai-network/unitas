@@ -46,9 +46,9 @@ export function ManyOfSelect<T extends string>({ field, size, style }: ManyOfSel
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   const locked = isLocked(field);
   const lockedLook = useLockedSelectLook(locked);
+  // Locked, disabled or hidden, the list is closed, which antd does not report.
+  if ((locked || !field.enabled || !field.visible) && open) setOpen(false);
   if (!field.visible) return null;
-  // Locked or disabled, the list is closed, which antd does not report.
-  if ((locked || !field.enabled) && open) setOpen(false);
   const byValue = new Map(field.choices.map((c) => [c.value as string, c]));
   const option = (c: ManyOfChoiceControls<T>) => ({ value: c.value, label: c.label, title: '', disabled: !c.enabled });
   const groups = [...new Set(field.choices.flatMap((c) => (c.group ? [c.group] : [])))];
