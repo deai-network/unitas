@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** while a field is pending, every vultus-antd field widget locks without `disabled`, so keyboard focus stays on it.
+**Goal:** while a field or an action is pending, every vultus-antd field widget, action button and action menu row locks without `disabled`, so keyboard focus stays on it.
 
 **Architecture:** one helper, `isLocked(field)`, names the state; each widget passes `disabled={!field.enabled}` to its antd control and, while locked, adds `aria-disabled`, the disabled look through `styles`/`style` and theme tokens, and holds whatever the antd control keeps on its own (popup, draft, drag). The request hooks already refuse changes while pending.
 
@@ -62,9 +62,18 @@
 - [ ] Step 4: run the test files, vultus-antd and vultus-core typecheck.
 - [ ] Step 5: commit `feat(vultus-antd): sliders and inputs stay focusable while pending`.
 
-### Task 4: docs and the browser check
+### Task 4: actions
+
+**Files:** `ActionButton.tsx`, `FormSubmitButton.tsx`, `CombinedActionButton.tsx`, `useActionMenu.tsx`, `ActionContextMenu.tsx` (all under `packages/vultus-antd/src/`); `pendingLock.ts` (add `isActionLocked(action: { disabled: boolean; pending: boolean })` beside `isLocked`); tests `ActionButton`, `FormSubmitButton`, `CombinedActionButton`, `ActionContextMenu`, `spinnerSlot`.
+
+- [ ] Step 1: failing tests: pending (a fire that never resolves) → the button is not disabled, carries `aria-disabled="true"`, shows its loading state (lent Spinner or antd's), a second click or Enter fires nothing; a disabled action stays disabled; a pending menu row is not disabled, is `aria-disabled`, keeps its spinner icon, and picking it fires nothing.
+- [ ] Step 2: implement (the action core's own refusal stays; no change in vultus-core).
+- [ ] Step 3: run the test files and typecheck.
+- [ ] Step 4: commit `feat(vultus-antd): action buttons and menus stay focusable while pending`.
+
+### Task 5: docs and the browser check
 
 - [ ] Step 1: READMEs (vultus-core: the `pending` paragraph; vultus-antd: the spinner table's BoolSwitch / ManyOfSwitches rows and the note after it) and each touched widget's JSDoc ("disables" → "locks").
 - [ ] Step 2: gallery notes that say a pending widget is disabled.
-- [ ] Step 3: headless browser check against the gallery (scratchpad harness): focus a segmented, a switch, a checkbox, a select, a slider, an input, a tree; flip each with the keyboard into a slow commit; focus stays on it while pending and after.
+- [ ] Step 3: headless browser check against the gallery (scratchpad harness): focus a segmented, a switch, a checkbox, a select, a slider, an input, a tree, an action button and a context-menu row; flip or fire each with the keyboard into a slow commit or action; focus stays on it while pending and after.
 - [ ] Step 4: commit `docs(vultus): pending widgets stay focusable`.

@@ -20,7 +20,9 @@ lose keyboard focus because widgets are disabled while pending".
 
 Of three options (stay focusable; keep disabling and put focus back afterwards; leave it), the
 owner chose **stay focusable**: while pending, a widget locks without the `disabled` attribute,
-for every field widget that locks while pending, the commit case included.
+for every field widget that locks while pending, the commit case included. Asked about the
+actions next, the owner put them in the same round: action buttons and menus stay focusable
+while their action runs, by the same rule.
 
 ## The rule
 
@@ -61,9 +63,16 @@ One shared helper names the state, so every widget reads it the same way:
 | OneOfSlider, NumericSlider, RangeSlider | Slider | not disabled; `aria-disabled` on the handles; the handle stays on the field's value (useSliderMove). |
 | TextInput, SearchInput, NumericInput | Input, Input.Search, InputNumber | `readOnly` instead of disabled; the draft is kept. |
 
-Actions (ActionButton, CombinedActionButton, FormSubmitButton, the action menus) disable while
-their action runs too, and lose focus the same way. They are not fields and not part of this
-decision; the owner is asked separately.
+### Actions
+
+An action is locked while it is enabled and pending (`!action.disabled && action.pending`);
+the action core already refuses a second fire while one runs (action-core's `getPending`).
+
+| Widget | antd control | Lock |
+|---|---|---|
+| ActionButton, FormSubmitButton | Button | `disabled={action.disabled}` only; `loading` as today (antd's Button ignores clicks while loading without disabling); `aria-disabled`; the disabled look as today's disabled-and-loading button. |
+| CombinedActionButton | Button + Dropdown | as ActionButton for the main button; its dropdown trigger stays focusable too. |
+| ActionContextMenu and the action menus (useActionMenu's `pendingRows`) | Dropdown / Menu | a pending row keeps its spinner icon and the disabled look, is `aria-disabled`, and picking it does nothing; it is not `disabled`, so the menu's keyboard focus stays on it. |
 
 ## Docs
 
