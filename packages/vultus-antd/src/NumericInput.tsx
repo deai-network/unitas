@@ -1,8 +1,9 @@
-import { InputNumber, Spin } from 'antd';
+import { InputNumber } from 'antd';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { useSpinnerKey, useVultusComponents, type NumericFieldControls } from 'vultus-core';
+import type { NumericFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { isLocked, useLockedLook } from './pendingLock.js';
+import { SpinnerPlace } from './SpinnerPlace.js';
 import { useNumericRequest } from './useNumericRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -14,8 +15,9 @@ export interface NumericInputProps {
 
 /**
  * A numeric field (useNumericField) as antd's InputNumber: `min`/`max`/`step`
- * from the field, `precision` 0 when `integer`, the unit as its suffix (next
- * to the lent Spinner, or antd's own, while pending). It keeps a draft while
+ * from the field, `precision` 0 when `integer`, the unit as its suffix, after
+ * the spinner's place (SpinnerPlace: the lent Spinner, or antd's own, while
+ * pending; kept idle too, so the input keeps its width). It keeps a draft while
  * editing — each keystroke only changes the draft, not the field — and
  * requests when editing ends: on blur, on Enter, or on a stepper click
  * (antd's `onStep`). An empty or unparsable draft on blur (or Enter) returns
@@ -37,8 +39,6 @@ export function NumericInput({ field, style }: NumericInputProps) {
   const tipField = useTooltipField(field);
   const { request, wrap, asking } = useNumericRequest(field);
   const [draft, setDraft] = useState<number | null>(field.value);
-  const { Spinner } = useVultusComponents();
-  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   const locked = isLocked(field);
   const lockedLook = useLockedLook(locked);
   /** The field's value the draft last adopted. */
@@ -60,9 +60,6 @@ export function NumericInput({ field, style }: NumericInputProps) {
     if (draft === null || !Number.isFinite(draft)) { setDraft(field.value); return; }
     take(draft);
   };
-  const spinner = field.pending
-    ? (Spinner ? <Spinner spinnerKey={spinnerKey} size="small" /> : <Spin size="small" />)
-    : null;
   return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, (
     <InputNumber
       value={draft}
@@ -71,10 +68,11 @@ export function NumericInput({ field, style }: NumericInputProps) {
       step={field.step}
       precision={field.integer ? 0 : undefined}
       placeholder={field.placeholder}
-      // Always a real element, even with neither a spinner nor a unit, as TextInput's suffix.
-      // Here it is not what keeps the focus: rc-input-number has no affix wrapper to remount (its
-      // prefix, input and suffix are fixed sibling slots), so the input stays either way.
-      suffix={<>{spinner}{field.unit}</>}
+      // Always a real element, holding the spinner's place, idle too: the input keeps its width as
+      // pending comes and goes. (Not what keeps the focus, as TextInput's suffix is: rc-input-number
+      // has no affix wrapper to remount, its prefix, input and suffix being fixed sibling slots.)
+      // No gap of its own: antd's suffix keeps its room from the input.
+      suffix={<><SpinnerPlace field={field} gap={0} />{field.unit}</>}
       disabled={!field.enabled}
       // Read-only, antd takes no typed value and renders no steppers; an arrow key's step still
       // reports the unchanged value (`''` for an empty draft, which `Number()` made 0), so a step

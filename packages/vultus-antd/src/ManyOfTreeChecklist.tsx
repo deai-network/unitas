@@ -106,7 +106,8 @@ function shownChecks<T extends string>(
  * (useLockedTreeStyles), while every node shows checked, half-checked or not
  * as before (shownChecks), each row saying so to a screen reader
  * (`aria-checked`), and the arrows still move and open or close nodes; the
- * lent Spinner (or antd's own) shows next to the search box.
+ * lent Spinner (or antd's own) shows next to the search box, in its place
+ * kept for it idle too (TreeSearchBox), so the box keeps its width.
  */
 export function ManyOfTreeChecklist<T extends string>({ field, nested = false }: ManyOfTreeChecklistProps<T> & InternalManyOfTreeChecklistProps) {
   const texts = useVultusTexts();

@@ -166,6 +166,24 @@ describe.each(['ManyOfCheckboxes', 'ManyOfSwitches'] as Kind[])('%s', (kind) => 
     expect(root().style.flexDirection).toBe('row');
   });
 
+  it('row: the spinner\'s place is the group\'s last item, after the choices, so it wraps alike idle and pending', () => {
+    const { rerender } = wrap(<Inside kind={kind} pending={false} />);
+    const place = root().lastElementChild!;
+    expect(place).toHaveClass('vultus-spinner-place');
+    expect(place).toBeEmptyDOMElement();
+    rerender(<AntApp><Inside kind={kind} pending /></AntApp>);
+    expect(root().lastElementChild).toBe(place);
+    expect(place.querySelector('.ant-spin')).not.toBeNull();
+  });
+
+  it('vertical: the spinner\'s place follows the column, not a row of its own under the choices', () => {
+    wrap(<Inside kind={kind} vertical pending />);
+    expect(root().querySelector('.vultus-spinner-place')).toBeNull();
+    const place = document.querySelector('.vultus-spinner-place')!;
+    expect(root().compareDocumentPosition(place) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(place.querySelector('.ant-spin')).not.toBeNull();
+  });
+
   it('data-value is the selected choices, comma-joined', async () => {
     wrap(<Inside kind={kind} />);
     expect(root()).toHaveAttribute('data-value', 'a');
@@ -259,7 +277,8 @@ describe('ManyOfSwitches: disabled choices and rows', () => {
 
   it('every row is laid out alike, also one wrapped for its tooltip (no baseline gap under a disabled row)', () => {
     wrap(<Inside kind="ManyOfSwitches" />);
-    const rows = [...root().children] as HTMLElement[];
+    // The choices' rows: the group's items but its last, the spinner's place.
+    const rows = ([...root().children] as HTMLElement[]).filter((e) => !e.classList.contains('vultus-spinner-place'));
     expect(rows).toHaveLength(3);
     for (const row of rows) expect(row.style.display).toBe('inline-flex');
   });

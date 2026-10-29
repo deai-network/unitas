@@ -69,13 +69,24 @@ Where vultus-antd shows it (all `size="small"`):
 | `ActionButton`, `CombinedActionButton`, `FormSubmitButton` | `vultus:action:<id>` | the button's loading icon |
 | `ActionContextMenu` | `vultus:action:<id>` | a pending action's row, as its icon (without a lent Spinner, antd's small `Spin`) |
 | `BoolCheckbox` | `vultus:field:<id>` | after the checkbox and its label, while it is pending |
-| `BoolSwitch`, `ManyOfSwitches` | `vultus:field:<id>` | after the switch (`ManyOfSwitches`: after the switches), while it is pending, lent or not (without a lent Spinner, antd's small `Spin`): antd's Switch has no icon slot, and its `loading` would disable it |
+| `BoolSwitch` | `vultus:field:<id>` | after the switch, while it is pending, lent or not (without a lent Spinner, antd's small `Spin`): antd's Switch has no icon slot, and its `loading` would disable it |
+| `ManyOfCheckboxes`, `ManyOfSwitches` | `vultus:field:<id>` | after the last choice, the row's last item (a column: beside it), while it is pending (without a lent Spinner, antd's small `Spin`; `ManyOfSwitches` has no loading switch, as `BoolSwitch`) |
+| `NumericInput` | `vultus:field:<id>` | in its suffix, before the unit, while it is pending |
+| `ManyOfTreeChecklist`, `OneOfTreeList` (`search`) | `vultus:field:<id>` | beside the search box, while it is pending |
 | `OneOfSelect` | `vultus:field:<id>` | the select's suffix icon, while it is pending |
 | `OneOfSegmented` | `vultus:field:<id>` | after the control, while it is pending (without a lent Spinner, antd's small `Spin`) |
 
 A field is pending while its commit runs, or while its `pending` option (vultus-core) says the
 app is busy with it; the widgets above show both alike, and lock meanwhile without being
 disabled (see Pending lock below).
+
+The spinner's place is always reserved: where a field widget shows its spinner beside its control
+(every field row above but `OneOfSelect`, whose suffix icon it replaces), the place is laid out
+idle too, a fixed square, empty and hidden from assistive tech until the spinner appears in it.
+A widget keeps its size, and the form its layout, as pending comes and goes. The square holds
+antd's small `Spin` as it turns (antd's small dot size, from the theme, across the diagonal); a
+larger lent Spinner overflows it, centred, moving nothing. In a row of choices it is the row's
+last item, so the row wraps alike idle and pending.
 
 Wrap a subtree in `<SpinnerScope name="...">` (from vultus-core) to prefix every spinner
 key inside with that name, so several instances of the same view on one page get distinct,

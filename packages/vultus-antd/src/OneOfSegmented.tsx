@@ -1,8 +1,9 @@
-import { Segmented, Spin, type SegmentedProps } from 'antd';
-import { useSpinnerKey, useVultusComponents, type OneOfFieldControls } from 'vultus-core';
+import { Segmented, type SegmentedProps } from 'antd';
+import type { OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { choiceLead, fieldAccessibleDescription, fieldTooltip, shownChoiceTooltip, useTooltipField } from './fieldTooltip.js';
 import { ARROW_KEYS, holdKeys, isLocked, useLockedLook } from './pendingLock.js';
+import { SpinnerPlace } from './SpinnerPlace.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -31,15 +32,14 @@ interface Props<T extends string> {
  * holds; it is said unavailable, and a click or arrow key requests nothing),
  * its segments hold
  * back their tooltips (a "Switch to:" it cannot act on would mislead), and
- * the lent Spinner (or antd's own) follows it; the field's confirmation for the requested
+ * the lent Spinner (or antd's own) follows it, in its place kept for it idle too
+ * (SpinnerPlace); the field's confirmation for the requested
  * choice comes first, its OK labelled with the choice.
  */
 export function OneOfSegmented<T extends string>({ field, size, iconOnly }: Props<T>) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { request, wrap, asking } = useOneOfRequest(field);
-  const { Spinner } = useVultusComponents();
-  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   const locked = isLocked(field);
   const { text } = useLockedLook(locked);
   if (!field.visible) return null;
@@ -72,9 +72,7 @@ export function OneOfSegmented<T extends string>({ field, size, iconOnly }: Prop
   return wrap(
     <>
       {field.enabled ? control : withTooltip(fieldTooltip(tipField, texts), true, control)}
-      {field.pending && (Spinner
-        ? <span style={{ marginInlineStart: 8 }}><Spinner spinnerKey={spinnerKey} size="small" /></span>
-        : <Spin size="small" style={{ marginInlineStart: 8 }} />)}
+      <SpinnerPlace field={field} />
     </>,
   );
 }

@@ -1,9 +1,10 @@
-import { Checkbox, Spin } from 'antd';
-import { useSpinnerKey, useVultusComponents, type ManyOfChoiceControls, type ManyOfFieldControls } from 'vultus-core';
+import { Checkbox } from 'antd';
+import type { ManyOfChoiceControls, ManyOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { ChoiceNote } from './ChoiceNote.js';
 import { choiceTooltip, fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { isLocked, useLockedCheckboxClassNames } from './pendingLock.js';
+import { SpinnerPlace } from './SpinnerPlace.js';
 import { useManyOfRequest } from './useManyOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -62,14 +63,14 @@ function ChoiceCheckbox<T extends string>({ choice, disabled, locked, showToolti
  * the field is pending (a commit runs, or its `pending` option says the app
  * is busy) its checkboxes are locked (isLocked: they keep the keyboard
  * focus, are said unavailable, and a click requests nothing) and the lent
- * Spinner (or antd's own) follows the group.
+ * Spinner (or antd's own) shows in its place, kept for it idle too
+ * (SpinnerPlace): in a row the group's last item, after the choices, so the
+ * row wraps alike idle and pending; after a column, beside it.
  */
 export function ManyOfCheckboxes<T extends string>({ field, vertical }: ManyOfCheckboxesProps<T>) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { request, wrap, asking } = useManyOfRequest(field);
-  const { Spinner } = useVultusComponents();
-  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   if (!field.visible) return null;
   const locked = isLocked(field);
   const toggle = (choice: ManyOfChoiceControls<T>) => {
@@ -96,15 +97,15 @@ export function ManyOfCheckboxes<T extends string>({ field, vertical }: ManyOfCh
           onToggle={() => toggle(c)}
         />
       ))}
+      {/* In a row, the group's last item (antd's group spaces its items); a column has its own after it. */}
+      {!vertical && <SpinnerPlace field={field} gap={0} />}
     </Checkbox.Group>
   );
   const control = field.enabled ? group : withTooltip(fieldTooltip(tipField, texts), true, group);
   return wrap(
     <>
       {control}
-      {field.pending && (Spinner
-        ? <span style={{ marginInlineStart: 8 }}><Spinner spinnerKey={spinnerKey} size="small" /></span>
-        : <Spin size="small" style={{ marginInlineStart: 8 }} />)}
+      {vertical && <SpinnerPlace field={field} />}
     </>,
   );
 }

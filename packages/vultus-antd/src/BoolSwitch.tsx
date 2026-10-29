@@ -1,7 +1,8 @@
-import { Spin, Switch, theme, type SwitchProps } from 'antd';
-import { useSpinnerKey, useVultusComponents, type BoolFieldControls, type MixedBoolFieldControls } from 'vultus-core';
+import { Switch, theme, type SwitchProps } from 'antd';
+import type { BoolFieldControls, MixedBoolFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { isLocked, useLockedSwitchClassNames } from './pendingLock.js';
+import { SpinnerPlace } from './SpinnerPlace.js';
 import { useVultusTexts } from './texts.js';
 import { useBoolRequest } from './useBoolRequest.js';
 import { useConfirm } from './useConfirm.js';
@@ -25,8 +26,9 @@ interface Props {
  * fieldTooltip; while the field is pending (a commit runs, or its `pending`
  * option says the app is busy) the switch is locked (isLocked: it keeps the
  * keyboard focus, is said unavailable, and a click or arrow key requests
- * nothing) and the lent Spinner (or antd's own) follows it; the field's
- * confirmation for the requested value comes first.
+ * nothing) and the lent Spinner (or antd's own) follows it, in its place
+ * kept for it idle too (SpinnerPlace); the field's confirmation for the
+ * requested value comes first.
  */
 export function BoolSwitch({ field, size, checkedChildren, unCheckedChildren }: Props) {
   const { token } = theme.useToken();
@@ -34,8 +36,6 @@ export function BoolSwitch({ field, size, checkedChildren, unCheckedChildren }: 
   const click = useBoolRequest(field, confirm);
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
-  const { Spinner } = useVultusComponents();
-  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   const locked = isLocked(field);
   const lockedClassNames = useLockedSwitchClassNames(locked);
   if (!field.visible) return null;
@@ -67,9 +67,7 @@ export function BoolSwitch({ field, size, checkedChildren, unCheckedChildren }: 
   const control = (
     <>
       {switchEl}
-      {field.pending && (Spinner
-        ? <span style={{ marginInlineStart: 8 }}><Spinner spinnerKey={spinnerKey} size="small" /></span>
-        : <Spin size="small" style={{ marginInlineStart: 8 }} />)}
+      <SpinnerPlace field={field} />
     </>
   );
   return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, control, { open: asking ? false : undefined, stable: true }));

@@ -1,9 +1,10 @@
-import { Input, Spin, type TooltipProps } from 'antd';
+import { Input, type TooltipProps } from 'antd';
 import type { CSSProperties, ReactNode } from 'react';
-import { normalizeText, useSpinnerKey, useVultusComponents, type OneOfChoiceControls } from 'vultus-core';
+import { normalizeText, type OneOfChoiceControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { ChoiceNote, ChoiceRow } from './ChoiceNote.js';
 import { choiceTooltip } from './fieldTooltip.js';
+import { SpinnerPlace } from './SpinnerPlace.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
 
@@ -145,7 +146,8 @@ export function nextShown<K>(order: K[], from: K, step: 1 | -1, isShown: (key: K
 /**
  * The always-open tree widgets' search box (ManyOfTreeChecklist, OneOfTreeList): placeholder
  * `texts.search`, named "<search> <label>", with the lent Spinner (else antd's own) beside it
- * while the field's commit is pending.
+ * while the field is pending, in its place kept for it idle too (SpinnerPlace), so the box
+ * keeps its width.
  */
 export function TreeSearchBox({ field, query, onSearch }: {
   field: { id: string; label: string; pending: boolean };
@@ -153,8 +155,6 @@ export function TreeSearchBox({ field, query, onSearch }: {
   onSearch: (query: string) => void;
 }) {
   const texts = useVultusTexts();
-  const { Spinner } = useVultusComponents();
-  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
       <Input
@@ -164,9 +164,7 @@ export function TreeSearchBox({ field, query, onSearch }: {
         value={query}
         onChange={(e) => onSearch(e.target.value)}
       />
-      {field.pending && (Spinner
-        ? <Spinner spinnerKey={spinnerKey} size="small" />
-        : <Spin size="small" />)}
+      <SpinnerPlace field={field} gap={0} />
     </div>
   );
 }

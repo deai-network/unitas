@@ -1,9 +1,10 @@
-import { Spin, Switch, theme } from 'antd';
-import { useSpinnerKey, useVultusComponents, type ManyOfChoiceControls, type ManyOfFieldControls } from 'vultus-core';
+import { Switch, theme } from 'antd';
+import type { ManyOfChoiceControls, ManyOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { ChoiceNote } from './ChoiceNote.js';
 import { choiceTooltip, fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { isLocked, useLockedSwitchClassNames } from './pendingLock.js';
+import { SpinnerPlace } from './SpinnerPlace.js';
 import { useManyOfRequest } from './useManyOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -73,15 +74,14 @@ function ChoiceSwitch<T extends string>({ choice, size, disabled, locked, showTo
  * (useManyOfRequest normalizes it to the field's choice order). A disabled
  * choice's switch and label are disabled and request nothing. Tooltips (an
  * enabled field: choiceTooltip per choice; a disabled field: fieldTooltip
- * over the whole control), the field's accessible name and pending are as
- * ManyOfCheckboxes; `size` is the Switch's own size.
+ * over the whole control), the field's accessible name and pending (the
+ * spinner's place too) are as ManyOfCheckboxes; `size` is the Switch's own
+ * size.
  */
 export function ManyOfSwitches<T extends string>({ field, vertical, size }: ManyOfSwitchesProps<T>) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { request, wrap, asking } = useManyOfRequest(field);
-  const { Spinner } = useVultusComponents();
-  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   if (!field.visible) return null;
   const locked = isLocked(field);
   const toggle = (choice: ManyOfChoiceControls<T>) => {
@@ -112,15 +112,15 @@ export function ManyOfSwitches<T extends string>({ field, vertical, size }: Many
           onToggle={() => toggle(c)}
         />
       ))}
+      {/* In a row, the group's last item (the row's gap spaces it); a column has its own after it. */}
+      {!vertical && <SpinnerPlace field={field} gap={0} />}
     </div>
   );
   const control = field.enabled ? rows : withTooltip(fieldTooltip(tipField, texts), true, rows);
   return wrap(
     <>
       {control}
-      {field.pending && (Spinner
-        ? <span style={{ marginInlineStart: 8 }}><Spinner spinnerKey={spinnerKey} size="small" /></span>
-        : <Spin size="small" style={{ marginInlineStart: 8 }} />)}
+      {vertical && <SpinnerPlace field={field} />}
     </>,
   );
 }

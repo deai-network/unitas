@@ -1,7 +1,8 @@
-import { Checkbox, Spin } from 'antd';
-import { useSpinnerKey, useVultusComponents, type BoolFieldControls, type MixedBoolFieldControls } from 'vultus-core';
+import { Checkbox } from 'antd';
+import type { BoolFieldControls, MixedBoolFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { isLocked, useLockedCheckboxClassNames } from './pendingLock.js';
+import { SpinnerPlace } from './SpinnerPlace.js';
 import { useVultusTexts } from './texts.js';
 import { useBoolRequest } from './useBoolRequest.js';
 import { useConfirm } from './useConfirm.js';
@@ -12,15 +13,14 @@ import { withTooltip } from './WithReason.js';
  * antd's Checkbox with the field's label next to it; mixed is the
  * indeterminate state (a click requests on, a double click off). Same
  * behaviour as BoolSwitch otherwise, locked while pending too; its spinner
- * sits inside its label.
+ * sits inside its label, after the text, in its place kept for it idle too
+ * (SpinnerPlace).
  */
 export function BoolCheckbox({ field }: { field: BoolFieldControls | MixedBoolFieldControls }) {
   const { confirm, wrap, asking } = useConfirm({ okText: field.label });
   const click = useBoolRequest(field, confirm);
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
-  const { Spinner } = useVultusComponents();
-  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   const locked = isLocked(field);
   const lockedClassNames = useLockedCheckboxClassNames(locked);
   if (!field.visible) return null;
@@ -41,9 +41,7 @@ export function BoolCheckbox({ field }: { field: BoolFieldControls | MixedBoolFi
       data-value={String(field.value)}
     >
       {field.label}
-      {field.pending && (Spinner
-        ? <span style={{ marginInlineStart: 8 }}><Spinner spinnerKey={spinnerKey} size="small" /></span>
-        : <Spin size="small" style={{ marginInlineStart: 8 }} />)}
+      <SpinnerPlace field={field} />
     </Checkbox>
   ), { open: asking ? false : undefined, stable: true }));
 }
