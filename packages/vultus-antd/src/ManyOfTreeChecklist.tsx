@@ -16,8 +16,12 @@ export interface ManyOfTreeChecklistProps<T extends string> {
    * What a node's label shows, in its text's place (e.g. a component lighting up a label that
    * changed): drawn in the label's look (ChoiceLabel: dimmed or the variant's colour, the icon
    * first), inside the node's tooltip. The label's text stays what the search matches and the
-   * accessible name. A new function rebuilds the tree data: keep it the same (a module function,
-   * a `useCallback`).
+   * accessible name. Presentational content only (text, marks, an animation): it is hidden from
+   * screen readers and sits inside the row's click target (a click on it checks the node), so no
+   * link or button; what a screen reader must hear belongs in the label or the note. What it drew
+   * keeps its state while the label changes, as OneOfTreeList's; a node closed and opened again,
+   * or whose icon or tooltip comes or goes, mounts it anew. A new function rebuilds the tree data:
+   * keep it the same (a module function, a `useCallback`).
    */
   renderLabel?: (node: TreeNodeControls<T>) => ReactNode;
 }

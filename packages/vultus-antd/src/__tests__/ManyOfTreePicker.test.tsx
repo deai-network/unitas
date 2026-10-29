@@ -576,6 +576,15 @@ describe('ManyOfTreePicker: renderLabel', () => {
   /** `nodes` copied, every object new, each node's own fields as `own` gives them (the values kept). */
   const copy = (nodes: TreeNode<Cat>[], own: (node: TreeNode<Cat>) => Partial<TreeNode<Cat>> = () => ({})): TreeNode<Cat>[] =>
     nodes.map((node) => ({ ...node, ...own(node), children: node.children && copy(node.children, own) }));
+  /**
+   * The open tree settled, so a remount coming after the first new render is counted: no
+   * open/close motion left (jsdom never ends one: its rows go at its deadline), then a
+   * macrotask for rc-tree's follow-ups and the virtual list's measuring.
+   */
+  async function settled() {
+    await waitFor(() => expect(document.querySelector('.ant-select-tree-treenode-motion')).toBeNull(), { timeout: 3000 });
+    await act(() => new Promise((resolve) => { setTimeout(resolve, 50); }));
+  }
 
   beforeEach(clear);
 
@@ -608,8 +617,10 @@ describe('ManyOfTreePicker: renderLabel', () => {
   it("(a) in the open tree, a node's label changes, its value stays: the drawn component keeps its state (no remount)", async () => {
     const { rerender } = wrap(<Over nodes={NODES} />);
     await openTree();
+    await settled();
     rerender(<AntApp><Over nodes={copy(NODES, (node) => ({ label: node.label.toUpperCase() }))} /></AntApp>);
     await waitFor(() => expect(probeOf('egy')).toHaveTextContent('EGYENLETEK ✱'));
+    await settled();
     for (const value of VALUES) {
       expect(probeOf(value), value).toHaveAttribute('data-first', LABELS[value]);
       expect(counts(value).mounts, value).toBe(1);
@@ -619,9 +630,11 @@ describe('ManyOfTreePicker: renderLabel', () => {
   it('(b) in the open tree, the nodes rebuilt as new objects with the same values: no remount', async () => {
     const { rerender } = wrap(<Over nodes={copy(NODES)} />);
     await openTree();
+    await settled();
     const renders = counts('egy').renders;
     rerender(<AntApp><Over nodes={copy(NODES)} /></AntApp>);
     await waitFor(() => expect(counts('egy').renders).toBeGreaterThan(renders));
+    await settled();
     for (const value of VALUES) expect(counts(value).mounts, value).toBe(1);
   });
 });

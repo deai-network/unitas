@@ -371,18 +371,23 @@ the variant's colour, the icon first), with the note after it or aside, the node
 `OneOfTreeList` the row's link and the strong path; the open tree of either picker, its drawer
 included, draws it too. The label's text stays the text everywhere else: what the search matches,
 what a screen reader reads (the drawn content is `aria-hidden`, the text beside it out of sight),
-the pickers' closed field (label, path, tags, first words) and the confirmation's wording. `<Field>`
-and `<FieldWidget>` pass it on as any display prop; a field definition stays React-free. Keep the
-function the same (a module function, a `useCallback`): a new one rebuilds the tree data. Each row
-keeps its React identity across a rebuild — rc-tree keys the rows by value and a title's element
-tree stays the same — so a stateful component drawn there keeps its state when the node's label
-changes and its value does not (a spelling variant flipped), when the nodes are built anew, and
-while a search keeps the row shown; that is what lets a label light up as it changes. A row
-mounted anew (a closed node opened again) starts fresh, and so does what is drawn where the label's
-wrappers change: the node's tooltip coming or going (a description or a reason added or dropped,
-the field disabled or enabled), its `OneOfTreeList` link coming or going, the node joining or
-leaving the strong path (the value moving to another branch). In `OneOfTreeList` the node's `current`
-and `onPath` are as of the tree data's last build (a new value alone does not rebuild it): read the
+the pickers' closed field (label, path, tags, first words) and the confirmation's wording. So draw
+presentational content only — text, marks, an animation: it is hidden from screen readers and sits
+inside the row's click target (a click on it chooses or checks the row), so no link, button or
+info icon with a tooltip of its own; what a screen reader must hear belongs in the label or the
+note. `<Field>` and `<FieldWidget>` pass it on as any display prop; a field definition stays
+React-free. Keep the function the same (a module function, a `useCallback`): a new one rebuilds the
+tree data. Each row keeps its React identity across a rebuild — rc-tree keys the rows by value and
+a title's element tree stays the same — so a stateful component drawn there keeps its state when
+the node's label changes and its value does not (a spelling variant flipped), when the nodes are
+built anew, and while a search keeps the row shown; that is what lets a label light up as it
+changes. A row mounted anew starts fresh: a closed node opened again, or a row scrolled out of a
+picker's dropdown and back (antd's virtual list; `OneOfTreeList` and `ManyOfTreeChecklist`, the
+drawers' too, are not virtual). So does what is drawn where the label's wrappers change: the node's
+icon coming or going, its tooltip coming or going (a description or a reason added or dropped, the
+field disabled or enabled), its `OneOfTreeList` link coming or going, the node joining or leaving
+the strong path (the value moving to another branch). In `OneOfTreeList` the node's `current` and
+`onPath` are as of the tree data's last build (a new value alone does not rebuild it): read the
 value from the field.
 
 ```tsx

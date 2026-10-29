@@ -20,9 +20,11 @@ const VISUALLY_HIDDEN: CSSProperties = {
  *
  * `children`, when given, is shown in the label's text's place (a tree widget's `renderLabel`),
  * in the same look, the icon still first. It is hidden from assistive tech, which reads the
- * label's text instead (out of sight), so the label stays the accessible name whatever is drawn.
- * Its element tree is the same from render to render, so what `children` holds keeps its state
- * while the label changes.
+ * label's text instead (out of sight), so the label stays the accessible name whatever is drawn:
+ * give it presentational content only (text, marks, an animation), never a link, a button or
+ * anything a screen reader must hear. Its element tree stays the same while the label changes,
+ * so what `children` holds keeps its state; an icon coming or going wraps the text otherwise, so
+ * what `children` holds is mounted anew then.
  */
 export function ChoiceLabel({ choice, iconOnly, children }: {
   /** A choice's controls, or one built by hand: `dimmed` may be left out (not dimmed). */

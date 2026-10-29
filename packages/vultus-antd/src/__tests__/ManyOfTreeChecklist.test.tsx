@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { App as AntApp, theme } from 'antd';
-import { useState } from 'react';
+import { StrictMode, useState } from 'react';
 import {
   denyWithReason, useManyOfTreeField, type FieldCommit, type ManyOfTreeFieldOptions, type TreeNode, type TreeSelection,
 } from 'vultus-core';
@@ -567,6 +567,20 @@ describe('ManyOfTreeChecklist: renderLabel', () => {
     await settled();
     for (const value of VALUES) {
       expect(probeOf(value), value).toHaveTextContent(`${LABELS[value].toUpperCase()} ✱`);
+      expect(probeOf(value), value).toHaveAttribute('data-first', LABELS[value]);
+      expect(counts(value).mounts, value).toBe(1);
+    }
+  });
+
+  it('(a) under StrictMode too (its mount effects run twice): one mount each, kept across the new labels', async () => {
+    const strict = (nodes: TreeNode<Cat>[]) => <StrictMode><AntApp><Over nodes={nodes} /></AntApp></StrictMode>;
+    const { rerender } = render(strict(NODES));
+    await settled();
+    for (const value of VALUES) expect(counts(value).mounts, value).toBe(1);
+    rerender(strict(respelt(NODES)));
+    await waitFor(() => expect(probeOf('egy')).toHaveTextContent('EGYENLETEK ✱'));
+    await settled();
+    for (const value of VALUES) {
       expect(probeOf(value), value).toHaveAttribute('data-first', LABELS[value]);
       expect(counts(value).mounts, value).toBe(1);
     }

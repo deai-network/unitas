@@ -23,10 +23,13 @@ export interface OneOfTreeListProps<T extends string> {
    * What a node's label shows, in its text's place (e.g. a component lighting up a label that
    * changed): drawn in the label's look (ChoiceLabel: dimmed or the variant's colour, the icon
    * first), inside the row's link and tooltip and the strong path. The label's text stays what
-   * the search matches and the accessible name. The node's `current` and `onPath` are as of the
-   * tree data's last build (see OneOfTreeList's Rendering): the selection and the strong path show
-   * those. A new function rebuilds the tree data: keep it the same (a module function, a
-   * `useCallback`).
+   * the search matches and the accessible name. Presentational content only (text, marks, an
+   * animation): it is hidden from screen readers and sits inside the row's click target, so no
+   * link or button; what a screen reader must hear belongs in the label or the note. What it
+   * drew keeps its state while the label changes (see OneOfTreeList's Rendering for what mounts
+   * it anew). The node's `current` and `onPath` are as of the tree data's last build: the
+   * selection and the strong path show those. A new function rebuilds the tree data: keep it the
+   * same (a module function, a `useCallback`).
    */
   renderLabel?: (node: OneOfTreeNodeControls<T>) => ReactNode;
 }
@@ -200,8 +203,8 @@ function listRows<T extends string>(
  * and when the search or a confirmation changes. A rebuild keeps each row's React identity (rc-tree
  * keys the rows by value, and a title's element tree stays the same), so what `renderLabel` drew
  * keeps its state across a new label, nodes built anew, a search; a row an opened node shows
- * anew is mounted anew, and so is the title of a node whose tooltip or link comes or goes, or
- * that joins or leaves the strong path (the wrapper around the label changes).
+ * anew is mounted anew, and so is the title of a node whose icon, tooltip or link comes or goes,
+ * or that joins or leaves the strong path (the wrapper around the label changes).
  *
  * `search` adds ManyOfTreeChecklist's search box (placeholder `texts.search`, named
  * "<search> <label>"): the nodes filterTree keeps, accent- and case-insensitive (the matches,

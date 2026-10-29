@@ -36,11 +36,16 @@ export interface OneOfTreePickerProps<T extends string> {
   /**
    * What a node's label shows in the open tree (the dropdown's rows, the drawer's list), in its
    * text's place (e.g. a component lighting up a label that changed): drawn in the label's look
-   * (ChoiceLabel: dimmed or the variant's colour, the icon first), the note aside, inside the
-   * node's tooltip. The label's text stays what the closed field shows (its label or path), what
-   * the search matches, and the accessible name. In the drawer the node's `current` and `onPath`
-   * are OneOfTreeList's (as of its tree data's last build). A new function rebuilds the tree data:
-   * keep it the same (a module function, a `useCallback`).
+   * (ChoiceLabel: dimmed or the variant's colour, the icon first), the note aside (in the drawer,
+   * after it in brackets), inside the node's tooltip. The label's text stays what the closed field
+   * shows (its label or path), what the search matches, and the accessible name. Presentational
+   * content only (text, marks, an animation): it is hidden from screen readers and sits inside the
+   * row's click target, so no link or button; what a screen reader must hear belongs in the label
+   * or the note. What it drew keeps its state while the label changes, as OneOfTreeList's (see its
+   * Rendering for what mounts it anew); the dropdown's list is virtual, so a row scrolled out of
+   * view and back starts fresh. In the drawer the node's `current` and `onPath` are
+   * OneOfTreeList's (as of its tree data's last build). A new function rebuilds the tree data: keep
+   * it the same (a module function, a `useCallback`).
    */
   renderLabel?: (node: OneOfTreeNodeControls<T>) => ReactNode;
 }
