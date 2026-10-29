@@ -71,6 +71,16 @@
 - [ ] Step 3: run the test files and typecheck.
 - [ ] Step 4: commit `feat(vultus-antd): action buttons and menus stay focusable while pending`.
 
+### Task 6: the spinner's place always reserved (added after the owner's gallery try)
+
+**Files:** a shared slot component in `packages/vultus-antd/src/` (e.g. `SpinnerSlot.tsx`, internal, not exported unless a widget outside needs it); `BoolSwitch.tsx`, `BoolCheckbox.tsx`, `OneOfSegmented.tsx`, `ManyOfCheckboxes.tsx`, `ManyOfSwitches.tsx`, `NumericInput.tsx`, `ManyOfTreeChecklist.tsx` (and `treeData.tsx` if its spinner is the checklist's); tests in their existing files and `spinnerSlot.test.tsx`; the vultus-antd README's spinner table and notes.
+
+- [ ] Step 1: failing tests: the slot element is rendered idle and pending, the same node (kept across pending toggles), with a fixed size; the spinner is inside it only while pending (the lent Spinner keyed and sized as today, else antd's Spin); a group's slot sits inside the group's line flow.
+- [ ] Step 2: implement the shared slot and use it in every listed widget; NumericInput and the checklist keep a fixed size.
+- [ ] Step 3: run the affected test files and typecheck.
+- [ ] Step 4: commit `feat(vultus-antd): the spinner's place is always reserved`.
+- [ ] Step 5 (controller): `scratchpad/measure-shift.cjs` shows every widget still; `check-lock.cjs` still passes.
+
 ### Task 5: docs and the browser check
 
 - [ ] Step 1: READMEs (vultus-core: the `pending` paragraph; vultus-antd: the spinner table's BoolSwitch / ManyOfSwitches rows and the note after it) and each touched widget's JSDoc ("disables" → "locks").

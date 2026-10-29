@@ -74,6 +74,28 @@ the action core already refuses a second fire while one runs (action-core's `get
 | CombinedActionButton | Button + Dropdown | as ActionButton for the main button; its dropdown trigger stays focusable too. |
 | ActionContextMenu and the action menus (useActionMenu's `pendingRows`) | Dropdown / Menu | a pending row keeps its spinner icon and the disabled look, is `aria-disabled`, and picking it does nothing; it is not `disabled`, so the menu's keyboard focus stays on it. |
 
+## The spinner's place is always reserved (owner, 2026-10-29)
+
+Trying the branch in the gallery, the owner saw the form jump as spinners appeared. Measured
+(idle against every field pending): BoolSwitch, BoolCheckbox and OneOfSegmented grow 22–25 px
+wider (the spinner is added after them); ManyOfCheckboxes and ManyOfSwitches grow 7–22 px taller
+(the spinner wraps onto a line of its own); NumericInput and ManyOfTreeChecklist change by 3–4 px.
+The selects, tree pickers, text inputs, sliders and the tree list do not move. Of three options
+(always reserve; reserve behind a flag; beside the form item's label) the owner chose **always
+reserve**:
+
+- Every widget that shows its spinner beside the control always lays out the spinner's place, a
+  fixed-size slot, empty while idle; the spinner (the lent Spinner, else antd's Spin, size small)
+  appears inside it. No flag. The layout is identical idle and pending.
+- A group (ManyOfCheckboxes, ManyOfSwitches) keeps the slot inside its own line flow, after the last
+  choice, so it wraps the same idle and pending.
+- NumericInput and ManyOfTreeChecklist: whatever changes size as pending starts gets a fixed size.
+- One shared slot component holds the size and the spinner choice, so every widget reserves the
+  same place.
+
+Check: in the gallery's Definitions/Pending lock, every form item has the same height and content
+width idle and with every field pending.
+
 ## Docs
 
 - vultus-core `field.ts`: the `pending` option's and `FieldControls.pending`'s docs drop the
