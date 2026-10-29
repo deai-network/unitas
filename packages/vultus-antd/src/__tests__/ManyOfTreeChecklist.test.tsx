@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
@@ -6,6 +6,7 @@ import {
   denyWithReason, useManyOfTreeField, type FieldCommit, type ManyOfTreeFieldOptions, type TreeNode, type TreeSelection,
 } from 'vultus-core';
 import { ManyOfTreeChecklist } from '../ManyOfTreeChecklist.js';
+import { labelProbes } from './helpers/labelProbe.js';
 import { openTooltips } from './helpers/tooltips.js';
 
 type Cat = 'alg' | 'egy' | 'egyl' | 'ossz' | 'komb' | 'graf' | 'lesz' | 'geo';
@@ -498,5 +499,118 @@ describe('ManyOfTreeChecklist: field conventions', () => {
     fireEvent.click(checkbox('Kombinatorika'));
     expect(await screen.findByText('Change categories?')).toBeInTheDocument();
     expect(openTooltips()).toHaveLength(0);
+  });
+});
+
+describe('ManyOfTreeChecklist: renderLabel', () => {
+  const { renderLabel: probeLabel, counts, probeOf, clear } = labelProbes();
+  const LABELS: Record<Cat, string> = {
+    alg: 'Algebra', egy: 'Egyenletek', egyl: 'Egyenlőtlenségek', ossz: 'Összegzés',
+    komb: 'Kombinatorika', graf: 'Gráfok', lesz: 'Leszámlálás', geo: 'Geometria',
+  };
+  const VALUES = Object.keys(LABELS) as Cat[];
+
+  /** The value kept at the render site (Egyenletek checked); the roots open (`expand: 'top'`). */
+  function Over({ nodes }: { nodes: TreeNode<Cat>[] }) {
+    const field = useManyOfTreeField<Cat>({ id: 'cats', label: 'Categories', nodes, value: ['egy'], onChange: () => {} });
+    return <ManyOfTreeChecklist field={field} renderLabel={probeLabel} />;
+  }
+  /** `nodes` copied, every object new, each node's own fields as `own` gives them (the values kept). */
+  const copy = (nodes: TreeNode<Cat>[], own: (node: TreeNode<Cat>) => Partial<TreeNode<Cat>> = () => ({})): TreeNode<Cat>[] =>
+    nodes.map((node) => ({ ...node, ...own(node), children: node.children && copy(node.children, own) }));
+  /** Every label in capitals, the values kept: a spelling variant flipped. */
+  const respelt = (nodes: TreeNode<Cat>[]) => copy(nodes, (node) => ({ label: node.label.toUpperCase() }));
+  const switcher = (label: string) => row(label)!.querySelector<HTMLElement>('.ant-tree-switcher')!;
+
+  beforeEach(clear);
+
+  it("draws what it returns in the label's place, the look kept: the colours, the icon first, the note after, the tooltip", async () => {
+    const nodes = copy(NODES, (node) => (node.value === 'egy' ? { icon: <span data-testid="egy-icon" /> }
+      : node.value === 'lesz' ? { variant: 'primary' } : {}));
+    wrap(<><Over nodes={nodes} /><DescriptionColorProbe /></>);
+    // Egyenletek: its icon first, the drawn label after it, its note after the label.
+    const egyLabel = screen.getByTestId('egy-icon').parentElement!;
+    expect(egyLabel.firstElementChild).toBe(screen.getByTestId('egy-icon'));
+    expect(egyLabel).toContainElement(probeOf('egy'));
+    expect(probeOf('egy').closest('.ant-tree-title')!.textContent).toMatch(/ \(5\)$/);
+    // Gráfok dimmed, Leszámlálás primary.
+    expect(probeOf('graf').closest<HTMLElement>('span[style]')!.style.color).toBe(screen.getByTestId('probe').style.color);
+    expect(probeOf('lesz').closest<HTMLElement>('span[style]')!.style.fontWeight).toBe('600');
+    // The node's tooltip, hovering what was drawn; a disabled node's reason first.
+    fireEvent.mouseEnter(probeOf('geo'));
+    await waitFor(() => expect(screen.getByText('Not in this contest')).toBeInTheDocument());
+    expect(screen.getByText('Plane geometry')).toBeInTheDocument();
+  });
+
+  it("the label stays the text everywhere else: the row's and its checkbox's accessible name, the search", async () => {
+    wrap(<Over nodes={NODES} />);
+    expect(screen.getByRole('treeitem', { name: 'Egyenletek (5)' })).toContainElement(probeOf('egy'));
+    expect(screen.getByRole('checkbox', { name: 'Egyenletek (5)' })).toHaveAttribute('aria-checked', 'true');
+    // The mark is in every drawn label, in no label's text.
+    search('✱');
+    await waitFor(() => expect(document.querySelector('.ant-empty')).not.toBeNull());
+    search('egyen');
+    await waitFor(() => expect(row('Egyenletek')).toBeInTheDocument());
+    expect(row('Kombinatorika')).toBeNull();
+  });
+
+  it('without it, a label is drawn as before: its text alone', () => {
+    wrap(<Inside />);
+    expect(screen.getByText('Leszámlálás').outerHTML).toBe('<span>Leszámlálás</span>');
+  });
+
+  it("(a) a node's label changes, its value stays: the drawn component keeps its state (no remount) and gets the new label", async () => {
+    const { rerender } = wrap(<Over nodes={NODES} />);
+    await settled();
+    rerender(<AntApp><Over nodes={respelt(NODES)} /></AntApp>);
+    await waitFor(() => expect(probeOf('egy')).toHaveTextContent('EGYENLETEK ✱'));
+    await settled();
+    for (const value of VALUES) {
+      expect(probeOf(value), value).toHaveTextContent(`${LABELS[value].toUpperCase()} ✱`);
+      expect(probeOf(value), value).toHaveAttribute('data-first', LABELS[value]);
+      expect(counts(value).mounts, value).toBe(1);
+    }
+  });
+
+  it.each<[string, () => TreeNode<Cat>[]]>([
+    ['the same fields', () => copy(NODES)],
+    ['a new icon element each time', () => copy(NODES, (node) => ({ icon: <span data-icon={node.value} /> }))],
+  ])('(b) the nodes rebuilt as new objects with the same values, %s: no remount', async (_, build) => {
+    const { rerender } = wrap(<Over nodes={build()} />);
+    await settled();
+    const renders = counts('egy').renders;
+    rerender(<AntApp><Over nodes={build()} /></AntApp>);
+    await settled();
+    // The checklist rebuilds its tree data from the field's nodes, new on every render: the rows drew again.
+    expect(counts('egy').renders).toBeGreaterThan(renders);
+    for (const value of VALUES) expect(counts(value).mounts, value).toBe(1);
+  });
+
+  it("(c) typing a search that keeps the node shown (Kombinatorika closing and opening: rc-tree's motion), then clearing it: no remount", async () => {
+    wrap(<Over nodes={NODES} />);
+    await settled();
+    for (const query of ['e', 'eg', 'egy', 'egye', '']) {
+      search(query);
+      await settled();
+      expect(row('Egyenletek'), query).toBeInTheDocument();
+    }
+    for (const value of ['alg', 'egy', 'egyl'] as const) expect(counts(value).mounts, value).toBe(1);
+  });
+
+  it('(d) a node closed and opened again: its children mount anew, their state fresh (wanted)', async () => {
+    const { rerender } = wrap(<Over nodes={NODES} />);
+    rerender(<AntApp><Over nodes={respelt(NODES)} /></AntApp>);
+    await settled();
+    expect(probeOf('graf')).toHaveAttribute('data-first', 'Gráfok');
+    fireEvent.click(switcher('KOMBINATORIKA'));
+    await settled();
+    expect(screen.queryByTestId('probe-graf')).toBeNull();
+    fireEvent.click(switcher('KOMBINATORIKA'));
+    await waitFor(() => expect(screen.queryByTestId('probe-graf')).not.toBeNull());
+    await settled();
+    expect(probeOf('graf')).toHaveAttribute('data-first', 'GRÁFOK');
+    expect(counts('graf').mounts).toBeGreaterThan(1);
+    // The node's own row stayed.
+    expect(counts('komb').mounts).toBe(1);
   });
 });

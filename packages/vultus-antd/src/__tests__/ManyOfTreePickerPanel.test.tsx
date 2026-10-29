@@ -160,6 +160,21 @@ describe('ManyOfTreePicker panel="drawer": the drawer', () => {
     expect(within(openDrawer()!).getByPlaceholderText('Search')).toBeInTheDocument();
   });
 
+  it("renderLabel reaches the drawer's checklist (each row's label drawn by it, the note after it); the closed field's summary keeps the label as text", async () => {
+    function Drawn() {
+      const field = useManyOfTreeField<Cat>({ id: 'cats', label: 'Categories', nodes: NODES, initialValue: ['lnko'] });
+      return <ManyOfTreePicker field={field} panel="drawer" summary="firstWords" renderLabel={(node) => <mark>{node.label} ✱</mark>} />;
+    }
+    wrap(<Drawn />);
+    await waitFor(() => expect(root().querySelector('.ant-select-selection-item')).not.toBeNull());
+    expect(root().querySelector('.ant-select-selection-item')!.textContent).toBe('Osztók, legnagyobb közös osztó');
+    expect(root().querySelector('mark')).toBeNull();
+    tap(root());
+    await waitFor(() => expect(openDrawer()).not.toBeNull());
+    expect(drawerRow('Kombinatorika')!.querySelector('mark')).toHaveTextContent('Kombinatorika ✱');
+    expect(drawerRow('Kombinatorika')).toHaveAccessibleName('Kombinatorika (4)');
+  });
+
   it('the field id stays unique: the drawer\'s checklist carries no data-field-id or data-value', async () => {
     wrap(<Inside panel="drawer" initialValue={['komb']} />);
     tap(root());

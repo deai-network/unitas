@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Button, Space, Tag, Typography } from 'antd';
+import { Button, Segmented, Space, Tag, Typography, theme } from 'antd';
 import { useEffect, useState, type MouseEvent } from 'react';
 import { Outlet, RouterProvider, createHashRouter, useLocation } from 'react-router';
 import {
   FieldWidget, OneOfTreeList, OneOfTreePicker, denyWithReason, useOneOfTreeField, useStoredField,
-  type FieldDefinition, type TreeNode,
+  type FieldDefinition, type OneOfTreeNodeControls, type TreeNode,
 } from 'vultus-antd';
 import { ReactRouterArgStore } from 'vultus-react-router';
 import { Example, Showcase } from '../Showcase.js';
@@ -127,6 +127,86 @@ export const CategoryList: StoryObj = {
             <div style={{ width: 320 }}><OneOfTreeList field={field} search /></div>
           </Example>
           <Example label="field.value"><Tag>{field.value || '(none)'}</Tag></Example>
+        </Space>
+      </Showcase>
+    );
+  },
+};
+
+/** The categories' labels in the older Hungarian terms (mértan for geometria): the values kept, as a spelling variant keeps them. */
+const OLD_TERMS: Record<string, string> = { geometria: 'Mértan', sikgeometria: 'Síkmértan', tergeometria: 'Térmértan' };
+const inOldTerms = (nodes: TreeNode[]): TreeNode[] => nodes.map((node) => ({
+  ...node, label: OLD_TERMS[node.value] ?? node.label, children: node.children && inOldTerms(node.children),
+}));
+const OLD_CATEGORIES = inOldTerms(CATEGORIES);
+
+/** The categories new this term: their label gets a highlighted suffix. */
+const NEW_THIS_TERM = new Set(['egyenlotlensegek', 'lnko']);
+
+/**
+ * A label that lights up when its text changes (as harma-style's ChangingText does in
+ * Praeceptor): it keeps the text it showed in its state, so it lights up only while the tree
+ * keeps it mounted across the change.
+ */
+function LightingLabel({ text }: { text: string }) {
+  const { token } = theme.useToken();
+  const [shown, setShown] = useState(text);
+  const [lit, setLit] = useState(false);
+  if (shown !== text) {
+    setShown(text);
+    setLit(true);
+  }
+  useEffect(() => {
+    if (!lit) return undefined;
+    const timer = setTimeout(() => setLit(false), 1200);
+    return () => clearTimeout(timer);
+  }, [lit, shown]);
+  return (
+    <span style={{ background: lit ? token.colorWarningBg : 'transparent', borderRadius: 4, transition: 'background-color 0.8s' }}>
+      {text}
+    </span>
+  );
+}
+
+/** The story's renderLabel: a module function, the same one throughout (a new one would rebuild the tree data). */
+const drawLabel = (node: OneOfTreeNodeControls) => (
+  <>
+    <LightingLabel text={node.label} />
+    {NEW_THIS_TERM.has(node.value) && <> <Typography.Text mark>new</Typography.Text></>}
+  </>
+);
+
+export const DrawnLabels: StoryObj = {
+  name: 'Labels drawn by renderLabel',
+  render: function Render() {
+    const [terms, setTerms] = useState<'current' | 'older'>('current');
+    const field = useOneOfTreeField({
+      id: 'drawn.category',
+      label: 'Category',
+      nodes: terms === 'older' ? OLD_CATEGORIES : CATEGORIES,
+      choose: 'leaves',
+      expand: 'all',
+      initialValue: 'sikgeometria',
+    });
+    return (
+      <Showcase
+        title="Labels drawn by renderLabel"
+        note="renderLabel draws each node's label: here the label with a highlighted 'new' after the categories new this term (Egyenlőtlenségek, Osztók), in the label's own look (dimmed at zero, Térgeometria disabled with its reason on hover), the note still after it. The label's text stays what the search matches (try 'osztok'), what the closed picker shows and what a screen reader reads. Switch the terms: the values stay, three labels change, and each lights up (a component that keeps its state across the change; the rows keep their identity, so it is not mounted anew)."
+      >
+        <Space size={32} align="start" wrap>
+          <Example label="terms">
+            <Segmented
+              options={[{ value: 'current', label: 'geometria' }, { value: 'older', label: 'mértan' }]}
+              value={terms}
+              onChange={(next) => setTerms(next as 'current' | 'older')}
+            />
+          </Example>
+          <Example label="OneOfTreeList search renderLabel">
+            <div style={{ width: 320 }}><OneOfTreeList field={field} search renderLabel={drawLabel} /></div>
+          </Example>
+          <Example label="OneOfTreePicker renderLabel">
+            <OneOfTreePicker field={field} renderLabel={drawLabel} style={{ width: 320 }} />
+          </Example>
         </Space>
       </Showcase>
     );

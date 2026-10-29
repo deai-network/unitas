@@ -1,7 +1,7 @@
 import { Empty, Tree } from 'antd';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  coveredNodes, filterTree, normalizeTreeValue, type ManyOfTreeFieldControls, type TreeSelection,
+  coveredNodes, filterTree, normalizeTreeValue, type ManyOfTreeFieldControls, type TreeNodeControls, type TreeSelection,
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { isLocked, useLockedTreeStyles } from './pendingLock.js';
@@ -12,6 +12,14 @@ import { withTooltip } from './WithReason.js';
 
 export interface ManyOfTreeChecklistProps<T extends string> {
   field: ManyOfTreeFieldControls<T>;
+  /**
+   * What a node's label shows, in its text's place (e.g. a component lighting up a label that
+   * changed): drawn in the label's look (ChoiceLabel: dimmed or the variant's colour, the icon
+   * first), inside the node's tooltip. The label's text stays what the search matches and the
+   * accessible name. A new function rebuilds the tree data: keep it the same (a module function,
+   * a `useCallback`).
+   */
+  renderLabel?: (node: TreeNodeControls<T>) => ReactNode;
 }
 
 /** ManyOfTreeChecklist's props for vultus-antd's own widgets only: not in ManyOfTreeChecklistProps, not exported. */
@@ -64,7 +72,9 @@ function shownChecks<T extends string>(
 /**
  * A many-of tree field (useManyOfTreeField) as moxb's always-open checkable tree: antd's
  * Tree, `checkable`, under a search box. Each node shows its label
- * (ChoiceLabel; dimmed in the description colour) and its note in brackets,
+ * (ChoiceLabel; dimmed in the description colour; drawn by `renderLabel` if
+ * given, its state kept across new labels, nodes and searches as
+ * OneOfTreeList's) and its note in brackets,
  * "Kombinatorika (4)", with its own tooltip (choiceTooltip: a disabled node's
  * reason first, then its description) while the field is enabled; a disabled
  * field shows its reason over the tree instead (fieldTooltip).
@@ -109,7 +119,9 @@ function shownChecks<T extends string>(
  * lent Spinner (or antd's own) shows next to the search box, in its place
  * kept for it idle too (TreeSearchBox), so the box keeps its width.
  */
-export function ManyOfTreeChecklist<T extends string>({ field, nested = false }: ManyOfTreeChecklistProps<T> & InternalManyOfTreeChecklistProps) {
+export function ManyOfTreeChecklist<T extends string>({
+  field, renderLabel, nested = false,
+}: ManyOfTreeChecklistProps<T> & InternalManyOfTreeChecklistProps) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { request, wrap, asking } = useManyOfTreeRequest(field);
@@ -128,10 +140,10 @@ export function ManyOfTreeChecklist<T extends string>({ field, nested = false }:
   const locked = isLocked(field);
   const data = useMemo(() => {
     const rows = treeData(field.nodes, {
-      noteStyle: 'brackets', tooltips: field.enabled, holdTooltips: asking, shown: kept?.all,
+      noteStyle: 'brackets', tooltips: field.enabled, holdTooltips: asking, shown: kept?.all, renderLabel,
     });
     return locked ? lockChecks(rows) : rows;
-  }, [field.nodes, field.enabled, asking, kept, locked]);
+  }, [field.nodes, field.enabled, asking, kept, locked, renderLabel]);
   const lockedStyles = useLockedTreeStyles(locked);
   if (!field.visible) return null;
 

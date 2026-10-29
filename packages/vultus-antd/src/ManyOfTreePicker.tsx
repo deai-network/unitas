@@ -1,8 +1,8 @@
 import { Button, Drawer, TreeSelect, type TreeSelectProps } from 'antd';
-import { useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   normalizeTreeValue, toggleTreeValue, useSpinnerKey, useVultusComponents,
-  type ManyOfTreeFieldControls, type TreeSelection,
+  type ManyOfTreeFieldControls, type TreeNodeControls, type TreeSelection,
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { firstWords } from './firstWords.js';
@@ -35,6 +35,15 @@ export interface ManyOfTreePickerProps<T extends string> {
    * ("Osztók, legnagyobb…, Feltételes…", firstWords), for a phone.
    */
   summary?: 'tags' | 'firstWords';
+  /**
+   * What a node's label shows in the open tree (the dropdown's rows, the drawer's checklist), in
+   * its text's place (e.g. a component lighting up a label that changed): drawn in the label's
+   * look (ChoiceLabel: dimmed or the variant's colour, the icon first), the note aside, inside
+   * the node's tooltip. The label's text stays what the tags and the first-words summary show,
+   * what the search matches, and the accessible name. A new function rebuilds the tree data:
+   * keep it the same (a module function, a `useCallback`).
+   */
+  renderLabel?: (node: TreeNodeControls<T>) => ReactNode;
 }
 
 /** About how many characters of each selected label the first-words summary shows: fewer when it lists more than one. */
@@ -64,7 +73,8 @@ const STRATEGY: Record<TreeSelection, TreeSelectProps['showCheckedStrategy']> = 
  * (`maxTagCount="responsive"`), or `field.placeholder` while empty;
  * `allowClear` clears everything at once, requesting `[]`. Open, the tree
  * starts from `field.expandedKeys` (the field's `expand`), and each node shows
- * its label (ChoiceLabel: in the description colour while dimmed) with its
+ * its label (ChoiceLabel: in the description colour while dimmed; drawn by
+ * `renderLabel` if given, the tags keeping the text) with its
  * note right-aligned (ChoiceRow) and its own tooltip to the side
  * (choiceTooltip: a disabled node's reason first, then its description); a
  * disabled node cannot be checked. The tree is `listHeight` high at most and
@@ -116,7 +126,7 @@ const STRATEGY: Record<TreeSelection, TreeSelectProps['showCheckedStrategy']> = 
  * with ", ".
  */
 export function ManyOfTreePicker<T extends string>({
-  field, size, style, listHeight = 520, popupMatchSelectWidth = 480, panel = 'dropdown', summary = 'tags',
+  field, size, style, listHeight = 520, popupMatchSelectWidth = 480, panel = 'dropdown', summary = 'tags', renderLabel,
 }: ManyOfTreePickerProps<T>) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
@@ -137,8 +147,8 @@ export function ManyOfTreePicker<T extends string>({
   // re-render of its own (the tree opening or closing): antd rebuilds its
   // tree from new data.
   const data = useMemo(() => treeData(field.nodes, {
-    noteStyle: 'aside', tooltips: field.enabled, holdTooltips: asking, tooltipPlacement: 'right',
-  }), [field.nodes, field.enabled, asking]);
+    noteStyle: 'aside', tooltips: field.enabled, holdTooltips: asking, tooltipPlacement: 'right', renderLabel,
+  }), [field.nodes, field.enabled, asking, renderLabel]);
   // Locked, disabled or hidden, the tree is closed, which antd does not report.
   if ((locked || !field.enabled || !field.visible) && open) setOpen(false);
   if (!field.visible) return null;
@@ -257,7 +267,7 @@ export function ManyOfTreePicker<T extends string>({
         extra={<Button type="primary" onClick={() => setDrawerOpen(false)}>{texts.done}</Button>}
       >
         {/* Nested: the select's root alone carries the field's data-field-id and data-value. */}
-        <ManyOfTreeChecklist field={field} nested />
+        <ManyOfTreeChecklist field={field} renderLabel={renderLabel} nested />
       </Drawer>
     </>
   );

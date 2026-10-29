@@ -19,6 +19,16 @@ export interface OneOfTreeListProps<T extends string> {
   search?: boolean;
   /** The list's style; its width and layout keys (flex, margins) go to the tooltip anchor around it (see withTooltip). */
   style?: CSSProperties;
+  /**
+   * What a node's label shows, in its text's place (e.g. a component lighting up a label that
+   * changed): drawn in the label's look (ChoiceLabel: dimmed or the variant's colour, the icon
+   * first), inside the row's link and tooltip and the strong path. The label's text stays what
+   * the search matches and the accessible name. The node's `current` and `onPath` are as of the
+   * tree data's last build (see OneOfTreeList's Rendering): the selection and the strong path show
+   * those. A new function rebuilds the tree data: keep it the same (a module function, a
+   * `useCallback`).
+   */
+  renderLabel?: (node: OneOfTreeNodeControls<T>) => ReactNode;
 }
 
 /** OneOfTreeList's props for vultus-antd's own widgets only: not in OneOfTreeListProps, not exported. */
@@ -143,12 +153,12 @@ function listRows<T extends string>(
 /**
  * A one-of tree field (useOneOfTreeField) as an always-open tree: antd's Tree, no
  * checkboxes, each row across the list's width (`blockNode`). A sidebar, a table of contents.
- * Each node shows its label (ChoiceLabel; dimmed in the description colour) and its note in
- * brackets, "Kör (3)", with its own tooltip (choiceTooltip: a disabled node's reason first,
- * then its description) while the field is enabled; a disabled node is greyed and cannot be
- * chosen. A disabled field shows its reason over the list instead (fieldTooltip). The list
- * sits in the stable tooltip anchor (`vultus-tooltip-anchor`, a block), which takes the
- * width and layout keys of `style`.
+ * Each node shows its label (ChoiceLabel; dimmed in the description colour; drawn by
+ * `renderLabel` if given) and its note in brackets, "Kör (3)", with its own tooltip
+ * (choiceTooltip: a disabled node's reason first, then its description) while the field is
+ * enabled; a disabled node is greyed and cannot be chosen. A disabled field shows its reason
+ * over the list instead (fieldTooltip). The list sits in the stable tooltip anchor
+ * (`vultus-tooltip-anchor`, a block), which takes the width and layout keys of `style`.
  *
  * The current node shows selected, and its ancestors (`onPath`) in strong text; a value
  * naming no node selects nothing. Clicking a node that can be chosen (`choosable`) requests
@@ -185,9 +195,13 @@ function listRows<T extends string>(
  * reaches the titles through a context. The tree data, with each link's href, is rebuilt when a
  * node would show something else (its label, note, tooltip, icon, ...; compared by identity, see
  * useShownNodes: a `nodes` function building icon elements anew rebuilds it on every render), when
- * the field is enabled or disabled, when it locks or unlocks (pending), when `field.hrefFor` is
- * a new function (vultus-core's stores and field groups keep theirs), and when the search or a
- * confirmation changes.
+ * the field is enabled or disabled, when it locks or unlocks (pending), when `field.hrefFor` or
+ * `renderLabel` is a new function (vultus-core's stores and field groups keep their `hrefFor`),
+ * and when the search or a confirmation changes. A rebuild keeps each row's React identity (rc-tree
+ * keys the rows by value, and a title's element tree stays the same), so what `renderLabel` drew
+ * keeps its state across a new label, nodes built anew, a search; a row an opened node shows
+ * anew is mounted anew, and so is the title of a node whose tooltip or link comes or goes, or
+ * that joins or leaves the strong path (the wrapper around the label changes).
  *
  * `search` adds ManyOfTreeChecklist's search box (placeholder `texts.search`, named
  * "<search> <label>"): the nodes filterTree keeps, accent- and case-insensitive (the matches,
@@ -207,7 +221,7 @@ function listRows<T extends string>(
  * antd's own) shows by the search box. Tooltips are held back while a confirmation is asking.
  */
 export function OneOfTreeList<T extends string>({
-  field, search = false, style, nested = false, onChosen,
+  field, search = false, style, renderLabel, nested = false, onChosen,
 }: OneOfTreeListProps<T> & InternalOneOfTreeListProps<T>) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
@@ -264,7 +278,7 @@ export function OneOfTreeList<T extends string>({
   const data = useMemo(() => {
     const hrefFor = field.enabled ? field.hrefFor : undefined;
     const rows = listRows(treeData(nodes, {
-      noteStyle: 'brackets', tooltips: field.enabled, holdTooltips: asking, shown: kept?.all,
+      noteStyle: 'brackets', tooltips: field.enabled, holdTooltips: asking, shown: kept?.all, renderLabel,
     }), nodes, hrefFor, locked);
     if (!field.optional) return rows;
     const label = field.placeholder || texts.none;
@@ -276,7 +290,7 @@ export function OneOfTreeList<T extends string>({
       style: kept ? { display: 'none' } : undefined,
     };
     return [none, ...rows];
-  }, [nodes, field.enabled, field.optional, field.placeholder, field.hrefFor, locked, asking, kept, texts.none]);
+  }, [nodes, field.enabled, field.optional, field.placeholder, field.hrefFor, locked, asking, kept, texts.none, renderLabel]);
   const lockedStyles = useLockedTreeStyles(locked);
   const currentValue = field.current?.value;
   const selectedKeys = useMemo<(T | '')[]>(

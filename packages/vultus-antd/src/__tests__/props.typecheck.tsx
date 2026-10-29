@@ -6,7 +6,7 @@ import type {
   OneOfTreeFieldControls,
 } from 'vultus-core';
 import {
-  BoolSwitch, ChoiceLabel, Field, FieldWidget,
+  BoolSwitch, ChoiceLabel, Field, FieldWidget, ManyOfTreeChecklist, ManyOfTreePicker, OneOfTreeList, OneOfTreePicker,
   type ManyOfCheckboxesProps, type ManyOfSelectProps, type ManyOfSwitchesProps, type NumericInputProps,
   type NumericSliderProps, type RangeSliderProps, type RequestableField, type SearchInputProps, type TextInputProps,
   type ManyOfTreeChecklistProps, type ManyOfTreePickerProps, type OneOfTreePickerProps, type OneOfTreeListProps,
@@ -65,6 +65,10 @@ function fieldPropsAreTyped(
     <Field definition={oneOfTree} summary="tags" />,
     <Field definition={oneOfTree} widget="list" search style={{ width: 240 }} />,
     <Field definition={oneOfTree} widget={{ name: 'list', search: true }} />,
+    <Field definition={oneOfTree} widget="list" renderLabel={(node) => (node.choosable ? <b>{node.label}</b> : node.label)} />,
+    <Field definition={tree} widget="checklist" renderLabel={(node) => (node.checked ? <b>{node.label}</b> : node.label)} />,
+    // @ts-expect-error -- renderLabel gets the kind's node: a one-of tree's has no `checked` (a many-of tree's has).
+    <Field definition={oneOfTree} renderLabel={(node) => node.checked} />,
     // @ts-expect-error -- OneOfTreeList's internal `nested` is not a display prop.
     <Field definition={oneOfTree} widget="list" nested />,
     // @ts-expect-error -- nor is its internal `onChosen`.
@@ -108,6 +112,8 @@ function fieldWidgetPropsAreTyped(
     // @ts-expect-error -- one-of tree controls are read as their own kind (not as of every kind): no search widget.
     <FieldWidget field={oneOfTree} widget="search" />,
     <FieldWidget field={oneOfTree} widget="list" search />,
+    <FieldWidget field={oneOfTree} widget="picker" renderLabel={(node) => node.label} />,
+    <FieldWidget field={tree} widget="picker" renderLabel={(node) => node.checked && node.label} />,
     // @ts-expect-error -- OneOfTreeList's internal `onChosen` is not a display prop.
     <FieldWidget field={oneOfTree} widget="list" onChosen={() => {}} />,
     // @ts-expect-error -- nor can a hint reach its `nested`.
@@ -128,6 +134,22 @@ function fieldWidgetPropsAreTyped(
     <FieldWidget field={tree} widget={{ name: 'checklist', nested: true }} />,
     // @ts-expect-error -- onEnter receives the typed text, a string.
     <FieldWidget field={text} widget="search" onEnter={(typed: number) => typed} />,
+  ];
+}
+
+/** A compile-time check: each tree widget's renderLabel names its node's type, its value typed by the field's. */
+function renderLabelNamesTheNode(oneOfTree: OneOfTreeFieldControls<'a' | 'b'>, tree: ManyOfTreeFieldControls<'x' | 'y'>) {
+  const oneOfValue = (value: 'a' | 'b') => value;
+  const manyOfValue = (value: 'x' | 'y') => value;
+  return [
+    <OneOfTreeList field={oneOfTree} renderLabel={(node) => [oneOfValue(node.value), node.label, String(node.current)]} />,
+    <OneOfTreePicker field={oneOfTree} renderLabel={(node) => [oneOfValue(node.value), node.label, String(node.onPath)]} />,
+    <ManyOfTreeChecklist field={tree} renderLabel={(node) => [manyOfValue(node.value), node.label, String(node.checked)]} />,
+    <ManyOfTreePicker field={tree} renderLabel={(node) => [manyOfValue(node.value), node.label, String(node.checked)]} />,
+    // @ts-expect-error -- a node of another field's values.
+    <OneOfTreeList field={oneOfTree} renderLabel={(node) => manyOfValue(node.value)} />,
+    // @ts-expect-error -- renderLabel returns what React renders.
+    <ManyOfTreePicker field={tree} renderLabel={(node) => ({ node })} />,
   ];
 }
 
@@ -161,5 +183,6 @@ type WidgetPropsAreExported = [
 ];
 
 export {
-  choiceLabelTakesAChoiceWithoutDimmed, controlsBuiltByHandNeedNoHrefFor, fieldPropsAreTyped, fieldWidgetPropsAreTyped, type WidgetPropsAreExported,
+  choiceLabelTakesAChoiceWithoutDimmed, controlsBuiltByHandNeedNoHrefFor, fieldPropsAreTyped, fieldWidgetPropsAreTyped,
+  renderLabelNamesTheNode, type WidgetPropsAreExported,
 };

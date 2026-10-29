@@ -36,7 +36,7 @@ export interface ChoiceTreeNode<T extends string = string> extends OneOfChoiceCo
   choosable?: boolean;
 }
 
-export interface TreeDataOptions<T extends string> {
+export interface TreeDataOptions<N extends ChoiceTreeNode> {
   /**
    * Where a node's note goes: `'aside'` right-aligned, across the row (a
    * dropdown, as ChoiceRow); `'brackets'` after the label, "Kombinatorika
@@ -54,24 +54,31 @@ export interface TreeDataOptions<T extends string> {
    * tree, so antd's check conduction still runs over the whole tree. Default:
    * every node.
    */
-  shown?: Set<T>;
+  shown?: Set<N['value']>;
+  /** What each node's label shows (a tree widget's `renderLabel`): ChoiceLabel's `children`, in its look. Default: its text. */
+  renderLabel?: (node: N) => ReactNode;
 }
 
 /**
  * A tree field's nodes (useManyOfTreeField's or useOneOfTreeField's `nodes`) as antd tree data,
  * shared by the tree widgets (ManyOfTreeChecklist, ManyOfTreePicker, OneOfTreePicker,
  * OneOfTreeList). Each node's title is its label (ChoiceLabel: in the description colour while
- * dimmed) and note (ChoiceNote, placed by `noteStyle`), with the node's own tooltip
- * (choiceTooltip: a disabled node's reason first, then its description); a disabled node is
- * disabled. A one-of tree's node is `selectable` as it is `choosable`, so a click on one that
- * cannot be chosen only opens or closes it.
+ * dimmed; showing what `renderLabel` returns for it, if given, in its text's place) and note
+ * (ChoiceNote, placed by `noteStyle`), with the node's own tooltip (choiceTooltip: a disabled
+ * node's reason first, then its description); a disabled node is disabled. A one-of tree's node
+ * is `selectable` as it is `choosable`, so a click on one that cannot be chosen only opens or
+ * closes it. The node's `label` (its text) stays the data's `label`, for TreeSelect's tags and
+ * search.
  */
-export function treeData<T extends string>(nodes: ChoiceTreeNode<T>[], options: TreeDataOptions<T>): FieldTreeDataNode<T>[] {
-  const { noteStyle, tooltips = true, holdTooltips = false, tooltipPlacement, shown } = options;
-  const map = (node: ChoiceTreeNode<T>): FieldTreeDataNode<T> => {
+export function treeData<N extends ChoiceTreeNode>(nodes: N[], options: TreeDataOptions<N>): FieldTreeDataNode<N['value']>[] {
+  const { noteStyle, tooltips = true, holdTooltips = false, tooltipPlacement, shown, renderLabel } = options;
+  const map = (node: N): FieldTreeDataNode<N['value']> => {
+    // In a fragment, never undefined (ChoiceLabel's text then): whatever renderLabel returns,
+    // nothing included, takes the text's place, and the label's element tree stays the same.
+    const drawn = renderLabel && <>{renderLabel(node)}</>;
     const title = noteStyle === 'aside'
-      ? <ChoiceRow choice={node} />
-      : <span><ChoiceLabel choice={node} />{node.note && <> <ChoiceNote note={`(${node.note})`} /></>}</span>;
+      ? <ChoiceRow choice={node} label={drawn} />
+      : <span><ChoiceLabel choice={node}>{drawn}</ChoiceLabel>{node.note && <> <ChoiceNote note={`(${node.note})`} /></>}</span>;
     return {
       key: node.value,
       value: node.value,
@@ -83,7 +90,8 @@ export function treeData<T extends string>(nodes: ChoiceTreeNode<T>[], options: 
       }),
       disabled: !node.enabled,
       ...(node.choosable !== undefined ? { selectable: node.choosable } : {}),
-      children: node.children?.map(map),
+      // A node's children are nodes of its own kind (a tree's controls).
+      children: (node.children as N[] | undefined)?.map(map),
       style: shown && !shown.has(node.value) ? { display: 'none' } : undefined,
     };
   };

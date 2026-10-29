@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
@@ -7,6 +7,7 @@ import {
 } from 'vultus-core';
 import { Field } from '../Field.js';
 import { OneOfTreePicker, type OneOfTreePickerProps } from '../OneOfTreePicker.js';
+import { labelProbes } from './helpers/labelProbe.js';
 
 type Geo = 'geo' | 'sik' | 'kor' | 'ter' | 'alg';
 
@@ -488,5 +489,70 @@ describe('OneOfTreePicker: in <Field item>', () => {
     await waitFor(() => expect(root()).toHaveAttribute('data-value', 'alg'));
     expect(root()).toBe(control);
     expect(document.activeElement).toBe(input);
+  });
+});
+
+describe('OneOfTreePicker: renderLabel', () => {
+  const { renderLabel, counts, probeOf, clear } = labelProbes();
+  const VALUES: Geo[] = ['geo', 'sik', 'kor', 'ter', 'alg'];
+  const LABELS: Record<Geo, string> = { geo: 'Geometria', sik: 'Síkgeometria', kor: 'Kör', ter: 'Térgeometria', alg: 'Algebra' };
+
+  /** The value kept at the render site (Kör), every node open. */
+  function Over({ nodes, summary }: { nodes: TreeNode<Geo>[]; summary?: OneOfTreePickerProps<Geo>['summary'] }) {
+    const field = useOneOfTreeField<Geo>({ id: 'cat', label: 'Category', nodes, expand: 'all', value: 'kor', onChange: () => {} });
+    return <OneOfTreePicker field={field} summary={summary} renderLabel={renderLabel} />;
+  }
+  /** `nodes` copied, every object new, each node's own fields as `own` gives them (the values kept). */
+  const copy = (nodes: TreeNode<Geo>[], own: (node: TreeNode<Geo>) => Partial<TreeNode<Geo>> = () => ({})): TreeNode<Geo>[] =>
+    nodes.map((node) => ({ ...node, ...own(node), children: node.children && copy(node.children, own) }));
+
+  beforeEach(clear);
+
+  it("draws what it returns in the open tree's rows, in the label's place: the note aside, the look kept, the tooltip", async () => {
+    wrap(<><Over nodes={copy(GEO, (node) => (node.value === 'kor' ? { dimmed: true } : node.value === 'alg' ? { variant: 'primary' } : {}))} /><DescriptionColorProbe /></>);
+    await openTree();
+    // Kör's row: the drawn label first, in the dimmed colour; its note aside.
+    const korRow = probeOf('kor').closest<HTMLElement>('[style*="space-between"]')!;
+    expect(korRow.firstElementChild).toContainElement(probeOf('kor'));
+    expect(korRow.lastElementChild).toHaveTextContent('3');
+    expect(probeOf('kor').closest<HTMLElement>('span[style]')!.style.color).toBe(screen.getByTestId('probe').style.color);
+    expect(probeOf('alg').closest<HTMLElement>('span[style]')!.style.fontWeight).toBe('600');
+    fireEvent.mouseEnter(probeOf('alg'));
+    await waitFor(() => expect(screen.getByText('Equations and identities')).toBeInTheDocument());
+  });
+
+  it('the label stays the text: the closed field (its label, or its path), the search', async () => {
+    const { unmount } = wrap(<Over nodes={GEO} />);
+    expect(closedText()).toBe('Kör');
+    unmount();
+    wrap(<Over nodes={GEO} summary="path" />);
+    expect(closedText()).toBe('Geometria › Síkgeometria › Kör');
+    expect(root().querySelector('mark')).toBeNull();
+    await search('algebra');
+    await waitFor(() => expect(screen.queryByTestId('probe-kor')).toBeNull());
+    expect(probeOf('alg')).toBeInTheDocument();
+    // The mark is in every drawn label, in no label's text.
+    await search('✱');
+    await waitFor(() => expect(treeRows()).toHaveLength(0));
+  });
+
+  it("(a) in the open tree, a node's label changes, its value stays: the drawn component keeps its state (no remount)", async () => {
+    const { rerender } = wrap(<Over nodes={GEO} />);
+    await openTree();
+    rerender(<AntApp><Over nodes={copy(GEO, (node) => ({ label: node.label.toUpperCase() }))} /></AntApp>);
+    await waitFor(() => expect(probeOf('kor')).toHaveTextContent('KÖR ✱'));
+    for (const value of VALUES) {
+      expect(probeOf(value), value).toHaveAttribute('data-first', LABELS[value]);
+      expect(counts(value).mounts, value).toBe(1);
+    }
+  });
+
+  it('(b) in the open tree, the nodes rebuilt as new objects with the same values: no remount', async () => {
+    const { rerender } = wrap(<Over nodes={copy(GEO)} />);
+    await openTree();
+    const renders = counts('kor').renders;
+    rerender(<AntApp><Over nodes={copy(GEO)} /></AntApp>);
+    await waitFor(() => expect(counts('kor').renders).toBeGreaterThan(renders));
+    for (const value of VALUES) expect(counts(value).mounts, value).toBe(1);
   });
 });

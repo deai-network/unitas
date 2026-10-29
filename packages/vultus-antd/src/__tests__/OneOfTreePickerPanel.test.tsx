@@ -139,6 +139,20 @@ describe('OneOfTreePicker panel="drawer": the drawer', () => {
     expect(within(openDrawer()!).getByPlaceholderText('Search')).toBeInTheDocument();
   });
 
+  it("renderLabel reaches the drawer's list (each row's label drawn by it, the note after it); the closed field keeps the label as text", async () => {
+    function Drawn() {
+      const field = useOneOfTreeField<Geo>({ id: 'cat', label: 'Category', nodes: GEO, expand: 'all', initialValue: 'kor' });
+      return <OneOfTreePicker field={field} panel="drawer" renderLabel={(node) => <mark>{node.label} ✱</mark>} />;
+    }
+    wrap(<Drawn />);
+    expect(root().querySelector('.ant-select-content')!.textContent).toBe('Kör');
+    expect(root().querySelector('mark')).toBeNull();
+    tap(root());
+    await waitFor(() => expect(openDrawer()).not.toBeNull());
+    expect(drawerRow('Kör')!.querySelector('mark')).toHaveTextContent('Kör ✱');
+    expect(drawerRow('Kör')).toHaveAccessibleName('Kör (3)');
+  });
+
   it('the field id stays unique: the drawer\'s list carries no data-field-id or data-value', async () => {
     wrap(<Inside panel="drawer" initialValue="alg" expand="all" />);
     tap(root());

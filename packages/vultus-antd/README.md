@@ -269,7 +269,8 @@ tag, clearing — is requested normalized to the field's `selection` through the
 (`useManyOfTreeRequest`, exported for a custom tree widget: set equality, as a many-of field's request).
 `ManyOfTreePicker` requests, in the cascading selections, the field's value with the clicked node (or the
 removed tag's) toggled (`toggleTreeValue`), not antd's own list, which its `SHOW_CHILD` strategy cuts
-short of a checked disabled parent.
+short of a checked disabled parent. `renderLabel` draws each node's label, as the one-of tree's
+widgets do (see **Drawn labels** below); the tags and the first-words summary keep the text.
 
 The search box — `ManyOfTreeChecklist`'s own, always there, and `ManyOfTreePicker`'s dropdown search, or the
 one in its `panel="drawer"` drawer, which holds a `ManyOfTreeChecklist` — filters by label, accent- and
@@ -361,7 +362,36 @@ icon, ...), when the field is enabled or disabled, when it locks or unlocks (pen
 identity: give a hand-made field a stable `hrefFor` (the stores' and field groups' are), and keep a
 node's `icon` element the same object (a module constant) — a `nodes` function that builds icon
 JSX on every call rebuilds the data on every render. Nothing goes stale either way; only the
-speed-up is lost.
+speed-up is lost. A new `renderLabel` function rebuilds the data too.
+
+**Drawn labels.** All four tree widgets take `renderLabel={(node) => …}`, `node` the node's
+controls (`OneOfTreeNodeControls` / `TreeNodeControls`: its `value`, `label` and the rest). What it
+returns is drawn in the label's text's place, inside the label's look (`ChoiceLabel`: dimmed or
+the variant's colour, the icon first), with the note after it or aside, the node's tooltip, and in
+`OneOfTreeList` the row's link and the strong path; the open tree of either picker, its drawer
+included, draws it too. The label's text stays the text everywhere else: what the search matches,
+what a screen reader reads (the drawn content is `aria-hidden`, the text beside it out of sight),
+the pickers' closed field (label, path, tags, first words) and the confirmation's wording. `<Field>`
+and `<FieldWidget>` pass it on as any display prop; a field definition stays React-free. Keep the
+function the same (a module function, a `useCallback`): a new one rebuilds the tree data. Each row
+keeps its React identity across a rebuild — rc-tree keys the rows by value and a title's element
+tree stays the same — so a stateful component drawn there keeps its state when the node's label
+changes and its value does not (a spelling variant flipped), when the nodes are built anew, and
+while a search keeps the row shown; that is what lets a label light up as it changes. A row
+mounted anew (a closed node opened again) starts fresh, and so does what is drawn where the label's
+wrappers change: the node's tooltip coming or going (a description or a reason added or dropped,
+the field disabled or enabled), its `OneOfTreeList` link coming or going, the node joining or
+leaving the strong path (the value moving to another branch). In `OneOfTreeList` the node's `current`
+and `onPath` are as of the tree data's last build (a new value alone does not rebuild it): read the
+value from the field.
+
+```tsx
+// A module function: the same one on every render.
+const drawLabel = (node: OneOfTreeNodeControls) => (
+  <>{node.label}{isNew(node.value) && <> <Typography.Text mark>new</Typography.Text></>}</>
+);
+<FieldWidget field={toc} widget="list" renderLabel={drawLabel} />
+```
 
 An app's own links built from `hrefFor` (a previous / next pair) are as fresh as their
 component's last render: render them in a component that re-renders on location changes (one

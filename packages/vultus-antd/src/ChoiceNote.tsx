@@ -1,5 +1,5 @@
 import { theme } from 'antd';
-import type { JSX } from 'react';
+import type { JSX, ReactNode } from 'react';
 import type { OneOfChoiceControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
 
@@ -13,12 +13,14 @@ export function ChoiceNote({ note }: { note: string | undefined }): JSX.Element 
 /**
  * A choice's label and note in a plain open-list row, the note right-aligned
  * (OneOfSelect's and ManyOfSelect's rows; `ManyOfChoiceControls` extends
- * `OneOfChoiceControls`, so a many-of choice fits here too).
+ * `OneOfChoiceControls`, so a many-of choice fits here too). `label`, when
+ * given, shows in the label's text's place (ChoiceLabel's `children`: a tree
+ * picker's `renderLabel`).
  */
-export function ChoiceRow({ choice }: { choice: OneOfChoiceControls }): JSX.Element {
+export function ChoiceRow({ choice, label }: { choice: OneOfChoiceControls; label?: ReactNode }): JSX.Element {
   return (
     <span style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-      <ChoiceLabel choice={choice} />
+      <ChoiceLabel choice={choice}>{label}</ChoiceLabel>
       <ChoiceNote note={choice.note} />
     </span>
   );

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
@@ -7,6 +7,7 @@ import {
 } from 'vultus-core';
 import { ManyOfTreePicker } from '../ManyOfTreePicker.js';
 import { VultusProvider } from '../VultusProvider.js';
+import { labelProbes } from './helpers/labelProbe.js';
 import { measureTags, stopMeasuring } from './helpers/measureTags.js';
 import { openTooltips } from './helpers/tooltips.js';
 
@@ -556,5 +557,71 @@ describe('ManyOfTreePicker: field conventions', () => {
     await pick('Kombinatorika');
     expect(await screen.findByText('Change categories?')).toBeInTheDocument();
     expect(openTooltips()).toHaveLength(0);
+  });
+});
+
+describe('ManyOfTreePicker: renderLabel', () => {
+  const { renderLabel, counts, probeOf, clear } = labelProbes();
+  const LABELS: Record<Cat, string> = {
+    alg: 'Algebra', egy: 'Egyenletek', egyl: 'Egyenlőtlenségek', ossz: 'Összegzés',
+    komb: 'Kombinatorika', graf: 'Gráfok', lesz: 'Leszámlálás', geo: 'Geometria',
+  };
+  const VALUES = Object.keys(LABELS) as Cat[];
+
+  /** The value kept at the render site; the roots open (`expand: 'top'`). */
+  function Over({ nodes, value = ['egy'] }: { nodes: TreeNode<Cat>[]; value?: Cat[] }) {
+    const field = useManyOfTreeField<Cat>({ id: 'cats', label: 'Categories', nodes, value, onChange: () => {} });
+    return <ManyOfTreePicker field={field} renderLabel={renderLabel} />;
+  }
+  /** `nodes` copied, every object new, each node's own fields as `own` gives them (the values kept). */
+  const copy = (nodes: TreeNode<Cat>[], own: (node: TreeNode<Cat>) => Partial<TreeNode<Cat>> = () => ({})): TreeNode<Cat>[] =>
+    nodes.map((node) => ({ ...node, ...own(node), children: node.children && copy(node.children, own) }));
+
+  beforeEach(clear);
+
+  it("draws what it returns in the open tree's rows, in the label's place: the note aside, the look kept, the tooltip", async () => {
+    wrap(<><Over nodes={NODES} /><DescriptionColorProbe /></>);
+    await openTree();
+    // Algebra's row: the drawn label first, its note aside.
+    const algRow = probeOf('alg').closest<HTMLElement>('[style*="space-between"]')!;
+    expect(algRow.firstElementChild).toContainElement(probeOf('alg'));
+    expect(algRow.lastElementChild).toHaveTextContent('12');
+    // Gráfok dimmed.
+    expect(probeOf('graf').closest<HTMLElement>('span[style]')!.style.color).toBe(screen.getByTestId('probe').style.color);
+    fireEvent.mouseEnter(probeOf('alg'));
+    await waitFor(() => expect(screen.getByText('Equations and identities')).toBeInTheDocument());
+  });
+
+  it('the label stays the text: the tags, the search', async () => {
+    measureTags();
+    wrap(<Over nodes={NODES} value={['alg', 'graf']} />);
+    await waitFor(() => expect(tags()).toEqual(['Algebra', 'Gráfok']));
+    expect(root().querySelector('mark')).toBeNull();
+    await search('lesz');
+    await waitFor(() => expect(screen.queryByTestId('probe-egy')).toBeNull());
+    expect(probeOf('lesz')).toBeInTheDocument();
+    // The mark is in every drawn label, in no label's text.
+    await search('✱');
+    await waitFor(() => expect(treeRows()).toHaveLength(0));
+  });
+
+  it("(a) in the open tree, a node's label changes, its value stays: the drawn component keeps its state (no remount)", async () => {
+    const { rerender } = wrap(<Over nodes={NODES} />);
+    await openTree();
+    rerender(<AntApp><Over nodes={copy(NODES, (node) => ({ label: node.label.toUpperCase() }))} /></AntApp>);
+    await waitFor(() => expect(probeOf('egy')).toHaveTextContent('EGYENLETEK ✱'));
+    for (const value of VALUES) {
+      expect(probeOf(value), value).toHaveAttribute('data-first', LABELS[value]);
+      expect(counts(value).mounts, value).toBe(1);
+    }
+  });
+
+  it('(b) in the open tree, the nodes rebuilt as new objects with the same values: no remount', async () => {
+    const { rerender } = wrap(<Over nodes={copy(NODES)} />);
+    await openTree();
+    const renders = counts('egy').renders;
+    rerender(<AntApp><Over nodes={copy(NODES)} /></AntApp>);
+    await waitFor(() => expect(counts('egy').renders).toBeGreaterThan(renders));
+    for (const value of VALUES) expect(counts(value).mounts, value).toBe(1);
   });
 });

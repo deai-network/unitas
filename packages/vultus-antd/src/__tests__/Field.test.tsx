@@ -3,8 +3,8 @@ import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { App as AntApp } from 'antd';
 import { useState, type ReactNode } from 'react';
 import {
-  ArgStoreProvider, MessageSinkContext, denyWithReason, memoryStore, useBoolField, useManyOfField, useOneOfField,
-  useStoredField, type ErrorRoutesRegistry, type ExecutionContext, type FieldDefinition, type FieldKind,
+  ArgStoreProvider, MessageSinkContext, denyWithReason, memoryStore, useBoolField, useManyOfField, useManyOfTreeField,
+  useOneOfField, useStoredField, type ErrorRoutesRegistry, type ExecutionContext, type FieldDefinition, type FieldKind,
 } from 'vultus-core';
 import { Field } from '../Field.js';
 import { FieldWidget } from '../FieldWidget.js';
@@ -119,6 +119,14 @@ describe('Field: the widget for a definition', () => {
     expectWidget('manyOf', 'checkboxes');
     expect(document.querySelector('[data-field-id="rounds"]')).toHaveStyle({ flexDirection: 'row' });
   });
+
+  it.each([['oneOfTree', 'list'], ['manyOfTree', 'checklist']] as const)(
+    "%s %s: the render site's renderLabel reaches the widget, as a display prop",
+    (kind, name) => {
+      wrap(<Field definition={{ ...DEFINITIONS[kind], expand: 'all' }} widget={name} renderLabel={(node: { value: string }) => <mark>{node.value}</mark>} />);
+      expect(Array.from(document.querySelectorAll('mark')).map((m) => m.textContent)).toEqual(['alg', 'eq', 'ineq', 'geo']);
+    },
+  );
 
   it('a render-site prop given as undefined leaves the hint\'s option alone', () => {
     wrap(<Field definition={{ ...DEFINITIONS.manyOf, widget: { name: 'checkboxes', vertical: true } }} vertical={undefined} />);
@@ -441,6 +449,15 @@ describe('FieldWidget: the widget for controls a caller made', () => {
     wrap(<Topics widget="checkboxes" />);
     expectWidget('manyOf', 'checkboxes');
     expect(document.querySelector('[data-field-id="rounds"]')).toHaveStyle({ flexDirection: 'row' });
+  });
+
+  it("a tree widget's renderLabel goes to it, as the other display props", () => {
+    function Topics() {
+      const field = useManyOfTreeField({ id: 'topics', label: 'Topics', nodes: NODES, expand: 'all' });
+      return <FieldWidget field={field} widget="checklist" renderLabel={(node) => <mark>{node.value}</mark>} />;
+    }
+    wrap(<Topics />);
+    expect(Array.from(document.querySelectorAll('mark')).map((m) => m.textContent)).toEqual(['alg', 'eq', 'ineq', 'geo']);
   });
 
   it('item: a labelled form item around the widget', () => {

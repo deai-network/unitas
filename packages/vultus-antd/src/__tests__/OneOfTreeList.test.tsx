@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
@@ -9,6 +9,7 @@ import {
 import { Field } from '../Field.js';
 import { OneOfTreeList } from '../OneOfTreeList.js';
 import { NODE_FIELDS_ELSEWHERE, SHOWN_NODE_FIELDS } from '../useShownNodes.js';
+import { labelProbes } from './helpers/labelProbe.js';
 
 type Geo = 'geo' | 'sik' | 'kor' | 'ter' | 'alg';
 
@@ -857,5 +858,147 @@ describe('OneOfTreeList: in <Field>', () => {
     wrap(<Field definition={{ ...CATEGORY, widget: { name: 'list', search: true } }} />);
     expect(screen.getByRole('tree', { name: 'Category' })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Search Category' })).toBeInTheDocument();
+  });
+
+  it('renderLabel at the render site reaches the list', () => {
+    wrap(<Field definition={CATEGORY} widget="list" expand="all" renderLabel={(node: { value: string }) => <mark>{node.value}</mark>} />);
+    expect(row('Kör')!.querySelector('mark')).toHaveTextContent('kor');
+  });
+});
+
+describe('OneOfTreeList: renderLabel', () => {
+  const { renderLabel: probeLabel, counts, probeOf, clear } = labelProbes();
+  const VALUES: Geo[] = ['geo', 'sik', 'kor', 'ter', 'alg'];
+  const LABELS: Record<Geo, string> = { geo: 'Geometria', sik: 'Síkgeometria', kor: 'Kör', ter: 'Térgeometria', alg: 'Algebra' };
+
+  /**
+   * A table of contents as doc-kit's: the value kept at the render site (Kör, so Geometria and
+   * Síkgeometria are on its strong path), a link per node, every node open.
+   */
+  function Over({ nodes, search: withSearch }: { nodes: TreeNode<Geo>[]; search?: boolean }) {
+    const field = useOneOfTreeField<Geo>({
+      id: 'cat', label: 'Category', nodes, expand: 'all', value: 'kor', onChange: () => {}, hrefFor: toc,
+    });
+    return <OneOfTreeList field={field} search={withSearch} renderLabel={probeLabel} />;
+  }
+  /** `nodes` copied, every object new, each node's own fields as `own` gives them (the values kept). */
+  const copy = (nodes: TreeNode<Geo>[], own: (node: TreeNode<Geo>) => Partial<TreeNode<Geo>> = () => ({})): TreeNode<Geo>[] =>
+    nodes.map((node) => ({ ...node, ...own(node), children: node.children && copy(node.children, own) }));
+  /** Every label in capitals, the values kept: a spelling variant flipped. */
+  const respelt = (nodes: TreeNode<Geo>[]) => copy(nodes, (node) => ({ label: node.label.toUpperCase() }));
+
+  beforeEach(clear);
+
+  it("draws what it returns in the label's place, the look kept: the colours, the icon first, the note after, the strong path, the row's link, the tooltip", async () => {
+    const nodes = copy(GEO, (node) => (node.value === 'kor' ? { dimmed: true, icon: <span data-testid="kor-icon" /> }
+      : node.value === 'alg' ? { variant: 'primary' } : {}));
+    wrap(<Over nodes={nodes} />);
+    // Kör: dimmed, its icon first, the drawn label after it, its note after the label.
+    const korLabel = screen.getByTestId('kor-icon').parentElement!;
+    expect(korLabel.firstElementChild).toBe(screen.getByTestId('kor-icon'));
+    expect(korLabel).toContainElement(probeOf('kor'));
+    expect(korLabel.style.color).not.toBe('');
+    expect(probeOf('kor').closest('.ant-tree-title')!.textContent).toMatch(/ \(3\)$/);
+    // Algebra: the primary variant's weight.
+    expect(probeOf('alg').closest<HTMLElement>('span[style]')!.style.fontWeight).toBe('600');
+    // The strong path, the links.
+    expect(probeOf('geo').closest('strong')).not.toBeNull();
+    expect(probeOf('sik').closest('strong')).not.toBeNull();
+    expect(probeOf('alg').closest('strong')).toBeNull();
+    expect(probeOf('kor').closest('a')).toHaveAttribute('href', '#?toc=kor');
+    expect(probeOf('geo').closest('a')).toBeNull();
+    // The node's tooltip, hovering what was drawn.
+    fireEvent.mouseEnter(probeOf('alg'));
+    await waitFor(() => expect(screen.getByText('Equations and identities')).toBeInTheDocument());
+  });
+
+  it("the label stays the text everywhere else: the row's accessible name, the search", async () => {
+    wrap(<Over nodes={GEO} search />);
+    expect(screen.getByRole('treeitem', { name: 'Kör (3)' })).toContainElement(probeOf('kor'));
+    expect(screen.getByRole('treeitem', { name: 'Algebra' })).toContainElement(probeOf('alg'));
+    // The mark is in every drawn label, in no label's text.
+    search('✱');
+    await waitFor(() => expect(document.querySelector('.ant-empty')).not.toBeNull());
+    search('algebra');
+    await waitFor(() => expect(row('Algebra')).toBeInTheDocument());
+    expect(row('Kör')).toBeNull();
+  });
+
+  it('without it, a label is drawn as before: its text alone', () => {
+    wrap(<Inside initialValue="kor" />);
+    expect(label('Algebra').outerHTML).toBe('<span>Algebra</span>');
+    expect(label('Kör').outerHTML).toBe('<span>Kör</span>');
+  });
+
+  it("(a) a node's label changes, its value stays: the drawn component keeps its state (no remount) and gets the new label", async () => {
+    const { rerender } = wrap(<Over nodes={GEO} />);
+    await settled();
+    rerender(<AntApp><Over nodes={respelt(GEO)} /></AntApp>);
+    await waitFor(() => expect(probeOf('kor')).toHaveTextContent('KÖR ✱'));
+    await settled();
+    for (const value of VALUES) {
+      expect(probeOf(value), value).toHaveTextContent(`${LABELS[value].toUpperCase()} ✱`);
+      expect(probeOf(value), value).toHaveAttribute('data-first', LABELS[value]);
+      expect(counts(value).mounts, value).toBe(1);
+    }
+  });
+
+  it.each<[string, () => TreeNode<Geo>[], boolean]>([
+    ['the same fields', () => copy(GEO), false],
+    // A new icon element each time (a `nodes` function building JSX): the tree data is rebuilt.
+    ['a new icon element each time', () => copy(GEO, (node) => ({ icon: <span data-icon={node.value} /> })), true],
+  ])('(b) the nodes rebuilt as new objects with the same values, %s: no remount', async (_, build, rebuilt) => {
+    const { rerender } = wrap(<Over nodes={build()} />);
+    await settled();
+    const renders = counts('kor').renders;
+    rerender(<AntApp><Over nodes={build()} /></AntApp>);
+    await settled();
+    // The rows drew again only where the tree data was rebuilt.
+    if (rebuilt) expect(counts('kor').renders).toBeGreaterThan(renders);
+    else expect(counts('kor').renders).toBe(renders);
+    for (const value of VALUES) expect(counts(value).mounts, value).toBe(1);
+  });
+
+  it('(c) typing a search that keeps the node shown, then clearing it: no remount', async () => {
+    wrap(<Over nodes={GEO} search />);
+    await settled();
+    for (const query of ['k', 'kö', 'kör', '']) {
+      search(query);
+      await settled();
+      expect(row('Kör'), query).toBeInTheDocument();
+    }
+    for (const value of ['geo', 'sik', 'kor'] as const) expect(counts(value).mounts, value).toBe(1);
+  });
+
+  it("(c) a search that closes one folder (rc-tree's open/close motion) and back: the rows shown throughout keep their state", async () => {
+    wrap(<Over nodes={GEO} search />);
+    await settled();
+    // Térgeometria keeps Geometria open, Síkgeometria closes (one key: rc-tree's motion runs).
+    search('tér');
+    await settled();
+    expect(row('Kör')).toBeNull();
+    search('');
+    await waitFor(() => expect(row('Kör')).toBeInTheDocument());
+    await settled();
+    for (const value of ['geo', 'ter'] as const) expect(counts(value).mounts, value).toBe(1);
+    // Kör, under the folder that closed, mounts anew, as in (d).
+    expect(counts('kor').mounts).toBeGreaterThan(1);
+  });
+
+  it('(d) a folder closed and opened again: its children mount anew, their state fresh (wanted)', async () => {
+    const { rerender } = wrap(<Over nodes={GEO} />);
+    rerender(<AntApp><Over nodes={respelt(GEO)} /></AntApp>);
+    await settled();
+    expect(probeOf('kor')).toHaveAttribute('data-first', 'Kör');
+    fireEvent.click(label('GEOMETRIA')); // a folder: a click closes it
+    await settled();
+    expect(screen.queryByTestId('probe-kor')).toBeNull();
+    fireEvent.click(label('GEOMETRIA'));
+    await waitFor(() => expect(screen.queryByTestId('probe-kor')).not.toBeNull());
+    await settled();
+    expect(probeOf('kor')).toHaveAttribute('data-first', 'KÖR');
+    expect(counts('kor').mounts).toBeGreaterThan(1);
+    // The folder's own row stayed.
+    expect(counts('geo').mounts).toBe(1);
   });
 });

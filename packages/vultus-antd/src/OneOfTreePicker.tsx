@@ -1,5 +1,5 @@
 import { Drawer, TreeSelect, type TreeSelectProps } from 'antd';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type Key } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type Key, type ReactNode } from 'react';
 import {
   useSpinnerKey, useVultusComponents, type OneOfTreeFieldControls, type OneOfTreeNodeControls,
 } from 'vultus-core';
@@ -33,6 +33,16 @@ export interface OneOfTreePickerProps<T extends string> {
    * (on a narrow screen).
    */
   panel?: 'dropdown' | 'drawer';
+  /**
+   * What a node's label shows in the open tree (the dropdown's rows, the drawer's list), in its
+   * text's place (e.g. a component lighting up a label that changed): drawn in the label's look
+   * (ChoiceLabel: dimmed or the variant's colour, the icon first), the note aside, inside the
+   * node's tooltip. The label's text stays what the closed field shows (its label or path), what
+   * the search matches, and the accessible name. In the drawer the node's `current` and `onPath`
+   * are OneOfTreeList's (as of its tree data's last build). A new function rebuilds the tree data:
+   * keep it the same (a module function, a `useCallback`).
+   */
+  renderLabel?: (node: OneOfTreeNodeControls<T>) => ReactNode;
 }
 
 /** A tree data node with its `path`: the labels from its root down to it, joined. */
@@ -68,7 +78,8 @@ const OWN_ACTIONS = '.ant-select-clear';
  * from `field.expandedKeys` (the field's `expand`); each time it opens, the
  * chosen node's ancestors open too (the user's own expansion kept), so it
  * shows the value however that changed meanwhile. Each node shows its
- * label (ChoiceLabel: in the description colour while dimmed) with its note
+ * label (ChoiceLabel: in the description colour while dimmed; drawn by
+ * `renderLabel` if given, the closed field keeping the text) with its note
  * right-aligned (ChoiceRow) and its own tooltip to the side (choiceTooltip: a
  * disabled node's reason first, then its description). The tree is
  * `listHeight` high at most and `popupMatchSelectWidth` wide (520 and 480, as
@@ -118,7 +129,7 @@ const OWN_ACTIONS = '.ant-select-clear';
  * visible, and a Cancel keeps the drawer open. There is no Done button.
  */
 export function OneOfTreePicker<T extends string>({
-  field, size, style, listHeight = 520, popupMatchSelectWidth = 480, summary = 'label', panel = 'dropdown',
+  field, size, style, listHeight = 520, popupMatchSelectWidth = 480, summary = 'label', panel = 'dropdown', renderLabel,
 }: OneOfTreePickerProps<T>) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
@@ -144,10 +155,10 @@ export function OneOfTreePicker<T extends string>({
   // tree from new data.
   const data = useMemo(() => {
     const nodes = treeData(field.nodes, {
-      noteStyle: 'aside', tooltips: field.enabled, holdTooltips: asking, tooltipPlacement: 'right',
+      noteStyle: 'aside', tooltips: field.enabled, holdTooltips: asking, tooltipPlacement: 'right', renderLabel,
     });
     return summary === 'path' ? withPaths(nodes, texts.pathSeparator) : nodes;
-  }, [field.nodes, field.enabled, asking, summary, texts.pathSeparator]);
+  }, [field.nodes, field.enabled, asking, summary, texts.pathSeparator, renderLabel]);
   const parents = useMemo(() => parentValues(field.nodes), [field.nodes]);
   // Closes the drawer whenever field.value changes, whatever the source: a choice in the drawer
   // applied at once, a later commit under a confirmation, the URL, the Back button, or another
@@ -285,7 +296,7 @@ export function OneOfTreePicker<T extends string>({
         title={field.label || undefined}
       >
         {/* Nested: the select's root alone carries the field's data-field-id and data-value. */}
-        <OneOfTreeList field={field} search nested onChosen={chosen} />
+        <OneOfTreeList field={field} search renderLabel={renderLabel} nested onChosen={chosen} />
       </Drawer>
     </>
   );
