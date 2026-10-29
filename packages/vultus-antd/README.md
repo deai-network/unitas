@@ -64,7 +64,7 @@ so that one subtree can opt back into antd's own spinner under a provider that s
 
 Where vultus-antd shows it (all `size="small"`):
 
-| component | local key | where (a field widget: while it is pending, in its place, reserved idle too) |
+| component | local key | where (a field widget shows it while pending; where it has a place of its own, that place is reserved idle too) |
 |---|---|---|
 | `ActionButton`, `CombinedActionButton`, `FormSubmitButton` | `vultus:action:<id>` | the button's loading icon |
 | `ActionContextMenu` | `vultus:action:<id>` | a pending action's row, as its icon (without a lent Spinner, antd's small `Spin`) |
