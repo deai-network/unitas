@@ -310,6 +310,19 @@ describe('OneOfSegmented while pending (the app\'s own)', () => {
     expect(screen.getByRole('radio', { name: 'Manual' })).toBeChecked();
   });
 
+  it('holds the arrow keys (their default prevented: the browser moves no focus to another segment); Tab passes; unlocked, the arrows pass', () => {
+    const { rerender } = wrap(<Inside kind="OneOfSegmented" pending />);
+    const radio = screen.getByRole('radio', { name: 'Manual' });
+    for (const key of ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown']) {
+      expect(fireEvent.keyDown(radio, { key })).toBe(false);
+    }
+    expect(fireEvent.keyDown(radio, { key: 'Tab' })).toBe(true);
+    expect(shown()).toBe('manual');
+    rerender(<AntApp><Inside kind="OneOfSegmented" pending={false} /></AntApp>);
+    expect(fireEvent.keyDown(screen.getByRole('radio', { name: 'Manual' }), { key: 'ArrowRight' })).toBe(true);
+    expect(shown()).toBe('plan');
+  });
+
   it('keeps the disabled look: every segment in the disabled text colour, with the not-allowed cursor', () => {
     function DisabledColorProbe() {
       const { token } = theme.useToken();

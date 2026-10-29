@@ -82,9 +82,11 @@ export function useLockedSwitchClassNames(locked: boolean): { root: string } | u
  * not-allowed cursor, for the text in it; `style` adds antd's disabled
  * background, for its box. The border and the focus ring stay: the focus
  * does. The text and number inputs (TextInput, SearchInput, NumericInput)
- * take them as they are, `style` into the control's `style` (an Input's affix
- * wrapper, an InputNumber's root, a TextArea itself) and `text` as its
- * `styles.input`; the selects and trees build on them.
+ * take them as they are: `style` into the control's `style` (an Input's affix
+ * wrapper, an InputNumber's root, a TextArea itself), and `text` as the
+ * `styles.input` of a control that has one (a TextArea takes `style` alone,
+ * which holds `text`). OneOfSegmented takes `text` for its segments; the
+ * selects and trees build on them.
  */
 export function useLockedLook(locked: boolean): { style?: CSSProperties; text?: CSSProperties } {
   const { token } = theme.useToken();
@@ -96,13 +98,13 @@ export function useLockedLook(locked: boolean): { style?: CSSProperties; text?: 
 /**
  * A locked antd Select's or TreeSelect's look, through theme tokens: the look
  * `disabled` gave it (useLockedLook). `style` goes into the control's `style`
- * (a TreeSelect also hands `styles.root` to its popup): antd's disabled text colour and
- * background, the not-allowed cursor. `styles` is its `styles`: the same
- * colour and cursor on its search input, and no remove icon on its tags (a
- * disabled select's have none). The clear icon, a button that may hold the
- * focus, stays mounted, out of sight and out of the pointer's reach (a
- * disabled select has none; its request is refused like any other), and the
- * suffix (the spinner) stays shown on hover, where antd hides it for the
+ * (a TreeSelect also hands `styles.root` to its popup): antd's disabled text
+ * colour and background, the not-allowed cursor. `styles` is its `styles`:
+ * the same colour and cursor on its search input, and no remove icon on its
+ * tags (a disabled select's have none). The clear icon, a button that may
+ * hold the focus, stays mounted, out of sight and out of the pointer's reach
+ * (a disabled select has none; its request is refused like any other), and
+ * the suffix (the spinner) stays shown on hover, where antd hides it for the
  * clear icon (TreeSelect's `styles` type lacks `clear`, but antd hands it on).
  * Both undefined when not `locked`. The focus ring stays: the focus does.
  */
@@ -123,8 +125,29 @@ export function useLockedSelectLook(locked: boolean): {
   };
 }
 
-/** The keys rc-slider moves a focused handle with. */
-const SLIDER_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown']);
+/** The arrow keys: a radio group (a Segmented's segments) moves its choice, and the focus, with them. */
+export const ARROW_KEYS: ReadonlySet<string> = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
+
+/** The keys rc-slider moves a focused handle with: the arrows, Home, End, PageUp and PageDown. */
+const SLIDER_KEYS: ReadonlySet<string> = new Set([...ARROW_KEYS, 'Home', 'End', 'PageUp', 'PageDown']);
+
+/**
+ * A locked control's key hold, as the `onKeyDownCapture` of an element around its focusable parts
+ * (undefined when not `locked`): the keydown of each of `keys` never reaches the control, and its
+ * default is prevented, so neither the control nor the browser acts on it (no native move of the
+ * focus, no scroll). Every other key passes, Tab included. OneOfSegmented holds the arrows with it,
+ * the sliders their handle keys (useLockedSlider).
+ */
+export function holdKeys(
+  locked: boolean, keys: ReadonlySet<string>,
+): ((e: KeyboardEvent<HTMLElement>) => void) | undefined {
+  if (!locked) return undefined;
+  return (e) => {
+    if (!keys.has(e.key)) return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+}
 
 /**
  * A locked antd Slider (OneOfSlider, NumericSlider, RangeSlider): its `classNames`, and the `ref`
@@ -137,16 +160,17 @@ const SLIDER_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 
  * Slider prop reaches a handle's `aria-disabled` (rc-slider renders it from `disabled` alone, which
  * takes the handle out of the tab order), so it is set on the handles after every render; React
  * leaves it alone while the Slider's own value for it stays the same, and it is put back when the
- * lock ends. Through `onKeyDownCapture`, the keydown of a key that moves a handle (the arrows, Home,
- * End, PageUp, PageDown) never reaches the Slider while locked, its default prevented (the page does
- * not scroll): the move would be held anyway, but rc-slider would still move the focus to the handle
- * holding the value the key asked for, the other end of a range. Its keyup still reaches the Slider,
- * harmlessly: the move it ends requests nothing (refused while pending). Tab and every other key pass. A drag, a rail
- * or a mark click still reach the Slider: the widget holds those moves itself.
+ * lock ends. Through `onKeyDownCapture` (holdKeys), the keydown of a key that moves a handle (the
+ * arrows, Home, End, PageUp, PageDown) never reaches the Slider while locked, its default prevented
+ * (the page does not scroll): the move would be held anyway, but rc-slider would still move the focus
+ * to the handle holding the value the key asked for, the other end of a range. Its keyup still
+ * reaches the Slider, harmlessly: the move it ends requests nothing (refused while pending). Tab and
+ * every other key pass. A drag, a rail or a mark click still reach the Slider: the widget holds those
+ * moves itself.
  */
 export function useLockedSlider(field: { enabled: boolean; pending: boolean }): {
   ref: RefObject<HTMLSpanElement | null>;
-  onKeyDownCapture: (e: KeyboardEvent<HTMLElement>) => void;
+  onKeyDownCapture: ((e: KeyboardEvent<HTMLElement>) => void) | undefined;
   classNames: { root: string } | undefined;
 } {
   const { getPrefixCls } = useContext(ConfigProvider.ConfigContext);
@@ -161,12 +185,11 @@ export function useLockedSlider(field: { enabled: boolean; pending: boolean }): 
       if (handle.getAttribute('aria-disabled') !== unavailable) handle.setAttribute('aria-disabled', unavailable);
     });
   });
-  const onKeyDownCapture = (e: KeyboardEvent<HTMLElement>) => {
-    if (!locked || !SLIDER_KEYS.has(e.key)) return;
-    e.preventDefault();
-    e.stopPropagation();
+  return {
+    ref,
+    onKeyDownCapture: holdKeys(locked, SLIDER_KEYS),
+    classNames: locked ? { root: `${getPrefixCls('slider')}-disabled` } : undefined,
   };
-  return { ref, onKeyDownCapture, classNames: locked ? { root: `${getPrefixCls('slider')}-disabled` } : undefined };
 }
 
 /**

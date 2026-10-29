@@ -92,15 +92,16 @@ change. A locked widget
 
 - keeps the keyboard focus, and Tab still reaches it;
 - is said to be unavailable: `aria-disabled="true"` on its focusable or role element (the
-  radiogroup, switch, checkbox, combobox, slider handle, tree, textbox);
+  radiogroup, switch, checkbox, combobox, slider handle, tree, textbox, spinbutton);
 - looks as a disabled one does (antd's disabled colours and the not-allowed cursor, through theme
   tokens and antd's own disabled classes; the focus ring stays), its spinner showing as before;
 - changes nothing: a click, a key, typing or a drag requests nothing. A select's or tree picker's
   list closes and stays closed until pending ends (its clear icon out of sight, no remove icon on
   its tags); a text or number input is read-only, keeping a draft typed before pending started; a
-  slider's handle stays on the field's value; a tree's selection and checks stay the field's, its
-  arrows still moving and opening nodes, and a tree link keeps its element (a focused one keeps
-  the focus) but follows nothing.
+  segmented's arrow keys leave the focus on its checked segment; a slider's handle stays on the
+  field's value, the focus on the handle it was on; a tree's selection and checks stay the
+  field's, its arrows still moving and opening nodes, and a tree link keeps its element (a focused
+  one keeps the focus) but follows nothing.
 
 When pending ends the widget is back to normal, the focus where the user left it. A field that is
 not enabled is disabled as ever, pending or not, with its reason.
