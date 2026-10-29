@@ -2,6 +2,7 @@ import { Input, Spin } from 'antd';
 import type { ChangeEvent, CSSProperties, ReactElement } from 'react';
 import { useSpinnerKey, useVultusComponents, type TextFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { isLocked, useLockedInputLook } from './pendingLock.js';
 import { useTextDraft } from './useTextDraft.js';
 import { useVultusTexts } from './texts.js';
 import { splitLayout, withTooltip } from './WithReason.js';
@@ -27,7 +28,10 @@ export interface TextInputProps {
  * (useTextDraft), so a value stored later than the keystroke (an app's
  * asynchronous onChange, the URL store) keeps the caret and every character;
  * the draft follows the field's value whenever it changes other than through
- * this widget's own requests.
+ * this widget's own requests. While the field is pending (a commit runs, or
+ * its `pending` option says the app is busy) it is locked (isLocked): it is
+ * read-only, not disabled, so it keeps the keyboard focus and its draft, is
+ * said unavailable, and typing changes nothing.
  */
 export function TextInput({ field, style }: TextInputProps) {
   const texts = useVultusTexts();
@@ -35,16 +39,20 @@ export function TextInput({ field, style }: TextInputProps) {
   const { value, change, commit, wrap, asking } = useTextDraft(field);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
+  const locked = isLocked(field);
+  const lockedLook = useLockedInputLook(locked);
   if (!field.visible) return null;
-  const disabled = !field.enabled || field.pending;
-  const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => change(e.target.value);
+  // Locked, a change goes nowhere: read-only stops typing, this any change that gets past it.
+  const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { if (!locked) change(e.target.value); };
   const spinner = field.pending
     ? (Spinner ? <Spinner spinnerKey={spinnerKey} size="small" /> : <Spin size="small" />)
     : null;
   const sharedProps = {
     value,
     placeholder: field.placeholder,
-    disabled,
+    disabled: !field.enabled,
+    readOnly: locked,
+    'aria-disabled': locked || undefined,
     onChange,
     onBlur: field.commits ? commit : undefined,
     'aria-label': field.label || undefined,
@@ -57,7 +65,7 @@ export function TextInput({ field, style }: TextInputProps) {
   const control: ReactElement = field.control === 'textarea'
     ? (
       <span style={{ display: 'flex', alignItems: 'flex-start', gap: 8, width }}>
-        <Input.TextArea {...sharedProps} style={{ minWidth: 220, ...rest, flex: 1 }} />
+        <Input.TextArea {...sharedProps} style={{ minWidth: 220, ...rest, flex: 1, ...lockedLook.style }} />
         {spinner}
       </span>
     )
@@ -70,7 +78,8 @@ export function TextInput({ field, style }: TextInputProps) {
         // focus (its own dev warning) — an always-present (if sometimes empty) slot keeps the
         // wrapper stable instead.
         suffix={spinner ?? <></>}
-        style={{ minWidth: 200, ...style }}
+        style={{ minWidth: 200, ...style, ...lockedLook.style }}
+        styles={lockedLook.text && { input: lockedLook.text }}
       />
     );
   // Without a width, antd's Input fills its container: so does the tooltip's span (always there, see withTooltip).

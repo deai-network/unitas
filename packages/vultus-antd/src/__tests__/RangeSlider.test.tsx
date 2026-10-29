@@ -159,3 +159,56 @@ describe('RangeSlider', () => {
     expect(screen.queryAllByRole('slider')).toHaveLength(0);
   });
 });
+
+describe('RangeSlider while pending', () => {
+  it('the app\'s own: locked, not disabled: both handles keep their tab stops, are said unavailable; an arrow key requests nothing, the handles stay', () => {
+    wrap(<Inside pending />);
+    for (const handle of handles()) {
+      expect(handle).toHaveAttribute('tabindex', '0');
+      expect(handle).not.toHaveClass('ant-slider-handle-disabled');
+      expect(handle).toHaveAttribute('aria-disabled', 'true');
+    }
+    expect(document.querySelector('.ant-slider')).toHaveClass('ant-slider-disabled');
+    const [from, to] = handles();
+    fireEvent.keyDown(from, { key: 'ArrowRight', keyCode: 39 });
+    expect(from).toHaveAttribute('aria-valuenow', '2012');
+    fireEvent.keyUp(from, { key: 'ArrowRight', keyCode: 39 });
+    press(to, 'ArrowLeft', 37);
+    expect(from).toHaveAttribute('aria-valuenow', '2012');
+    expect(to).toHaveAttribute('aria-valuenow', '2020');
+    expect(shown()).toBe('2012,2020');
+  });
+
+  it('its commit: the handles stay on the requested ends, a further move requests nothing; back to normal after', async () => {
+    let finish!: () => void;
+    const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    wrap(<Committed fire={fire} />);
+    const [from, to] = handles();
+    press(to, 'ArrowRight', 39);
+    await waitFor(() => expect(fire).toHaveBeenCalledWith([2012, 2021]));
+    await waitFor(() => expect(to).toHaveAttribute('aria-disabled', 'true'));
+    expect(from).toHaveAttribute('aria-disabled', 'true');
+    expect(to).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(to, { key: 'ArrowRight', keyCode: 39 });
+    expect(to).toHaveAttribute('aria-valuenow', '2021');
+    fireEvent.keyUp(to, { key: 'ArrowRight', keyCode: 39 });
+    press(from, 'ArrowRight', 39);
+    expect(from).toHaveAttribute('aria-valuenow', '2012');
+    expect(to).toHaveAttribute('aria-valuenow', '2021');
+    expect(fire).toHaveBeenCalledTimes(1);
+    await act(async () => { finish(); });
+    expect(shown()).toBe('2012,2021');
+    expect(from).toHaveAttribute('aria-disabled', 'false');
+    expect(to).toHaveAttribute('aria-disabled', 'false');
+    expect(document.querySelector('.ant-slider')).not.toHaveClass('ant-slider-disabled');
+  });
+
+  it('not enabled and pending: disabled as before', () => {
+    wrap(<Inside pending enabled={denyWithReason('Locked for this report')} />);
+    for (const handle of handles()) {
+      expect(handle).not.toHaveAttribute('tabindex');
+      expect(handle).toHaveClass('ant-slider-handle-disabled');
+      expect(handle).toHaveAttribute('aria-disabled', 'true');
+    }
+  });
+});

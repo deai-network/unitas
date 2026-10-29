@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { App as AntApp } from 'antd';
+import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
 import { denyWithReason, useNumericField, type FieldCommit, type NumericFieldOptions } from 'vultus-core';
 import { NumericInput } from '../NumericInput.js';
@@ -143,6 +143,116 @@ describe('NumericInput', () => {
   });
 });
 
+/** A committed numeric field the app holds pending (its `pending` option) while "Settle" is toggled on. */
+function Settling() {
+  const [stored, setStored] = useState(10);
+  const [pending, setPending] = useState(false);
+  const field = useNumericField({
+    id: 'count', label: 'Count', min: 0, max: 100, value: stored, pending,
+    commit: { fire: (next) => { setStored(next); } },
+  });
+  return <><NumericInput field={field} /><output>{field.value}</output><button onClick={() => setPending((p) => !p)}>Settle</button></>;
+}
+
+/** antd's disabled text colour and background, as this theme renders them inline. */
+function DisabledLookProbe() {
+  const { token } = theme.useToken();
+  return <span data-testid="probe" style={{ color: token.colorTextDisabled, background: token.colorBgContainerDisabled }} />;
+}
+
+describe('NumericInput while pending', () => {
+  it('the app\'s own: read-only, not disabled, said unavailable, no steppers; typing, an arrow key and Enter request nothing', () => {
+    wrap(<Inside pending initialValue={10} />);
+    expect(input()).not.toBeDisabled();
+    expect(input()).toHaveAttribute('readonly');
+    expect(input()).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByLabelText('Increase Value')).toBeNull();
+    type('55');
+    expect(input()).toHaveAttribute('aria-valuenow', '10');
+    fireEvent.keyDown(input(), { key: 'ArrowUp' });
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    fireEvent.blur(input());
+    expect(input()).toHaveAttribute('aria-valuenow', '10');
+    expect(input()).toHaveValue('10');
+    expect(shown()).toBe('10');
+  });
+
+  it('keeps the look of a disabled input: the disabled text colour and background, the not-allowed cursor', () => {
+    wrap(<><Inside pending /><DisabledLookProbe /></>);
+    const probe = screen.getByTestId('probe').style;
+    expect(probe.color).not.toBe('');
+    const root = document.querySelector<HTMLElement>('.ant-input-number')!;
+    expect(root.style.color).toBe(probe.color);
+    expect(root.style.background).toBe(probe.background);
+    expect(root.style.cursor).toBe('not-allowed');
+    expect(input().style.color).toBe(probe.color);
+    expect(input().style.cursor).toBe('not-allowed');
+  });
+
+  it('a draft typed before pending starts is kept while pending and after it, then requested as ever', async () => {
+    wrap(<Settling />);
+    type('55');
+    fireEvent.click(screen.getByText('Settle'));
+    expect(input()).toHaveAttribute('readonly');
+    expect(input()).toHaveValue('55');
+    fireEvent.click(screen.getByText('Settle'));
+    expect(input()).not.toHaveAttribute('readonly');
+    expect(input()).toHaveValue('55');
+    expect(shown()).toBe('10');
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    await waitFor(() => expect(shown()).toBe('55'));
+  });
+
+  it('an arrow key on an emptied draft while pending leaves it empty', () => {
+    wrap(<Settling />);
+    type('');
+    fireEvent.click(screen.getByText('Settle'));
+    fireEvent.keyDown(input(), { key: 'ArrowUp' });
+    expect(input()).toHaveValue('');
+    expect(shown()).toBe('10');
+  });
+
+  it('its commit: read-only while it runs, typing changes nothing; back to normal after', async () => {
+    let finish!: () => void;
+    const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    wrap(<Committed fire={fire} />);
+    type('55');
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    await waitFor(() => expect(fire).toHaveBeenCalledWith(55));
+    expect(input()).not.toBeDisabled();
+    expect(input()).toHaveAttribute('readonly');
+    expect(input()).toHaveAttribute('aria-disabled', 'true');
+    type('77');
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    expect(input()).toHaveAttribute('aria-valuenow', '55');
+    expect(fire).toHaveBeenCalledTimes(1);
+    await act(async () => { finish(); });
+    expect(shown()).toBe('55');
+    expect(input()).toHaveValue('55');
+    expect(input()).not.toHaveAttribute('readonly');
+    expect(input()).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('a failed commit: the input shows the stored value again', async () => {
+    let fail!: () => void;
+    const fire = vi.fn(() => new Promise<void>((_resolve, reject) => { fail = () => reject(new Error('refused')); }));
+    wrap(<Committed fire={fire} />);
+    type('55');
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    await waitFor(() => expect(fire).toHaveBeenCalledWith(55));
+    await act(async () => { fail(); });
+    await waitFor(() => expect(input()).toHaveValue('10'));
+    expect(shown()).toBe('10');
+  });
+
+  it('not enabled and pending: disabled as before, not read-only', () => {
+    wrap(<Inside pending enabled={denyWithReason('Locked for this task')} />);
+    expect(input()).toBeDisabled();
+    expect(input()).not.toHaveAttribute('readonly');
+    expect(input()).not.toHaveAttribute('aria-disabled');
+  });
+});
+
 function SliderInside({ showValue, ...opts }: { showValue?: boolean } & Partial<Omit<NumericFieldOptions, 'value' | 'onChange' | 'commit'>>) {
   const field = useNumericField({
     id: 'volume', label: 'Volume', description: 'How loud notifications play.', min: 0, max: 10, initialValue: 5, ...opts,
@@ -274,5 +384,46 @@ describe('NumericSlider', () => {
   it('renders nothing when hidden', () => {
     wrap(<SliderInside hidden />);
     expect(screen.queryByRole('slider')).toBeNull();
+  });
+});
+
+describe('NumericSlider while pending', () => {
+  it('the app\'s own: locked, not disabled: the handle keeps its tab stop, is said unavailable; an arrow key requests nothing, the handle stays', () => {
+    wrap(<SliderInside pending />);
+    expect(handle()).toHaveAttribute('tabindex', '0');
+    expect(handle()).not.toHaveClass('ant-slider-handle-disabled');
+    expect(handle()).toHaveAttribute('aria-disabled', 'true');
+    expect(document.querySelector('.ant-slider')).toHaveClass('ant-slider-disabled');
+    fireEvent.keyDown(handle(), { key: 'ArrowRight', keyCode: 39 });
+    expect(handle()).toHaveAttribute('aria-valuenow', '5');
+    fireEvent.keyUp(handle(), { key: 'ArrowRight', keyCode: 39 });
+    expect(handle()).toHaveAttribute('aria-valuenow', '5');
+    expect(shown()).toBe('5');
+  });
+
+  it('its commit: the handle stays on the requested value, a further move requests nothing; back to normal after', async () => {
+    let finish!: () => void;
+    const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    wrap(<SliderCommitted fire={fire} />);
+    press('ArrowRight', 39);
+    await waitFor(() => expect(fire).toHaveBeenCalledWith(6));
+    await waitFor(() => expect(handle()).toHaveAttribute('aria-disabled', 'true'));
+    expect(handle()).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(handle(), { key: 'ArrowRight', keyCode: 39 });
+    expect(handle()).toHaveAttribute('aria-valuenow', '6');
+    fireEvent.keyUp(handle(), { key: 'ArrowRight', keyCode: 39 });
+    expect(handle()).toHaveAttribute('aria-valuenow', '6');
+    expect(fire).toHaveBeenCalledTimes(1);
+    await act(async () => { finish(); });
+    expect(shown()).toBe('6');
+    expect(handle()).toHaveAttribute('aria-disabled', 'false');
+    expect(document.querySelector('.ant-slider')).not.toHaveClass('ant-slider-disabled');
+  });
+
+  it('not enabled and pending: disabled as before', () => {
+    wrap(<SliderInside pending enabled={denyWithReason('Muted for this call')} />);
+    expect(handle()).not.toHaveAttribute('tabindex');
+    expect(handle()).toHaveClass('ant-slider-handle-disabled');
+    expect(handle()).toHaveAttribute('aria-disabled', 'true');
   });
 });

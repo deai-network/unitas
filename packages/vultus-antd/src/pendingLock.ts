@@ -1,5 +1,5 @@
 import { ConfigProvider, theme } from 'antd';
-import { useContext, type CSSProperties } from 'react';
+import { useContext, useLayoutEffect, useRef, type CSSProperties, type RefObject } from 'react';
 
 /**
  * Whether a field widget is locked: its field is enabled and pending (a
@@ -67,6 +67,50 @@ export function useLockedSelectLook(locked: boolean): {
     style: { ...text, background: token.colorBgContainerDisabled },
     styles: { input: text, itemRemove: { display: 'none' } },
   };
+}
+
+/**
+ * A locked antd Slider (OneOfSlider, NumericSlider, RangeSlider): its `classNames`, and the `ref`
+ * for an element around it. The classNames (undefined when not locked) put antd's own disabled
+ * class on the slider, under the app's prefix, so the rail, track, dots, marks and the handle at
+ * rest keep the look `disabled` gave them, the not-allowed cursor included. The handle's own
+ * disabled class stays off: antd styles a handle's focus and hover through one rule, which that
+ * class turns off, and the focus ring stays, as the focus does. Through `ref`, each handle
+ * (`role="slider"`) is said to be unavailable (`aria-disabled="true"`) while locked: no Slider
+ * prop reaches a handle's `aria-disabled` (rc-slider renders it from `disabled` alone, which takes
+ * the handle out of the tab order), so it is set on the handles after each render; React leaves it
+ * alone while the Slider's own value for it stays the same, and it is put back when the lock ends.
+ */
+export function useLockedSlider(field: { enabled: boolean; pending: boolean }): {
+  ref: RefObject<HTMLSpanElement | null>;
+  classNames: { root: string } | undefined;
+} {
+  const { getPrefixCls } = useContext(ConfigProvider.ConfigContext);
+  const ref = useRef<HTMLSpanElement>(null);
+  const locked = isLocked(field);
+  // Unavailable while not enabled (rc-slider's own value then) or locked.
+  const unavailable = String(!field.enabled || locked);
+  useLayoutEffect(() => {
+    ref.current?.querySelectorAll('[role="slider"]').forEach((handle) => {
+      if (handle.getAttribute('aria-disabled') !== unavailable) handle.setAttribute('aria-disabled', unavailable);
+    });
+  });
+  return { ref, classNames: locked ? { root: `${getPrefixCls('slider')}-disabled` } : undefined };
+}
+
+/**
+ * A locked text or number input's look (TextInput, SearchInput, NumericInput), through theme
+ * tokens: the look `disabled` gave it. `style` goes into the control's `style` (its box: an
+ * Input's affix wrapper, an InputNumber's root, a TextArea itself): antd's disabled text colour
+ * and background, the not-allowed cursor. `text` is the same colour and cursor for the text
+ * element inside the box (`styles.input`). Both undefined when not `locked`. The border and the
+ * focus ring stay: the focus does.
+ */
+export function useLockedInputLook(locked: boolean): { style?: CSSProperties; text?: CSSProperties } {
+  const { token } = theme.useToken();
+  if (!locked) return {};
+  const text: CSSProperties = { color: token.colorTextDisabled, cursor: 'not-allowed' };
+  return { style: { ...text, background: token.colorBgContainerDisabled }, text };
 }
 
 /**

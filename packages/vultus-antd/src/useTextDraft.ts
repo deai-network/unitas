@@ -16,7 +16,10 @@ import { useFieldRequest } from './useFieldRequest.js';
  * (an app that stores asynchronously, a store that renders later): the draft is already there or
  * further on. A request is a no-op when it names the last value requested (or, with none still
  * landing, the field's value), so typing back to the stored value while a change is on its way
- * still requests it.
+ * still requests it. When the field stops being pending, or a confirmation closes, the draft
+ * adopts the field's value if it changed meanwhile or a request of the widget's own was in flight
+ * (committed, failed or cancelled: the stored value shows again); the app's own pending over
+ * with nothing new (the field's `pending` option), the draft stays as typed, not yet requested.
  */
 export function useTextDraft(field: TextFieldControls): {
   value: string;
@@ -39,6 +42,11 @@ export function useTextDraft(field: TextFieldControls): {
     equal: (next, value) => next === (landing.current.at(-1) ?? value),
   });
   const [draft, setDraft] = useState(field.value);
+  /** The field's value the draft last adopted. */
+  const adopted = useRef(field.value);
+  /** A request of the widget's own was taken since the draft last adopted the field's value. */
+  const requested = useRef(false);
+  const take = (next: string) => { if (request(next)) requested.current = true; };
   const inFlight = asking || field.pending;
   useEffect(() => {
     const own = landing.current.indexOf(field.value);
@@ -47,18 +55,23 @@ export function useTextDraft(field: TextFieldControls): {
       return;
     }
     landing.current = [];
-    if (!inFlight) setDraft(field.value);
+    if (inFlight) return;
+    // The app's own pending over, nothing new: the draft stays as typed.
+    if (field.value === adopted.current && !requested.current) return;
+    adopted.current = field.value;
+    requested.current = false;
+    setDraft(field.value);
   }, [field.value, inFlight]);
   return {
     value: draft,
     change: (next) => {
       setDraft(next);
-      if (!field.commits) request(next);
+      if (!field.commits) take(next);
     },
-    commit: () => request(draft),
+    commit: () => take(draft),
     clear: () => {
       setDraft('');
-      request('');
+      take('');
     },
     wrap,
     asking,

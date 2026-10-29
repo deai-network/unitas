@@ -2,6 +2,7 @@ import { Slider } from 'antd';
 import { useState, type CSSProperties, type MouseEvent } from 'react';
 import type { NumberRange, RangeFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { useLockedSlider } from './pendingLock.js';
 import { useFieldRequest } from './useFieldRequest.js';
 import { sliderStyle, useSliderMove } from './useSliderMove.js';
 import { useVultusTexts } from './texts.js';
@@ -30,13 +31,18 @@ const equalRange = (a: NumberRange, b: NumberRange): boolean => a[0] === b[0] &&
  * owner's slider rule (no jump back to the old value while a request is in
  * flight — vultus-field-model-design item 26), the moved-to ends stay shown
  * while the confirmation is open or the commit is pending (useSliderMove,
- * shared with NumericSlider).
+ * shared with NumericSlider). While the field is pending (a commit runs, or
+ * its `pending` option says the app is busy) it is locked (isLocked,
+ * useLockedSlider: the handles keep the keyboard focus, are said
+ * unavailable, and an arrow key or a drag neither moves them nor requests
+ * anything).
  */
 export function RangeSlider({ field, style, showValue }: RangeSliderProps) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { request, wrap, asking } = useFieldRequest<NumberRange>(field, { equal: equalRange });
   const move = useSliderMove<NumberRange>({ value: field.value, pending: field.pending, asking, request });
+  const lockedSlider = useLockedSlider(field);
   const [onHandle, setOnHandle] = useState(false);
   if (!field.visible) return null;
   const slider = (
@@ -46,7 +52,8 @@ export function RangeSlider({ field, style, showValue }: RangeSliderProps) {
       max={field.max}
       step={field.step}
       value={move.value}
-      disabled={!field.enabled || field.pending}
+      disabled={!field.enabled}
+      classNames={lockedSlider.classNames}
       onChange={(value: number[]) => move.onChange(value as NumberRange)}
       onChangeComplete={(value: number[]) => move.onChangeComplete(value as NumberRange)}
       tooltip={{ formatter: (value?: number) => (value === undefined ? '' : field.format(value)) }}
@@ -57,6 +64,7 @@ export function RangeSlider({ field, style, showValue }: RangeSliderProps) {
   // antd's Slider puts no data-* attributes on its root: a wrapper carries them.
   const body = (
     <span
+      ref={lockedSlider.ref}
       data-field-id={field.id}
       data-value={`${field.value[0]}..${field.value[1]}`}
       aria-description={fieldAccessibleDescription(field, texts)}

@@ -2,6 +2,7 @@ import { Slider } from 'antd';
 import { useState, type CSSProperties, type MouseEvent } from 'react';
 import type { NumericFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { useLockedSlider } from './pendingLock.js';
 import { useNumericRequest } from './useNumericRequest.js';
 import { sliderStyle, useSliderMove } from './useSliderMove.js';
 import { useVultusTexts } from './texts.js';
@@ -28,13 +29,18 @@ export interface NumericSliderProps {
  * is open. Per the owner's slider rule (no jump back to the old value while
  * a request is in flight — vultus-field-model-design item 26), the
  * moved-to value stays shown while the confirmation is open or the commit
- * is pending (useSliderMove, shared with RangeSlider).
+ * is pending (useSliderMove, shared with RangeSlider). While the field is
+ * pending (a commit runs, or its `pending` option says the app is busy) it
+ * is locked (isLocked, useLockedSlider: the handle keeps the keyboard focus,
+ * is said unavailable, and an arrow key or a drag neither moves it nor
+ * requests anything).
  */
 export function NumericSlider({ field, style, showValue }: NumericSliderProps) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { request, wrap, asking } = useNumericRequest(field);
   const move = useSliderMove<number>({ value: field.value, pending: field.pending, asking, request });
+  const lockedSlider = useLockedSlider(field);
   const [onHandle, setOnHandle] = useState(false);
   if (field.min === undefined || field.max === undefined) {
     throw new Error(`Field '${field.id}': NumericSlider needs min and max`);
@@ -46,7 +52,8 @@ export function NumericSlider({ field, style, showValue }: NumericSliderProps) {
       max={field.max}
       step={field.step}
       value={move.value}
-      disabled={!field.enabled || field.pending}
+      disabled={!field.enabled}
+      classNames={lockedSlider.classNames}
       onChange={move.onChange}
       onChangeComplete={move.onChangeComplete}
       tooltip={{ formatter: (value?: number) => (value === undefined ? '' : field.format(value)) }}
@@ -57,6 +64,7 @@ export function NumericSlider({ field, style, showValue }: NumericSliderProps) {
   // antd's Slider puts no data-* attributes on its root: a wrapper carries them.
   const body = (
     <span
+      ref={lockedSlider.ref}
       data-field-id={field.id}
       data-value={String(field.value)}
       aria-description={fieldAccessibleDescription(field, texts)}

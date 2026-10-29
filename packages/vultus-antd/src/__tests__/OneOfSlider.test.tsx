@@ -246,3 +246,51 @@ describe('OneOfSlider', () => {
     expect(screen.queryByRole('slider')).toBeNull();
   });
 });
+
+describe('OneOfSlider while pending', () => {
+  it('the app\'s own: locked, not disabled: the handle keeps its tab stop, is said unavailable; an arrow key or a mark click requests nothing, the handle stays', () => {
+    wrap(<Inside pending />);
+    expect(handle()).toHaveAttribute('tabindex', '0');
+    expect(handle()).not.toHaveClass('ant-slider-handle-disabled');
+    expect(handle()).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.keyDown(handle(), { key: 'ArrowRight', keyCode: 39 });
+    expect(handle()).toHaveAttribute('aria-valuenow', '1');
+    fireEvent.keyUp(handle(), { key: 'ArrowRight', keyCode: 39 });
+    fireEvent.click(mark('High'));
+    expect(handle()).toHaveAttribute('aria-valuenow', '1');
+    expect(shown()).toBe('medium');
+  });
+
+  it('keeps the look of a disabled slider (antd\'s own disabled class on it)', () => {
+    wrap(<Inside pending />);
+    expect(document.querySelector('.ant-slider')).toHaveClass('ant-slider-disabled');
+  });
+
+  it('its commit: the handle stays on the requested choice, a further move requests nothing; back to normal after', async () => {
+    let finish!: () => void;
+    const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    wrap(<Committed fire={fire} />);
+    fireEvent.click(mark('High'));
+    await waitFor(() => expect(fire).toHaveBeenCalledWith('high'));
+    await waitFor(() => expect(handle()).toHaveAttribute('aria-disabled', 'true'));
+    expect(handle()).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(handle(), { key: 'ArrowLeft', keyCode: 37 });
+    expect(handle()).toHaveAttribute('aria-valuenow', '2');
+    fireEvent.keyUp(handle(), { key: 'ArrowLeft', keyCode: 37 });
+    fireEvent.click(mark('Low'));
+    expect(handle()).toHaveAttribute('aria-valuenow', '2');
+    expect(fire).toHaveBeenCalledTimes(1);
+    await act(async () => { finish(); });
+    expect(shown()).toBe('high');
+    expect(handle()).toHaveAttribute('aria-valuenow', '2');
+    expect(handle()).toHaveAttribute('aria-disabled', 'false');
+    expect(document.querySelector('.ant-slider')).not.toHaveClass('ant-slider-disabled');
+  });
+
+  it('not enabled and pending: disabled as before', () => {
+    wrap(<Inside pending enabled={denyWithReason('Locked for this task')} />);
+    expect(handle()).not.toHaveAttribute('tabindex');
+    expect(handle()).toHaveClass('ant-slider-handle-disabled');
+    expect(handle()).toHaveAttribute('aria-disabled', 'true');
+  });
+});

@@ -1,7 +1,8 @@
 import { InputNumber, Spin } from 'antd';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useSpinnerKey, useVultusComponents, type NumericFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { isLocked, useLockedInputLook } from './pendingLock.js';
 import { useNumericRequest } from './useNumericRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -23,7 +24,13 @@ export interface NumericInputProps {
  * request (useNumericRequest's `asking` plus the field's own `pending`): a
  * second Enter or blur before that request lands re-sends the same draft,
  * which useNumericRequest already turns into a no-op, so it still requests
- * only once.
+ * only once. When that is over (committed, failed, cancelled) the draft
+ * shows the field's value; the app's own pending over with nothing new, the
+ * draft stays as typed (as TextInput's, useTextDraft). While the field is
+ * pending (a commit runs, or its `pending` option says the app is busy) it is
+ * locked (isLocked): it is read-only, not disabled, so it keeps the keyboard
+ * focus and its draft, is said unavailable, has no steppers (as when
+ * disabled), and typing and the arrow keys change nothing.
  */
 export function NumericInput({ field, style }: NumericInputProps) {
   const texts = useVultusTexts();
@@ -32,12 +39,26 @@ export function NumericInput({ field, style }: NumericInputProps) {
   const [draft, setDraft] = useState<number | null>(field.value);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
+  const locked = isLocked(field);
+  const lockedLook = useLockedInputLook(locked);
+  /** The field's value the draft last adopted. */
+  const adopted = useRef(field.value);
+  /** A request of the widget's own was taken since the draft last adopted the field's value. */
+  const requested = useRef(false);
+  const take = (next: number) => { if (request(next)) requested.current = true; };
   const inFlight = asking || field.pending;
-  useEffect(() => { if (!inFlight) setDraft(field.value); }, [field.value, inFlight]);
+  useEffect(() => {
+    if (inFlight) return;
+    // The app's own pending over, nothing new: the draft stays as typed.
+    if (field.value === adopted.current && !requested.current) return;
+    adopted.current = field.value;
+    requested.current = false;
+    setDraft(field.value);
+  }, [field.value, inFlight]);
   if (!field.visible) return null;
   const commitDraft = () => {
     if (draft === null || !Number.isFinite(draft)) { setDraft(field.value); return; }
-    request(draft);
+    take(draft);
   };
   const spinner = field.pending
     ? (Spinner ? <Spinner spinnerKey={spinnerKey} size="small" /> : <Spin size="small" />)
@@ -55,16 +76,21 @@ export function NumericInput({ field, style }: NumericInputProps) {
       // and drop focus (the same caveat Input itself warns about) — an always-present (if
       // sometimes empty) slot keeps the wrapper stable instead.
       suffix={<>{spinner}{field.unit}</>}
-      disabled={!field.enabled || field.pending}
+      disabled={!field.enabled}
+      // Read-only, antd takes no typed value and renders no steppers; an arrow key's step still
+      // reports the value it leaves (0 for an empty draft), so a step goes nowhere instead.
+      readOnly={locked}
+      aria-disabled={locked || undefined}
       onChange={(next) => setDraft(next)}
       onBlur={commitDraft}
       onPressEnter={commitDraft}
-      onStep={(next) => { const value = Number(next); setDraft(value); request(value); }}
+      onStep={locked ? undefined : (next) => { const value = Number(next); setDraft(value); take(value); }}
       aria-label={field.label || undefined}
       aria-description={fieldAccessibleDescription(field, texts)}
       data-field-id={field.id}
       data-value={String(field.value)}
-      style={{ minWidth: 120, ...style }}
+      style={{ minWidth: 120, ...style, ...lockedLook.style }}
+      styles={lockedLook.text && { input: lockedLook.text }}
     />
   ), { open: asking ? false : undefined, style, stable: true }));
 }

@@ -3,6 +3,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import type { OneOfFieldControls } from 'vultus-core';
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { choiceLead, fieldAccessibleDescription, fieldTooltip, shownChoiceTooltip, useTooltipField } from './fieldTooltip.js';
+import { isLocked, useLockedSlider } from './pendingLock.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
 import { sliderStyle } from './useSliderMove.js';
 import { useVultusTexts } from './texts.js';
@@ -30,13 +31,18 @@ interface Props<T extends string> {
  * first; the handle stays on the requested choice while it is asked and
  * while the commit runs, then shows the stored value (the old one after a
  * Cancel or a failure). A move while a confirmation is open requests nothing:
- * the handle returns to the choice being asked about. A disabled field shows its reason for the whole
+ * the handle returns to the choice being asked about. While the field is
+ * pending (a commit runs, or its `pending` option says the app is busy) it is
+ * locked (isLocked, useLockedSlider: the handle keeps the keyboard focus, is
+ * said unavailable, and an arrow key, a drag or a mark click neither moves it
+ * nor requests anything). A disabled field shows its reason for the whole
  * control.
  */
 export function OneOfSlider<T extends string>({ field, style, markStyle }: Props<T>) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { request, wrap, asking } = useOneOfRequest(field);
+  const lockedSlider = useLockedSlider(field);
   const [moving, setMoving] = useState<number | null>(null);
   const [requested, setRequested] = useState<T | null>(null);
   // On a mark with its own tooltip: the field's is held back meanwhile.
@@ -45,6 +51,7 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
   // Asked and committed (or answered at once, inside the field): forget it.
   useEffect(() => { if (!inFlight) setRequested(null); }, [inFlight, requested]);
   if (!field.visible) return null;
+  const locked = isLocked(field);
   const choices = field.choices;
   const current = Math.max(0, choices.findIndex((c) => c.value === field.value));
   const held = inFlight && requested !== null ? choices.findIndex((c) => c.value === requested) : -1;
@@ -60,9 +67,11 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
       min={0}
       max={Math.max(0, choices.length - 1)}
       step={null}
-      value={moving ?? (held >= 0 ? held : current)}
-      disabled={!field.enabled || field.pending}
-      onChange={(index: number) => setMoving(index)}
+      // Locked, a move shows nothing (antd's Slider still moves on a key or a drag), nor one begun before.
+      value={(locked ? null : moving) ?? (held >= 0 ? held : current)}
+      disabled={!field.enabled}
+      classNames={lockedSlider.classNames}
+      onChange={(index: number) => { if (!locked) setMoving(index); }}
       onChangeComplete={(index: number) => settle(index)}
       marks={Object.fromEntries(choices.map((c, i) => {
         const tip = field.enabled ? shownChoiceTooltip(tipField, c, false, choiceLead(c, c.value === field.value, texts)) : undefined;
@@ -87,6 +96,7 @@ export function OneOfSlider<T extends string>({ field, style, markStyle }: Props
   // antd's Slider puts no data-* attributes on its root: a wrapper carries them.
   const body = (
     <span
+      ref={lockedSlider.ref}
       data-field-id={field.id}
       data-value={field.value}
       aria-description={fieldAccessibleDescription(field, texts)}

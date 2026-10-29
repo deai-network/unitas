@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { App as AntApp } from 'antd';
+import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
 import { denyWithReason, useTextField, type FieldCommit, type TextFieldOptions } from 'vultus-core';
 import { TextInput } from '../TextInput.js';
@@ -154,7 +154,7 @@ describe('TextInput', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
   });
 
-  it('commit: after Enter the input keeps focus while pending, and antd prints no dynamic-suffix warning', async () => {
+  it('commit: after Enter the input keeps focus while pending (locked: read-only, not disabled), and antd prints no dynamic-suffix warning', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
@@ -162,14 +162,116 @@ describe('TextInput', () => {
     input().focus();
     type('Ada');
     fireEvent.keyDown(input(), { key: 'Enter' });
-    await waitFor(() => expect(input()).toBeDisabled());
+    await waitFor(() => expect(input()).toHaveAttribute('readonly'));
+    expect(input()).not.toBeDisabled();
+    expect(input()).toHaveAttribute('aria-disabled', 'true');
     expect(document.activeElement).toBe(input());
+    type('Grace');
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    expect(input()).toHaveValue('Ada');
+    expect(fire).toHaveBeenCalledTimes(1);
     await act(async () => { finish(); });
     await waitFor(() => expect(shown()).toBe('Ada'));
+    expect(input()).not.toHaveAttribute('readonly');
+    expect(input()).not.toHaveAttribute('aria-disabled');
     const focusWarnings = errorSpy.mock.calls.filter((args) =>
       args.some((a) => typeof a === 'string' && a.includes('lose focus')));
     expect(focusWarnings).toHaveLength(0);
     errorSpy.mockRestore();
+  });
+});
+
+/** A committed text field the app holds pending (its `pending` option) while "Settle" is toggled on. */
+function Settling() {
+  const [stored, setStored] = useState('');
+  const [pending, setPending] = useState(false);
+  const field = useTextField({
+    id: 'name', label: 'Name', value: stored, pending, commit: { fire: (next) => { setStored(next); } },
+  });
+  return <><TextInput field={field} /><output>{field.value}</output><button onClick={() => setPending((p) => !p)}>Settle</button></>;
+}
+
+/** antd's disabled text colour and background, as this theme renders them inline. */
+function DisabledLookProbe() {
+  const { token } = theme.useToken();
+  return <span data-testid="probe" style={{ color: token.colorTextDisabled, background: token.colorBgContainerDisabled }} />;
+}
+
+describe('TextInput while pending', () => {
+  it('the app\'s own: read-only, not disabled, said unavailable; typing changes nothing', () => {
+    wrap(<Inside pending initialValue="Ada" />);
+    expect(input()).not.toBeDisabled();
+    expect(input()).toHaveAttribute('readonly');
+    expect(input()).toHaveAttribute('aria-disabled', 'true');
+    type('Grace');
+    expect(input()).toHaveValue('Ada');
+    expect(shown()).toBe('Ada');
+  });
+
+  it('a textarea likewise', () => {
+    wrap(<Inside pending control="textarea" initialValue="bio" />);
+    expect(input()).not.toBeDisabled();
+    expect(input()).toHaveAttribute('readonly');
+    expect(input()).toHaveAttribute('aria-disabled', 'true');
+    type('memoir');
+    expect(input()).toHaveValue('bio');
+    expect(shown()).toBe('bio');
+  });
+
+  it('keeps the look of a disabled input: the disabled text colour and background, the not-allowed cursor', () => {
+    wrap(<><Inside pending /><DisabledLookProbe /></>);
+    const probe = screen.getByTestId('probe').style;
+    expect(probe.color).not.toBe('');
+    const root = document.querySelector<HTMLElement>('.ant-input-affix-wrapper')!;
+    expect(root.style.color).toBe(probe.color);
+    expect(root.style.background).toBe(probe.background);
+    expect(root.style.cursor).toBe('not-allowed');
+    expect(input().style.color).toBe(probe.color);
+    expect(input().style.cursor).toBe('not-allowed');
+  });
+
+  it('a textarea keeps that look too', () => {
+    wrap(<><Inside pending control="textarea" /><DisabledLookProbe /></>);
+    const probe = screen.getByTestId('probe').style;
+    expect(input().style.color).toBe(probe.color);
+    expect(input().style.background).toBe(probe.background);
+    expect(input().style.cursor).toBe('not-allowed');
+  });
+
+  it('a draft typed before pending starts is kept while pending and after it, then requested as ever', async () => {
+    wrap(<Settling />);
+    type('Ada');
+    fireEvent.click(screen.getByText('Settle'));
+    expect(input()).toHaveAttribute('readonly');
+    expect(input()).toHaveValue('Ada');
+    type('Grace');
+    expect(input()).toHaveValue('Ada');
+    fireEvent.click(screen.getByText('Settle'));
+    expect(input()).not.toHaveAttribute('readonly');
+    expect(input()).toHaveValue('Ada');
+    expect(shown()).toBe('');
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    await waitFor(() => expect(shown()).toBe('Ada'));
+  });
+
+  it('a failed commit: the input shows the stored value again', async () => {
+    let fail!: () => void;
+    const fire = vi.fn(() => new Promise<void>((_resolve, reject) => { fail = () => reject(new Error('refused')); }));
+    wrap(<Committed fire={fire} initial="Ada" />);
+    type('Grace');
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    await waitFor(() => expect(fire).toHaveBeenCalledWith('Grace'));
+    expect(input()).toHaveValue('Grace');
+    await act(async () => { fail(); });
+    await waitFor(() => expect(input()).toHaveValue('Ada'));
+    expect(shown()).toBe('Ada');
+  });
+
+  it('not enabled and pending: disabled as before, not read-only', () => {
+    wrap(<Inside pending enabled={denyWithReason('Locked for this task')} />);
+    expect(input()).toBeDisabled();
+    expect(input()).not.toHaveAttribute('readonly');
+    expect(input()).not.toHaveAttribute('aria-disabled');
   });
 });
 
@@ -308,6 +410,62 @@ describe('SearchInput', () => {
   it('renders nothing when hidden', () => {
     wrap(<SearchInside hidden />);
     expect(screen.queryByRole('textbox')).toBeNull();
+  });
+});
+
+describe('SearchInput while pending', () => {
+  it('the app\'s own: read-only, not disabled, said unavailable, no clear button; typing, Escape and Enter change nothing', () => {
+    const onEnter = vi.fn();
+    wrap(<SearchInside pending initialValue="cats" onEnter={onEnter} />);
+    expect(input()).not.toBeDisabled();
+    expect(input()).toHaveAttribute('readonly');
+    expect(input()).toHaveAttribute('aria-disabled', 'true');
+    expect(document.querySelector('.ant-input-clear-icon')).toHaveClass('ant-input-clear-icon-hidden');
+    type('dogs');
+    fireEvent.keyDown(input(), { key: 'Escape' });
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    expect(input()).toHaveValue('cats');
+    expect(shown()).toBe('cats');
+    expect(onEnter).not.toHaveBeenCalled();
+  });
+
+  it('its commit: the clear button, Escape and Enter change nothing while it runs; back to normal after', async () => {
+    let finish!: () => void;
+    const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    const onEnter = vi.fn();
+    wrap(<SearchCommitted fire={fire} initial="cats" onEnter={onEnter} />);
+    type('dogs');
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    await waitFor(() => expect(fire).toHaveBeenCalledWith('dogs'));
+    expect(onEnter).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(input()).toHaveAttribute('readonly'));
+    expect(input()).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(document.querySelector<HTMLElement>('.ant-input-clear-icon')!);
+    fireEvent.keyDown(input(), { key: 'Escape' });
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    expect(input()).toHaveValue('dogs');
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(onEnter).toHaveBeenCalledTimes(1);
+    await act(async () => { finish(); });
+    expect(shown()).toBe('dogs');
+    expect(input()).not.toHaveAttribute('readonly');
+  });
+
+  it('keeps the look of a disabled input', () => {
+    wrap(<><SearchInside pending /><DisabledLookProbe /></>);
+    const probe = screen.getByTestId('probe').style;
+    const root = document.querySelector<HTMLElement>('.ant-input-affix-wrapper')!;
+    expect(root.style.color).toBe(probe.color);
+    expect(root.style.background).toBe(probe.background);
+    expect(root.style.cursor).toBe('not-allowed');
+    expect(input().style.color).toBe(probe.color);
+  });
+
+  it('not enabled and pending: disabled as before, not read-only', () => {
+    wrap(<SearchInside pending enabled={denyWithReason('Search is off')} />);
+    expect(input()).toBeDisabled();
+    expect(input()).not.toHaveAttribute('readonly');
+    expect(input()).not.toHaveAttribute('aria-disabled');
   });
 });
 

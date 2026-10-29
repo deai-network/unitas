@@ -35,7 +35,11 @@ export interface SliderMove<T> {
  * neither is true — confirmed and committed, cancelled, or failed — the field's own
  * `value` shows again: the new one on success, the old one after a Cancel or a failure. A
  * request not taken (another one's confirmation is still open, or it names the value)
- * holds nothing, so the handle stays on the value being asked about.
+ * holds nothing, so the handle stays on the value being asked about. While `pending` the
+ * slider is locked, not disabled (useLockedSlider: its handle keeps the keyboard focus, and
+ * antd's Slider still moves it on an arrow key or a drag): a move shows nothing, the handle
+ * staying on the held or the field's value, and its end requests nothing (refused while
+ * pending).
  */
 export function useSliderMove<T>({ value, pending, asking, request }: {
   value: T;
@@ -53,8 +57,9 @@ export function useSliderMove<T>({ value, pending, asking, request }: {
     if (request(next)) setHeld(next);
   };
   return {
-    value: moving ?? (inFlight && held !== null ? held : value),
-    onChange: setMoving,
+    // A move begun before pending started shows nothing meanwhile either.
+    value: (pending ? null : moving) ?? (inFlight && held !== null ? held : value),
+    onChange: (next) => { if (!pending) setMoving(next); },
     onChangeComplete,
   };
 }

@@ -65,11 +65,12 @@ export interface FieldBaseOptions<TValue, Ctx = any> {
   disabled?: ValueOrFn<Decision, Ctx>;
   /**
    * Busy for a reason of the app's: while this says so, the field is pending exactly as during a
-   * commit (widgets lock it, those with a spinner show it; a request is refused with a warning),
-   * e.g. while the page has not yet shown what the field's last change asked for. Default false;
-   * in every storage mode, and with `commit`, a running commit makes the field pending too.
-   * Meant for one-shot pickers (switch, select, segmented): an input being typed into loses
-   * focus, and a draft not yet requested, when pending starts.
+   * commit (a request is refused with a warning; those widgets with a spinner show it), e.g.
+   * while the page has not yet shown what the field's last change asked for. Default false; in
+   * every storage mode, and with `commit`, a running commit makes the field pending too. Widgets
+   * lock a pending field: it keeps the keyboard focus and is said to be unavailable, but a change
+   * (a click, a key, typing, a drag) does nothing. An input being typed into stays focused and
+   * keeps a draft not yet requested; it is read-only until pending ends.
    */
   pending?: ValueOrFn<boolean, Ctx>;
   /**
@@ -118,7 +119,10 @@ export interface FieldControls<TValue, TRequest = TValue> {
   value: TValue;
   /** Request a new value. Ignored (with a warning) when disabled or while the field is pending. */
   setValue(next: TRequest): void;
-  /** A commit is running, or the field's `pending` option says the app is busy with it. */
+  /**
+   * A commit is running, or the field's `pending` option says the app is busy with it. Widgets
+   * lock the field meanwhile: focusable, said to be unavailable, changes ignored.
+   */
   pending: boolean;
   /** The field stores through `commit` — true exactly in commit storage mode, so a widget can hold back requests while typing. */
   commits: boolean;

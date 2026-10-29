@@ -2,6 +2,7 @@ import { Input, Spin } from 'antd';
 import type { ChangeEvent, CSSProperties, KeyboardEvent } from 'react';
 import { useSpinnerKey, useVultusComponents, type TextFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { isLocked, useLockedInputLook } from './pendingLock.js';
 import { useTextDraft } from './useTextDraft.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -33,6 +34,10 @@ export interface SearchInputProps {
  * TextInput's `onPressEnter` already is by antd itself — composing text is
  * not done yet, so the value should not request and no shortcut should fire.
  * The input shows a draft in both modes, as TextInput's (useTextDraft).
+ * While the field is pending (a commit runs, or its `pending` option says the
+ * app is busy) it is locked (isLocked): it is read-only, not disabled, so it
+ * keeps the keyboard focus and its draft, is said unavailable, shows no clear
+ * button, and typing, Escape and Enter do nothing (`onEnter` is not called).
  */
 export function SearchInput({ field, onEnter, style }: SearchInputProps) {
   const texts = useVultusTexts();
@@ -40,11 +45,13 @@ export function SearchInput({ field, onEnter, style }: SearchInputProps) {
   const { value, change, commit, clear, wrap, asking } = useTextDraft(field);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
+  const locked = isLocked(field);
+  const lockedLook = useLockedInputLook(locked);
   if (!field.visible) return null;
-  const disabled = !field.enabled || field.pending;
-  const onChange = (e: ChangeEvent<HTMLInputElement>) => change(e.target.value);
+  // Locked, a change goes nowhere: read-only stops typing, this any change that gets past it.
+  const onChange = (e: ChangeEvent<HTMLInputElement>) => { if (!locked) change(e.target.value); };
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.nativeEvent.isComposing) return;
+    if (locked || e.nativeEvent.isComposing) return;
     if (e.key === 'Escape') clear();
     else if (e.key === 'Enter') {
       if (field.commits) commit();
@@ -59,7 +66,10 @@ export function SearchInput({ field, onEnter, style }: SearchInputProps) {
     <Input
       value={value}
       placeholder={field.placeholder}
-      disabled={disabled}
+      disabled={!field.enabled}
+      // Read-only also hides the clear button, as disabled does.
+      readOnly={locked}
+      aria-disabled={locked || undefined}
       allowClear
       prefix={<SearchIcon />}
       // Always a real element, never undefined: toggling antd's `suffix` between a node and
@@ -68,14 +78,15 @@ export function SearchInput({ field, onEnter, style }: SearchInputProps) {
       // stable; here `allowClear` already forces that wrapper to exist regardless.
       suffix={spinner ?? <></>}
       onChange={onChange}
-      onClear={field.commits ? clear : undefined}
+      onClear={field.commits && !locked ? clear : undefined}
       onBlur={field.commits ? commit : undefined}
       onKeyDown={onKeyDown}
       aria-label={field.label || undefined}
       aria-description={fieldAccessibleDescription(field, texts)}
       data-field-id={field.id}
       data-value={field.value}
-      style={{ minWidth: 200, ...style }}
+      style={{ minWidth: 200, ...style, ...lockedLook.style }}
+      styles={lockedLook.text && { input: lockedLook.text }}
     />
   ), { open: asking ? false : undefined, style, block: style?.width === undefined, stable: true }));
 }
