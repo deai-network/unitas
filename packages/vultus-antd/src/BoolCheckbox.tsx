@@ -31,7 +31,10 @@ export function BoolCheckbox({ field }: { field: BoolFieldControls | MixedBoolFi
       disabled={!field.enabled}
       aria-disabled={locked || undefined}
       classNames={lockedClassNames}
-      // Locked, a click goes nowhere (as BoolSwitch's: no click/double-click timer armed from mixed).
+      // Locked, a click (or Space) goes nowhere (as BoolSwitch's: no click/double-click timer
+      // armed from mixed), and its activation is cancelled: the browser would clear the input's
+      // `indeterminate`, which nothing restores, and a mixed field would be said not checked.
+      onClick={locked ? (e) => e.preventDefault() : undefined}
       onChange={locked ? undefined : () => click()}
       aria-description={fieldAccessibleDescription(field, texts)}
       data-field-id={field.id}

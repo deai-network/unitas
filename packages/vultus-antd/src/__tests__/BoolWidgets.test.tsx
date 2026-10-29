@@ -36,6 +36,18 @@ function Committed({ kind, fire, confirmation, enabled, description }: {
 const control = (kind: Kind) => (kind === 'BoolSwitch' ? screen.getByRole('switch') : screen.getByRole('checkbox'));
 const wrap = (node: React.ReactNode) => render(<AntApp>{node}</AntApp>);
 
+/**
+ * That a locked control still shows the field's value (`value`) after a click (`proceeded`: what
+ * fireEvent.click returned, false when the click was cancelled). The switch's `checked` is
+ * controlled. A locked checkbox cancels the click's activation, and a browser then restores the
+ * input's `checked` and `indeterminate` as they were; jsdom's cancel inverts `checked` instead
+ * (after React has restored it), so for the checkbox the cancel itself is what is checked.
+ */
+function expectShowsAfterLockedClick(kind: Kind, proceeded: boolean, value: boolean) {
+  if (kind === 'BoolSwitch') expect(control(kind)).toHaveAttribute('aria-checked', String(value));
+  else expect(proceeded).toBe(false);
+}
+
 describe.each(['BoolSwitch', 'BoolCheckbox'] as Kind[])('%s', (kind) => {
   it('shows the value and changes it inside the field', () => {
     wrap(<Inside kind={kind} />);
@@ -54,10 +66,10 @@ describe.each(['BoolSwitch', 'BoolCheckbox'] as Kind[])('%s', (kind) => {
     expect(control(kind)).not.toBeDisabled();
     expect(document.querySelector('.ant-spin')).toBeTruthy();
     // A second click, and the switch's own arrow key, request nothing; the control still shows the field's value.
-    fireEvent.click(control(kind));
+    const proceeded = fireEvent.click(control(kind));
     if (kind === 'BoolSwitch') fireEvent.keyDown(control(kind), { key: 'ArrowLeft', keyCode: 37, which: 37 });
     expect(fire).toHaveBeenCalledTimes(1);
-    expect(control(kind)).toBeChecked();
+    expectShowsAfterLockedClick(kind, proceeded, true);
     expect(screen.getByRole('status').textContent).toBe('true');
     await act(async () => { finish(); });
     await waitFor(() => expect(control(kind)).not.toHaveAttribute('aria-disabled'));
@@ -70,9 +82,9 @@ describe.each(['BoolSwitch', 'BoolCheckbox'] as Kind[])('%s', (kind) => {
     wrap(<Inside kind={kind} pending />);
     expect(control(kind)).not.toBeDisabled();
     expect(control(kind)).toHaveAttribute('aria-disabled', 'true');
-    fireEvent.click(control(kind));
+    const proceeded = fireEvent.click(control(kind));
     if (kind === 'BoolSwitch') fireEvent.keyDown(control(kind), { key: 'ArrowRight', keyCode: 39, which: 39 });
-    expect(control(kind)).not.toBeChecked();
+    expectShowsAfterLockedClick(kind, proceeded, false);
     expect(screen.getByRole('status').textContent).toBe('false');
   });
 

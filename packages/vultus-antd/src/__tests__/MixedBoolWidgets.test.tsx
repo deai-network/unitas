@@ -90,6 +90,30 @@ describe('a pending mixed field', () => {
     expect(fire).toHaveBeenCalledWith(true, expect.anything());
   });
 
+  describe.each(['switch', 'checkbox'] as const)('a click on the %s from mixed whose wait ends after the lock starts', (role) => {
+    it.each([false, true])('requests nothing, the field being locked by then (a second click while locked: %s)', async (second) => {
+      const fire = vi.fn();
+      const { rerender } = wrap(<Aggregate value="mixed" fire={fire} />);
+      fireEvent.click(screen.getByRole(role));
+      rerender(<AntApp><Aggregate value="mixed" fire={fire} pending /></AntApp>);
+      if (second) fireEvent.click(screen.getByRole(role));
+      await act(() => new Promise((resolve) => { setTimeout(resolve, DOUBLE_CLICK_MS + 100); }));
+      expect(fire).not.toHaveBeenCalled();
+    });
+  });
+
+  it('a click on the locked mixed checkbox (on the box or on its label) leaves its input indeterminate, so it is still said to be mixed', () => {
+    wrap(<Aggregate value="mixed" fire={vi.fn()} pending />);
+    const input = screen.getByRole('checkbox') as HTMLInputElement;
+    expect(input.indeterminate).toBe(true);
+    // The click's activation is cancelled (a browser then restores `checked` too; jsdom's cancel
+    // inverts it after React restored it, so `checked` is not checked here).
+    expect(fireEvent.click(input)).toBe(false);
+    expect(input.indeterminate).toBe(true);
+    fireEvent.click(input.closest('label')!);
+    expect(input.indeterminate).toBe(true);
+  });
+
   it('not enabled and pending: both disabled as before, not marked locked', () => {
     wrap(<Aggregate value="mixed" fire={vi.fn()} enabled={false} pending />);
     for (const el of [screen.getByRole('switch'), screen.getByRole('checkbox')]) {
