@@ -42,10 +42,18 @@ function sizeOf(key: string): SpinnerProps['size'] {
 
 beforeEach(() => { calls.length = 0; });
 
+/** A pending action's button is locked, not disabled: focusable, said unavailable, with the disabled look. */
+function expectLocked(btn: HTMLElement) {
+  expect(btn).not.toBeDisabled();
+  expect(btn).toHaveAttribute('aria-disabled', 'true');
+  expect(btn).toHaveClass('ant-btn-disabled');
+}
+
 describe('ActionButton — spinner slot', () => {
-  it('pending: the provided Spinner replaces antd\'s loading icon, keyed to the action, size small', () => {
+  it('pending: the button locked, the provided Spinner replaces antd\'s loading icon, keyed to the action, size small', () => {
     const { container } = render(wrap(<ActionButton action={makeStatus({ id: 'save', pending: true })} />));
     const btn = screen.getByRole('button');
+    expectLocked(btn);
     const spinner = within(btn).getByTestId('rec-spinner');
     expect(spinner).toHaveAttribute('data-key', 'vultus:action:save');
     expect(container.querySelector('.anticon-loading')).toBeNull();
@@ -57,10 +65,11 @@ describe('ActionButton — spinner slot', () => {
     expect(screen.queryByTestId('rec-spinner')).toBeNull();
   });
 
-  it('without a provider: today\'s antd loading output, unchanged', () => {
+  it('without a provider: today\'s antd loading output, unchanged, the button locked', () => {
     const { container } = render(wrap(<ActionButton action={makeStatus({ id: 'save', pending: true })} />, false));
     expect(screen.queryByTestId('rec-spinner')).toBeNull();
     expect(container.querySelector('.anticon-loading')).not.toBeNull();
+    expectLocked(screen.getByRole('button'));
   });
 
   it('iconPlacement="end" while pending: still ant-btn-icon-end, the provided Spinner sits in .ant-btn-icon in place of action.icon', () => {
@@ -78,11 +87,12 @@ describe('ActionButton — spinner slot', () => {
 });
 
 describe('CombinedActionButton — spinner slot', () => {
-  it('main half pending: the provided Spinner, keyed to the active action, size small', () => {
+  it('main half pending: locked, the provided Spinner, keyed to the active action, size small', () => {
     const a = makeStatus({ id: 'a', label: 'A', pending: true });
     const b = makeStatus({ id: 'b', label: 'B' });
     const { container } = render(wrap(<CombinedActionButton actions={[a, b]} />));
     const main = mainBtn(container);
+    expectLocked(main);
     expect(within(main).getByTestId('rec-spinner')).toHaveAttribute('data-key', 'vultus:action:a');
     expect(container.querySelector('.anticon-loading')).toBeNull();
     expect(sizeOf('vultus:action:a')).toBe('small');
@@ -94,13 +104,15 @@ describe('CombinedActionButton — spinner slot', () => {
     const { container } = render(wrap(<CombinedActionButton actions={[a, b]} />, false));
     expect(screen.queryByTestId('rec-spinner')).toBeNull();
     expect(mainBtn(container).querySelector('.anticon-loading')).not.toBeNull();
+    expectLocked(mainBtn(container));
   });
 });
 
 describe('FormSubmitButton — spinner slot', () => {
-  it('pending: the provided Spinner, keyed to the action, size small, antd\'s loading icon gone', () => {
+  it('pending: locked, the provided Spinner, keyed to the action, size small, antd\'s loading icon gone', () => {
     const { container } = render(wrap(<FormSubmitButton action={makeStatus({ id: 'submit', pending: true })} />));
     const btn = screen.getByRole('button');
+    expectLocked(btn);
     expect(within(btn).getByTestId('rec-spinner')).toHaveAttribute('data-key', 'vultus:action:submit');
     expect(container.querySelector('.anticon-loading')).toBeNull();
     expect(sizeOf('vultus:action:submit')).toBe('small');
@@ -110,6 +122,7 @@ describe('FormSubmitButton — spinner slot', () => {
     const { container } = render(wrap(<FormSubmitButton action={makeStatus({ id: 'submit', pending: true })} />, false));
     expect(screen.queryByTestId('rec-spinner')).toBeNull();
     expect(container.querySelector('.anticon-loading')).not.toBeNull();
+    expectLocked(screen.getByRole('button'));
   });
 });
 

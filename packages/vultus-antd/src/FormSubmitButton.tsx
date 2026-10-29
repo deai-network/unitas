@@ -1,5 +1,6 @@
 import { Button, type ButtonProps, type FormInstance } from 'antd';
 import { useActionErrorCtx, useSpinnerKey, useVultusComponents, type ActionStatus } from 'vultus-core';
+import { isActionLocked, useLockedButtonClassNames } from './pendingLock.js';
 
 interface Props<TArgs> {
   action: ActionStatus<TArgs>;
@@ -13,6 +14,8 @@ export function FormSubmitButton<TArgs>({ action, size, block }: Props<TArgs>) {
   const ctx = useActionErrorCtx();
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:action:${action.id}`);
+  const locked = isActionLocked(action);
+  const lockedClassNames = useLockedButtonClassNames(locked);
 
   if (action.invisible) return null;
 
@@ -47,7 +50,10 @@ export function FormSubmitButton<TArgs>({ action, size, block }: Props<TArgs>) {
       loading={Spinner
         ? (action.pending ? { icon: <Spinner spinnerKey={spinnerKey} size="small" /> } : false)
         : action.pending}
-      disabled={action.disabled || action.pending}
+      // Pending, locked as ActionButton (isActionLocked): not disabled, so the focus stays.
+      disabled={action.disabled}
+      aria-disabled={locked || undefined}
+      classNames={lockedClassNames}
       onClick={handleClick}
       title={action.reason}
       data-action-id={action.id}

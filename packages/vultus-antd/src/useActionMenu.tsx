@@ -1,8 +1,9 @@
-import { useState, type ReactElement, type ReactNode } from 'react';
-import { Modal, Popconfirm, Spin, Tooltip, theme, type MenuProps } from 'antd';
+import { useContext, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactElement, type ReactNode, type SyntheticEvent } from 'react';
+import { ConfigProvider, Modal, Popconfirm, Spin, Tooltip, theme, type MenuProps } from 'antd';
 import { useSpinnerKey, useVultusComponents, type ActionStatus } from 'vultus-core';
 import { ConfirmTypingModal } from './ConfirmTypingModal.js';
 import { alignToJustifyContent } from './ActionButton.js';
+import { isActionLocked } from './pendingLock.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
 
 export interface ActionMenuOptions {
@@ -10,10 +11,12 @@ export interface ActionMenuOptions {
   // row: CombinedActionButton's `iconPlacement` and `align` (see there).
   iconPlacement?: 'start' | 'end';
   align?: 'start' | 'center' | 'end';
-  // A pending action's row disabled, with the spinner as its icon. On for
-  // ActionContextMenu, whose rows are the only place an action shows;
-  // CombinedActionButton leaves it off (it shows the pending state on its main
-  // half, and its rows stay as they were).
+  // A pending action's row shows it, the spinner as its icon, and is locked
+  // while the action is enabled (isActionLocked): not disabled, so the keyboard
+  // focus stays on it, said unavailable, with the disabled look, and picking it
+  // does nothing. On for ActionContextMenu, whose rows are the only place an
+  // action shows; CombinedActionButton leaves it off (it shows the pending
+  // state on its main half, and its rows stay as they were).
   pendingRows?: boolean;
   // Called with the action a row (or the caller's own control, through
   // `fire`) picks, before its confirmation is asked.
@@ -40,7 +43,8 @@ export interface ActionMenu {
 /**
  * A menu of actions, as CombinedActionButton's open list and ActionContextMenu
  * show it: the rows (label, icon, primary and danger while enabled, a disabled
- * action greyed with its reason in a tooltip, an invisible one left out) and
+ * action greyed with its reason in a tooltip, a pending one locked with
+ * `pendingRows`, an invisible one left out) and
  * the confirmation flow a pick goes through (popconfirm on the caller's anchor,
  * cascade modal, typing confirmation). The caller renders `items` in its
  * Dropdown, wraps its control in `anchor` and renders `dialogs`.
@@ -51,6 +55,7 @@ export function useActionMenu(actions: ActionStatus[], options: ActionMenuOption
   const [typingOpen, setTypingOpen] = useState(false);
   const [popconfirmOpen, setPopconfirmOpen] = useState(false);
   const { token } = theme.useToken();
+  const { getPrefixCls } = useContext(ConfigProvider.ConfigContext);
   // Hook-based confirm (not static Modal.confirm): it renders through
   // `modalHolder` inside the app's tree, so it follows the app's
   // ConfigProvider (theme, prefix, locale).
@@ -98,19 +103,38 @@ export function useActionMenu(actions: ActionStatus[], options: ActionMenuOption
 
   const justifyContent = alignToJustifyContent(align);
 
+  // A locked row's own props (pendingRows), which rc-menu hands to the row's
+  // element: antd's own disabled class on it, under the app's prefix, for the
+  // look a disabled row has (its colour, the not-allowed cursor, no hover
+  // tint; the row the keyboard is on still shows it), and a pick held before
+  // rc-menu sees it, which would pick the row (its fire refused) and close the
+  // menu: a click, and Enter (rc-menu's own pick key), do nothing, the menu
+  // staying open as it does for a disabled row.
+  const hold = (e: SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const lockedRow: Pick<HTMLAttributes<HTMLLIElement>, 'className' | 'onClickCapture' | 'onKeyDownCapture'> = {
+    className: `${getPrefixCls('dropdown')}-menu-item-disabled`,
+    onClickCapture: hold,
+    onKeyDownCapture: (e) => { if (e.key === 'Enter') hold(e); },
+  };
+
   const items = visible.map((a, i) => {
     const showsPending = pendingRows && a.pending;
-    const disabled = a.disabled || showsPending;
+    const locked = pendingRows && isActionLocked(a);
+    // Disabled or locked: the row is said unavailable and looks it.
+    const unavailable = a.disabled || locked;
     // primary → label tinted with the same token antd's primary button fills
     // with (colorPrimary), bold; deliberately no solid fill so it does not
     // collide with the selectedKeys highlight on the active row. danger uses
     // antd's native menu-item danger styling (set below via `danger`).
-    // Both apply only while the entry is enabled — disabled, antd's menu
+    // Both apply only while the entry is available — disabled, antd's menu
     // does not neutralize them on its own (unlike a disabled Button), so a
     // disabled entry would otherwise still look primary/danger (owner
     // feedback, Fix 15; mirrors Fix 11's treatment of the opener).
     const labelText =
-      !disabled && a.variant === 'primary'
+      !unavailable && a.variant === 'primary'
         ? <span style={{ color: token.colorPrimary, fontWeight: 600 }}>{a.label}</span>
         : <span>{a.label}</span>;
     const labelWithReason = a.reason
@@ -118,7 +142,7 @@ export function useActionMenu(actions: ActionStatus[], options: ActionMenuOption
       : labelText;
 
     // While pending (pendingRows), the spinner takes the icon's place.
-    const icon = showsPending ? <PendingIcon actionId={a.id} /> : a.icon;
+    const icon = showsPending ? <PendingIcon actionId={a.id} locked={locked} /> : a.icon;
 
     // The `icon` slot antd's Menu renders is always first and is a sibling
     // of the aligned wrapper below, not part of it — so it cannot represent
@@ -143,9 +167,12 @@ export function useActionMenu(actions: ActionStatus[], options: ActionMenuOption
     return {
       key: String(i),
       icon: iconInLabel ? undefined : icon,
-      danger: !disabled && a.variant === 'danger',
+      danger: !unavailable && a.variant === 'danger',
       label: rowLabel,
-      disabled,
+      // Locked, not disabled: rc-menu takes a disabled row out of the keyboard's reach. The
+      // locked row is said unavailable by its spinner (PendingIcon).
+      disabled: a.disabled,
+      ...(locked ? lockedRow : {}),
       onClick: () => fire(a),
     };
   });
@@ -193,11 +220,27 @@ export function useActionMenu(actions: ActionStatus[], options: ActionMenuOption
 // button's is, else antd's own small spinner. A component of its own, so each
 // row's spinner key comes from its own hook call. antd's Menu passes the icon
 // slot's class in `className`.
-function PendingIcon({ actionId, className }: { actionId: string; className?: string }) {
+//
+// A `locked` row (isActionLocked) is said unavailable from here: rc-menu writes
+// a row's `aria-disabled` from `disabled` alone, over the row's own props, and
+// a locked row is not disabled. While locked, the row's element says "true";
+// when the lock ends (pending over, or the action disabled), it gets back
+// rc-menu's own "false", before rc-menu writes "true" for a row disabled in the
+// same render (React runs a row's children's cleanups before it updates the
+// row). React leaves the attribute alone in between: rc-menu's value for it
+// stays the same.
+function PendingIcon({ actionId, locked, className }: { actionId: string; locked: boolean; className?: string }) {
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:action:${actionId}`);
+  const ref = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    if (!locked) return undefined;
+    const row = ref.current?.closest('[role="menuitem"]');
+    row?.setAttribute('aria-disabled', 'true');
+    return () => row?.setAttribute('aria-disabled', 'false');
+  }, [locked]);
   return (
-    <span className={className} style={{ display: 'inline-flex', alignItems: 'center' }}>
+    <span ref={ref} className={className} style={{ display: 'inline-flex', alignItems: 'center' }}>
       {Spinner ? <Spinner spinnerKey={spinnerKey} size="small" /> : <Spin size="small" />}
     </span>
   );

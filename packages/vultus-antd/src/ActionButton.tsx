@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { Button, type ButtonProps } from 'antd';
 import { useSpinnerKey, useVultusComponents, type ActionStatus } from 'vultus-core';
 import { CombinedActionButton } from './CombinedActionButton.js';
+import { isActionLocked, useLockedButtonClassNames } from './pendingLock.js';
 import { useConfirm } from './useConfirm.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
 import { withReason, withTooltip } from './WithReason.js';
@@ -52,11 +53,13 @@ export function alignToJustifyContent(align: 'start' | 'center' | 'end' | undefi
 
 export function ActionButton({ action, size, block, keepOriginalDefault, iconPlacement, align, buttonVariant, iconOnly, className, buttonColor }: Props) {
   // Called unconditionally, before the early returns (Rules of Hooks); with the
-  // array form the label, danger and spinner key are unused.
+  // array form the label, danger, spinner key and locked classNames are unused.
   const single = Array.isArray(action) ? undefined : action;
   const { confirm, wrap, asking } = useConfirm({ okText: single?.label ?? '', danger: single?.variant === 'danger' });
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:action:${single?.id ?? ''}`);
+  const locked = !!single && isActionLocked(single);
+  const lockedClassNames = useLockedButtonClassNames(locked);
 
   if (Array.isArray(action)) {
     return (
@@ -99,7 +102,12 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
       block={block}
       className={className}
       loading={loading}
-      disabled={action.disabled || action.pending}
+      // Pending, the button is locked (isActionLocked), not disabled: a disabled button loses the
+      // keyboard focus. It is said unavailable and looks disabled; antd's Button ignores a click
+      // (Enter and Space click it too) while `loading`.
+      disabled={action.disabled}
+      aria-disabled={locked || undefined}
+      classNames={lockedClassNames}
       onClick={() => confirm(action.confirmation, () => action.fire())}
       aria-label={iconOnly ? action.label : undefined}
       data-action-id={action.id}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Dropdown, Space, Tooltip, type ButtonProps } from 'antd';
 import { useSpinnerKey, useVultusComponents, type ActionStatus } from 'vultus-core';
 import { ActionButton, alignToJustifyContent } from './ActionButton.js';
+import { isActionLocked, useLockedButtonClassNames } from './pendingLock.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
 import { useActionMenu } from './useActionMenu.js';
 
@@ -76,9 +77,10 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
   // Auto picks re-evaluate to first-enabled each render, so the default
   // tracks state changes without any effect.
   //
-  // Computed above the early returns below, together with the spinner key, so
-  // useSpinnerKey runs on every render (Rules of Hooks); harmless when `visible`
-  // is empty or holds a single action — those branches never read `active`.
+  // Computed above the early returns below, together with the spinner key and
+  // the locked classNames, so their hooks run on every render (Rules of Hooks);
+  // harmless when `visible` is empty or holds a single action — those branches
+  // never read `active`.
   const selectedIndex = (() => {
     if (selectionSource === 'manual' && selectedId !== null) {
       const idx = visible.findIndex((a) => a.id === selectedId);
@@ -89,6 +91,8 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
   })();
   const active = visible[selectedIndex];
   const spinnerKey = useSpinnerKey(`vultus:action:${active?.id ?? ''}`);
+  const locked = !!active && isActionLocked(active);
+  const lockedClassNames = useLockedButtonClassNames(locked);
 
   if (visible.length === 0) return null;
   if (visible.length === 1) {
@@ -115,7 +119,12 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
         loading={Spinner
           ? (active.pending ? { icon: <Spinner spinnerKey={spinnerKey} size="small" /> } : false)
           : active.pending}
-        disabled={active.disabled || active.pending}
+        // Pending, the main half is locked as ActionButton (isActionLocked): not disabled, so
+        // the focus stays; antd's Button ignores a click while `loading`. The opener is never
+        // disabled.
+        disabled={active.disabled}
+        aria-disabled={locked || undefined}
+        classNames={lockedClassNames}
         // Single path for every confirmation kind. For popconfirm, fire()
         // opens the controlled bubble (the Popconfirm no longer auto-opens
         // on child click now that it is controlled).

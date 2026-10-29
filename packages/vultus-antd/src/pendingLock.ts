@@ -19,6 +19,36 @@ export function isLocked(field: { enabled: boolean; pending: boolean }): boolean
 }
 
 /**
+ * Whether an action's widget is locked, by the same rule as a field's
+ * (isLocked): the action is enabled and pending (it runs). Locked, an action
+ * button (ActionButton, FormSubmitButton, CombinedActionButton's main half) or
+ * an ActionContextMenu row is not `disabled`, so the keyboard focus stays on
+ * it; it is said to be unavailable (`aria-disabled="true"`), keeps the look a
+ * disabled one has, and fires nothing: the widget holds the click and the key
+ * itself (a button through antd's own `loading`), and the action core refuses
+ * a second fire while one runs. A disabled action is disabled as ever, pending
+ * or not.
+ */
+export function isActionLocked(action: { disabled: boolean; pending: boolean }): boolean {
+  return !action.disabled && action.pending;
+}
+
+/**
+ * A locked antd Button's `classNames` (undefined when not `locked`): antd's own
+ * disabled class on it, under the app's prefix, so it keeps the look a disabled
+ * button has (antd styles `:disabled` and that class alike): the disabled text,
+ * border and background, the not-allowed cursor, no hover or press tint, no
+ * shadow. Its `loading` adds what it always has (the dimming, the spinner), and
+ * antd's Button ignores a click while loading. The focus ring stays: the focus
+ * does.
+ */
+export function useLockedButtonClassNames(locked: boolean): { root: string } | undefined {
+  const { getPrefixCls } = useContext(ConfigProvider.ConfigContext);
+  if (!locked) return undefined;
+  return { root: `${getPrefixCls('btn')}-disabled` };
+}
+
+/**
  * A locked antd Checkbox's `classNames` (undefined when not `locked`):
  * antd's own disabled classes on its wrapper and its box, under the app's
  * prefix (ConfigProvider's `prefixCls`), so it keeps the whole disabled

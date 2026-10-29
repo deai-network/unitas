@@ -1,6 +1,7 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { App as AntApp, ConfigProvider, Modal } from 'antd';
+import { useAction } from 'vultus-core';
 import { ActionButton } from '../ActionButton.js';
 import { CombinedActionButton } from '../CombinedActionButton.js';
 import { makeStatus } from './helpers/makeStatus.js';
@@ -701,6 +702,103 @@ describe('align (Fix 30)', () => {
     // label before icon (iconPlacement="end" order), still inside the
     // aligned wrapper.
     expect(goLabel.compareDocumentPosition(goIcon) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+/** A browser turns Enter and Space on a focused button into a click; jsdom does not, so both are sent. */
+function pressKeys(btn: HTMLElement) {
+  for (const key of ['Enter', ' ']) {
+    fireEvent.keyDown(btn, { key });
+    fireEvent.keyUp(btn, { key });
+    fireEvent.click(btn);
+  }
+}
+
+describe('CombinedActionButton — the main half locked while its action is pending', () => {
+  afterEach(() => { Modal.destroyAll(); });
+
+  it('not disabled (the focus stays), said unavailable, the disabled look, loading; a click, Enter or Space fires nothing', () => {
+    const a = makeStatus({ id: 'a', label: 'A', pending: true });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+    const main = mainBtn(container);
+    expect(main).not.toBeDisabled();
+    expect(main).toHaveAttribute('aria-disabled', 'true');
+    expect(main).toHaveClass('ant-btn-disabled', 'ant-btn-loading');
+    fireEvent.click(main);
+    pressKeys(main);
+    expect(a.fire).not.toHaveBeenCalled();
+    expect(b.fire).not.toHaveBeenCalled();
+  });
+
+  it('the opener stays focusable, not said unavailable, and opens the list', async () => {
+    const a = makeStatus({ id: 'a', label: 'A', pending: true });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+    const opener = chevronBtn(container);
+    expect(opener).not.toBeDisabled();
+    expect(opener).not.toHaveAttribute('aria-disabled');
+    expect(opener).not.toHaveClass('ant-btn-disabled');
+    fireEvent.click(opener);
+    expect(await screen.findByRole('menuitem', { name: 'B' })).toBeInTheDocument();
+  });
+
+  it('a popconfirm action: a click on the main half asks nothing', () => {
+    const a = makeStatus({ id: 'a', label: 'Delete', pending: true, confirmation: { kind: 'popconfirm', question: 'Sure?' } });
+    const b = makeStatus({ id: 'b', label: 'Other' });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+    fireEvent.click(mainBtn(container));
+    expect(screen.queryByText('Sure?')).toBeNull();
+  });
+
+  it('fired, the main half locks while the action runs; a second click fires nothing', async () => {
+    const fire = vi.fn(() => new Promise<void>(() => {}));
+    function Running() {
+      const a = useAction({ id: 'a', label: 'A', fire });
+      const b = useAction({ id: 'b', label: 'B', fire: async () => {} });
+      return <ActionButton action={[a, b]} />;
+    }
+    const { container } = render(wrap(<Running />));
+    const main = mainBtn(container);
+    fireEvent.click(main);
+    await waitFor(() => expect(main).toHaveAttribute('aria-disabled', 'true'));
+    expect(main).not.toBeDisabled();
+    fireEvent.click(main);
+    pressKeys(main);
+    expect(fire).toHaveBeenCalledTimes(1);
+  });
+
+  it('disabled and pending: disabled as before, not said locked', () => {
+    const a = makeStatus({ id: 'a', label: 'A', disabled: true, pending: true });
+    const b = makeStatus({ id: 'b', label: 'B', disabled: true });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+    const main = mainBtn(container);
+    expect(main).toBeDisabled();
+    expect(main).not.toHaveAttribute('aria-disabled');
+    expect(main).not.toHaveClass('ant-btn-disabled');
+  });
+
+  it('back to normal when pending ends: the same node, a click fires', () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container, rerender } = render(wrap(<ActionButton action={[{ ...a, pending: true }, b]} />));
+    const before = mainBtn(container);
+    rerender(wrap(<ActionButton action={[a, b]} />));
+    expect(mainBtn(container)).toBe(before);
+    expect(before).not.toHaveAttribute('aria-disabled');
+    expect(before).not.toHaveClass('ant-btn-disabled');
+    fireEvent.click(before);
+    expect(a.fire).toHaveBeenCalledTimes(1);
+  });
+
+  it('the open list\'s rows stay as they were: a pending action\'s row is neither disabled nor locked', async () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({ id: 'b', label: 'B', pending: true });
+    const { container } = render(wrap(<ActionButton action={[a, b]} />));
+    fireEvent.click(chevronBtn(container));
+    const bItem = await screen.findByRole('menuitem', { name: 'B' });
+    expect(bItem).toHaveAttribute('aria-disabled', 'false');
+    expect(bItem).not.toHaveClass('ant-dropdown-menu-item-disabled');
   });
 });
 

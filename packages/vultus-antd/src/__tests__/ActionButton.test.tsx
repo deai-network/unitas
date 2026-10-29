@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { App as AntApp, ConfigProvider } from 'antd';
+import { useAction } from 'vultus-core';
 import { ActionButton } from '../ActionButton.js';
 import { makeStatus } from './helpers/makeStatus.js';
 import { openTooltips } from './helpers/tooltips.js';
@@ -76,9 +77,12 @@ describe('ActionButton', () => {
     expect(screen.getByRole('button', { name: 'Run' })).toHaveClass('look-x');
   });
 
-  it('pending → disabled', () => {
+  it('pending → locked: not disabled (the focus stays), said unavailable, the disabled look, loading', () => {
     render(wrap(<ActionButton action={makeStatus({ pending: true })} />));
-    expect(screen.getByRole('button')).toBeDisabled();
+    const btn = screen.getByRole('button');
+    expect(btn).not.toBeDisabled();
+    expect(btn).toHaveAttribute('aria-disabled', 'true');
+    expect(btn).toHaveClass('ant-btn-disabled', 'ant-btn-loading');
   });
 
   it('disabled → disabled; reason exposed via AntD Tooltip on hover', async () => {
@@ -158,6 +162,90 @@ describe('ActionButton', () => {
   it('align="start" sets justify-content: flex-start', () => {
     render(wrap(<ActionButton action={makeStatus()} align="start" />));
     expect(screen.getByRole('button')).toHaveStyle({ justifyContent: 'flex-start' });
+  });
+});
+
+/** An action that runs until the test ends: its fire never resolves. */
+function Running({ fire }: { fire: () => Promise<void> }) {
+  const action = useAction({ id: 'run', label: 'Run', fire });
+  return <ActionButton action={action} />;
+}
+
+/** A browser turns Enter and Space on a focused button into a click; jsdom does not, so both are sent. */
+function pressKeys(btn: HTMLElement) {
+  for (const key of ['Enter', ' ']) {
+    fireEvent.keyDown(btn, { key });
+    fireEvent.keyUp(btn, { key });
+    fireEvent.click(btn);
+  }
+}
+
+describe('ActionButton — locked while pending', () => {
+  it('a click, Enter or Space fires nothing', () => {
+    const fire = vi.fn();
+    render(wrap(<ActionButton action={makeStatus({ pending: true, fire })} />));
+    const btn = screen.getByRole('button');
+    fireEvent.click(btn);
+    pressKeys(btn);
+    expect(fire).not.toHaveBeenCalled();
+  });
+
+  it('a popconfirm action: a click asks nothing', () => {
+    render(wrap(<ActionButton action={makeStatus({ pending: true, confirmation: { kind: 'popconfirm', question: 'Sure?' } })} />));
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.queryByText('Sure?')).toBeNull();
+  });
+
+  it('fired, it locks while it runs; a second click or key fires nothing, held by the button (the core never hears of it)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fire = vi.fn(() => new Promise<void>(() => {}));
+    render(wrap(<Running fire={fire} />));
+    const btn = screen.getByRole('button');
+    fireEvent.click(btn);
+    await waitFor(() => expect(btn).toHaveAttribute('aria-disabled', 'true'));
+    expect(btn).not.toBeDisabled();
+    fireEvent.click(btn);
+    pressKeys(btn);
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls.filter((args) => String(args[0]).includes('already pending'))).toHaveLength(0);
+    warn.mockRestore();
+  });
+
+  it('disabled and pending: disabled as before, not said locked', () => {
+    render(wrap(<ActionButton action={makeStatus({ disabled: true, pending: true, reason: 'because' })} />));
+    const btn = screen.getByRole('button');
+    expect(btn).toBeDisabled();
+    expect(btn).not.toHaveAttribute('aria-disabled');
+    expect(btn).not.toHaveClass('ant-btn-disabled');
+  });
+
+  it('iconOnly: locked the same way', () => {
+    render(wrap(<ActionButton action={makeStatus({ label: 'Delete', icon: <span>x</span>, pending: true })} iconOnly />));
+    const btn = screen.getByRole('button');
+    expect(btn).not.toBeDisabled();
+    expect(btn).toHaveAttribute('aria-disabled', 'true');
+    expect(btn).toHaveClass('ant-btn-disabled');
+  });
+
+  it('keeps its node as pending comes and goes, and is back to normal after', () => {
+    const fire = vi.fn();
+    const { rerender } = render(wrap(<ActionButton action={makeStatus({ fire })} />));
+    const before = screen.getByRole('button');
+    rerender(wrap(<ActionButton action={makeStatus({ fire, pending: true })} />));
+    expect(screen.getByRole('button')).toBe(before);
+    expect(before).toHaveAttribute('aria-disabled', 'true');
+    rerender(wrap(<ActionButton action={makeStatus({ fire })} />));
+    expect(screen.getByRole('button')).toBe(before);
+    expect(before).not.toHaveAttribute('aria-disabled');
+    expect(before).not.toHaveClass('ant-btn-disabled');
+    expect(before).not.toHaveClass('ant-btn-loading');
+    fireEvent.click(before);
+    expect(fire).toHaveBeenCalledTimes(1);
+  });
+
+  it('under an app prefix, the disabled class is the app\'s', () => {
+    render(<ConfigProvider prefixCls="vx"><ActionButton action={makeStatus({ pending: true })} /></ConfigProvider>);
+    expect(screen.getByRole('button')).toHaveClass('vx-btn-disabled');
   });
 });
 

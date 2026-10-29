@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { App as AntApp, Modal, Tooltip } from 'antd';
-import type { SpinnerProps } from 'vultus-core';
+import { useAction, type SpinnerProps } from 'vultus-core';
 import { ActionContextMenu } from '../ActionContextMenu.js';
 import { VultusProvider } from '../VultusProvider.js';
 import * as vultusAntd from '../index.js';
@@ -33,6 +33,17 @@ async function openMenu(): Promise<HTMLElement> {
 
 function row(menu: HTMLElement, name: string): HTMLElement {
   return within(menu).getByRole('menuitem', { name });
+}
+
+/**
+ * The menu is still open a while later: a close (a pick does close it) gives the focus back to
+ * the child at once and starts the popup's leave motion.
+ */
+async function expectStaysOpen(menu: HTMLElement) {
+  expect(document.activeElement).not.toBe(link());
+  await new Promise((r) => setTimeout(r, 50));
+  expect(menu.closest('.ant-dropdown')!.className).not.toMatch(/-leave|ant-dropdown-hidden/);
+  expect(document.activeElement).not.toBe(link());
 }
 
 describe('ActionContextMenu', () => {
@@ -201,7 +212,7 @@ describe('ActionContextMenu', () => {
     expect(del.fire).toHaveBeenCalledTimes(1);
   });
 
-  it('a pending action\'s row is disabled, the lent Spinner as its icon, keyed to the action', async () => {
+  it('a pending action\'s row is locked: not disabled (focusable), said unavailable, the disabled look, the lent Spinner as its icon, keyed to the action', async () => {
     const a = makeStatus({ id: 'show-log', label: 'Show log' });
     const drop = makeStatus({ id: 'drop', label: 'Drop', variant: 'danger', pending: true, icon: <span data-testid="icon-drop" /> });
     render(wrap(
@@ -211,22 +222,116 @@ describe('ActionContextMenu', () => {
     ));
     const menu = await openMenu();
     const dropRow = row(menu, 'Drop');
+    // rc-menu drops a disabled row's tabindex (no focus for it); a locked row keeps it.
+    expect(dropRow).toHaveAttribute('tabindex', '-1');
     expect(dropRow).toHaveAttribute('aria-disabled', 'true');
+    expect(dropRow).toHaveClass('ant-dropdown-menu-item-disabled');
     expect(dropRow.className).not.toContain('ant-dropdown-menu-item-danger');
     expect(within(dropRow).getByTestId('rec-spinner')).toHaveAttribute('data-key', 'vultus:action:drop');
     expect(within(dropRow).queryByTestId('icon-drop')).toBeNull();
-    fireEvent.click(dropRow);
-    expect(drop.fire).not.toHaveBeenCalled();
   });
 
-  it('a pending action\'s row without a lent Spinner: antd\'s own small spinner', async () => {
+  it('picking a locked row does nothing: it fires nothing and the menu stays open', async () => {
+    const a = makeStatus({ id: 'show-log', label: 'Show log' });
+    const drop = makeStatus({ id: 'drop', label: 'Drop', pending: true });
+    render(wrap(<ActionContextMenu actions={[a, drop]}>{segment()}</ActionContextMenu>));
+    link().focus();
+    const menu = await openMenu();
+    await waitFor(() => expect(menu.contains(document.activeElement)).toBe(true));
+    fireEvent.click(row(menu, 'Drop'));
+    expect(drop.fire).not.toHaveBeenCalled();
+    await expectStaysOpen(menu);
+  });
+
+  it('a locked row keeps the keyboard focus: Enter on it fires nothing, the focus and the menu stay', async () => {
+    const a = makeStatus({ id: 'show-log', label: 'Show log' });
+    const drop = makeStatus({ id: 'drop', label: 'Drop', pending: true });
+    render(wrap(<ActionContextMenu actions={[a, drop]}>{segment()}</ActionContextMenu>));
+    link().focus();
+    const menu = await openMenu();
+    await waitFor(() => expect(document.activeElement).toBe(row(menu, 'Show log')));
+    const dropRow = row(menu, 'Drop');
+    dropRow.focus();
+    expect(document.activeElement).toBe(dropRow);
+    fireEvent.keyDown(dropRow, { key: 'Enter', code: 'Enter', keyCode: 13 });
+    expect(drop.fire).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(dropRow);
+    await expectStaysOpen(menu);
+  });
+
+  it('a pending action\'s row without a lent Spinner: antd\'s own small spinner, locked the same way', async () => {
     const a = makeStatus({ id: 'show-log', label: 'Show log' });
     const drop = makeStatus({ id: 'drop', label: 'Drop', pending: true });
     render(wrap(<ActionContextMenu actions={[a, drop]}>{segment()}</ActionContextMenu>));
     const menu = await openMenu();
     const dropRow = row(menu, 'Drop');
+    expect(dropRow).toHaveAttribute('tabindex', '-1');
     expect(dropRow).toHaveAttribute('aria-disabled', 'true');
     expect(dropRow.querySelector('.ant-spin')).not.toBeNull();
+  });
+
+  it('a disabled and pending action\'s row: disabled as before, the spinner as its icon', async () => {
+    const a = makeStatus({ id: 'show-log', label: 'Show log' });
+    const drop = makeStatus({ id: 'drop', label: 'Drop', disabled: true, pending: true });
+    render(wrap(<ActionContextMenu actions={[a, drop]}>{segment()}</ActionContextMenu>));
+    const menu = await openMenu();
+    const dropRow = row(menu, 'Drop');
+    expect(dropRow).not.toHaveAttribute('tabindex');
+    expect(dropRow).toHaveAttribute('aria-disabled', 'true');
+    expect(dropRow).toHaveClass('ant-dropdown-menu-item-disabled');
+    expect(dropRow.querySelector('.ant-spin')).not.toBeNull();
+    fireEvent.click(dropRow);
+    expect(drop.fire).not.toHaveBeenCalled();
+  });
+
+  it('when pending ends the row, the same node, is back to normal: picking it fires', async () => {
+    const a = makeStatus({ id: 'show-log', label: 'Show log' });
+    const drop = makeStatus({ id: 'drop', label: 'Drop' });
+    const { rerender } = render(wrap(<ActionContextMenu actions={[a, { ...drop, pending: true }]}>{segment()}</ActionContextMenu>));
+    const menu = await openMenu();
+    const before = row(menu, 'Drop');
+    expect(before).toHaveAttribute('aria-disabled', 'true');
+    rerender(wrap(<ActionContextMenu actions={[a, drop]}>{segment()}</ActionContextMenu>));
+    expect(row(menu, 'Drop')).toBe(before);
+    expect(before).toHaveAttribute('aria-disabled', 'false');
+    expect(before).not.toHaveClass('ant-dropdown-menu-item-disabled');
+    expect(before.querySelector('.ant-spin')).toBeNull();
+    fireEvent.click(before);
+    expect(drop.fire).toHaveBeenCalledTimes(1);
+  });
+
+  it('a locked row whose action is disabled, still pending or not: disabled, said unavailable', async () => {
+    const a = makeStatus({ id: 'show-log', label: 'Show log' });
+    const drop = makeStatus({ id: 'drop', label: 'Drop', pending: true });
+    const { rerender } = render(wrap(<ActionContextMenu actions={[a, drop]}>{segment()}</ActionContextMenu>));
+    const menu = await openMenu();
+    expect(row(menu, 'Drop')).toHaveAttribute('aria-disabled', 'true');
+    rerender(wrap(<ActionContextMenu actions={[a, { ...drop, disabled: true }]}>{segment()}</ActionContextMenu>));
+    expect(row(menu, 'Drop')).not.toHaveAttribute('tabindex');
+    expect(row(menu, 'Drop')).toHaveAttribute('aria-disabled', 'true');
+    rerender(wrap(<ActionContextMenu actions={[a, drop]}>{segment()}</ActionContextMenu>));
+    expect(row(menu, 'Drop')).toHaveAttribute('aria-disabled', 'true');
+    rerender(wrap(<ActionContextMenu actions={[a, { ...drop, pending: false, disabled: true }]}>{segment()}</ActionContextMenu>));
+    expect(row(menu, 'Drop')).toHaveAttribute('aria-disabled', 'true');
+    expect(row(menu, 'Drop').querySelector('.ant-spin')).toBeNull();
+  });
+
+  it('a row picked while its action runs (a fire that never resolves): locked, the second pick fires nothing', async () => {
+    const fire = vi.fn(() => new Promise<void>(() => {}));
+    function Running() {
+      const drop = useAction({ id: 'drop', label: 'Drop', fire });
+      const other = useAction({ id: 'other', label: 'Show log', fire: async () => {} });
+      return <ActionContextMenu actions={[other, drop]}>{segment()}</ActionContextMenu>;
+    }
+    render(wrap(<Running />));
+    fireEvent.click(row(await openMenu(), 'Drop'));
+    expect(fire).toHaveBeenCalledTimes(1);
+    const menu = await openMenu();
+    await waitFor(() => expect(row(menu, 'Drop')).toHaveAttribute('aria-disabled', 'true'));
+    expect(row(menu, 'Drop')).toHaveAttribute('tabindex', '-1');
+    fireEvent.click(row(menu, 'Drop'));
+    fireEvent.keyDown(row(menu, 'Drop'), { key: 'Enter', code: 'Enter', keyCode: 13 });
+    expect(fire).toHaveBeenCalledTimes(1);
   });
 
   it('the child\'s own left click is its own: its onClick fires, and the menu stays closed', () => {

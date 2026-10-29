@@ -19,7 +19,9 @@ interface Props {
  * the focus goes back to the child. The child's own handlers stay its own (its
  * left click is its business). The rows and the confirmations are
  * CombinedActionButton's (useActionMenu): a popconfirm points at the child. A
- * pending action's row is disabled, the spinner as its icon. With no visible
+ * pending action's row shows the spinner as its icon and, while the action is
+ * enabled, is locked (isActionLocked): it keeps the keyboard focus, is said
+ * unavailable, looks disabled, and picking it does nothing. With no visible
  * action the child renders alone: no menu, and the browser's own is not
  * suppressed.
  */
