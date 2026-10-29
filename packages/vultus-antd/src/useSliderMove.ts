@@ -37,7 +37,7 @@ export interface SliderMove<T> {
  * request not taken (another one's confirmation is still open, or it names the value)
  * holds nothing, so the handle stays on the value being asked about. While `pending` the
  * slider is locked, not disabled (useLockedSlider: its handle keeps the keyboard focus; the
- * keys never reach antd's Slider then, but a drag or a rail click still moves it): a move
+ * keydown of a key that moves it never reaches antd's Slider then, but a drag or a rail click still moves it): a move
  * shows nothing, the handle staying on the held or the field's value, and its end requests
  * nothing (refused while pending).
  */

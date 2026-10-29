@@ -77,7 +77,7 @@ export function NumericInput({ field, style }: NumericInputProps) {
       suffix={<>{spinner}{field.unit}</>}
       disabled={!field.enabled}
       // Read-only, antd takes no typed value and renders no steppers; an arrow key's step still
-      // reports the unchanged value (`null` for an empty draft, which `Number()` made 0), so a step
+      // reports the unchanged value (`''` for an empty draft, which `Number()` made 0), so a step
       // goes nowhere instead.
       readOnly={locked}
       aria-disabled={locked || undefined}

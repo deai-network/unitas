@@ -137,10 +137,11 @@ const SLIDER_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 
  * Slider prop reaches a handle's `aria-disabled` (rc-slider renders it from `disabled` alone, which
  * takes the handle out of the tab order), so it is set on the handles after every render; React
  * leaves it alone while the Slider's own value for it stays the same, and it is put back when the
- * lock ends. Through `onKeyDownCapture`, a key that moves a handle (the arrows, Home, End, PageUp,
- * PageDown) never reaches the Slider while locked, its default prevented (the page does not scroll):
- * the move would be held anyway, but rc-slider would still move the focus to the handle holding the
- * value the key asked for, the other end of a range. Tab and every other key pass. A drag, a rail
+ * lock ends. Through `onKeyDownCapture`, the keydown of a key that moves a handle (the arrows, Home,
+ * End, PageUp, PageDown) never reaches the Slider while locked, its default prevented (the page does
+ * not scroll): the move would be held anyway, but rc-slider would still move the focus to the handle
+ * holding the value the key asked for, the other end of a range. Its keyup still reaches the Slider,
+ * harmlessly: the move it ends requests nothing (refused while pending). Tab and every other key pass. A drag, a rail
  * or a mark click still reach the Slider: the widget holds those moves itself.
  */
 export function useLockedSlider(field: { enabled: boolean; pending: boolean }): {

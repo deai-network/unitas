@@ -73,9 +73,10 @@ group's included): `pending` (a boolean, or a function of the field context) mak
 while it says so, exactly as during a commit: widgets lock it (those with a spinner show it),
 and `setValue` refuses a request with a warning. With `commit`, a running commit makes it
 pending too. E.g. a filter whose last change the page has not shown yet:
-`pending: (ctx) => ctx.settling.has('variant')`. It suits one-shot pickers (switch, select,
-segmented); an input being typed into loses focus, and a draft not yet requested, when
-pending starts.
+`pending: (ctx) => ctx.settling.has('variant')`. A locked widget keeps the keyboard focus and
+is said to be unavailable, but a change (a click, a key, typing, a drag) does nothing. An input
+being typed into stays focused and keeps a draft not yet requested; it is read-only until
+pending ends.
 
 The returned controls (`value`, `setValue`, `toggle`, `pending`, `enabled`, `whyDisabled`,
 `description`, `valueDescription`, `messages`, `confirmationFor(next)`, ...) are what widgets

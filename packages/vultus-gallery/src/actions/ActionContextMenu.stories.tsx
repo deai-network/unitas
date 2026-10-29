@@ -46,7 +46,7 @@ export const Menus: StoryObj = {
     return (
       <Showcase
         title="Right click"
-        note="Right-click a segment (or focus it with Tab and press the menu key or Shift+F10) for its menu, at the pointer instead of the browser's. The rows are CombinedActionButton's: a disabled action greyed with its reason on hover, an invisible one left out, primary and danger only while enabled; a confirmation is asked as there, the popconfirm pointing at the segment. Pick Generate proposals, then right-click again within 4 s: the row is disabled with the spinner. A left click is the segment's own (counted below); a segment with no visible action keeps the browser's own menu."
+        note="Right-click a segment (or focus it with Tab and press the menu key or Shift+F10) for its menu, at the pointer instead of the browser's. The rows are CombinedActionButton's: a disabled action greyed with its reason on hover, an invisible one left out, primary and danger only while enabled; a confirmation is asked as there, the popconfirm pointing at the segment. Pick Generate proposals, then right-click again within 4 s: the row is locked with the spinner, looking disabled but keeping the keyboard focus, and picking it does nothing. A left click is the segment's own (counted below); a segment with no visible action keeps the browser's own menu."
       >
         <Example label="popconfirm (Drop)">
           <ActionContextMenu actions={[showLog, drop]}>

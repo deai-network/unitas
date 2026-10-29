@@ -123,7 +123,7 @@ export const Slot: StoryObj<DemoArgs> = {
 
         <Showcase
           title="No components: today's antd spinners (for comparison)"
-          note="No Spinner lent here (just the gallery's own bare VultusProvider from preview.tsx, which lends nothing) — every site falls back to its unchanged antd look: the button's own loading icon, Spin next to the checkbox and after the segmented control, a loading Switch, the Select's default loading icon. Use the controls panel (latencyMs) to slow all three columns down together."
+          note="No Spinner lent here (just the gallery's own bare VultusProvider from preview.tsx, which lends nothing) — every site falls back to antd's own: the button's own loading icon, Spin after the switch (a loading Switch would be disabled), next to the checkbox and after the segmented control, the Select's default loading icon. Use the controls panel (latencyMs) to slow all three columns down together."
         >
           <Controls latencyMs={latencyMs} />
         </Showcase>
