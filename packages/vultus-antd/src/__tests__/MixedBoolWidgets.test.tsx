@@ -75,8 +75,19 @@ describe('a pending mixed field', () => {
     expect(fire).not.toHaveBeenCalled();
     const sw = screen.getByRole('switch');
     expect(sw.querySelector<HTMLElement>('.ant-switch-handle')!.style.insetInlineStart).toBe('50%');
-    expect(sw.style.cursor).toBe('not-allowed');
+    expect(sw).toHaveClass('ant-switch-disabled');
     expect(screen.getByRole('checkbox').closest('.ant-checkbox')).toHaveClass('ant-checkbox-indeterminate');
+  });
+
+  it.each(['switch', 'checkbox'] as const)('a click on the locked %s leaves no trace: the first click once pending ends is a single click (on), not the second half of a double click (off)', async (role) => {
+    const fire = vi.fn();
+    const { rerender } = wrap(<Aggregate value="mixed" fire={fire} pending />);
+    fireEvent.click(screen.getByRole(role));
+    rerender(<AntApp><Aggregate value="mixed" fire={fire} /></AntApp>);
+    fireEvent.click(screen.getByRole(role));
+    await act(() => new Promise((resolve) => { setTimeout(resolve, DOUBLE_CLICK_MS + 100); }));
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(fire).toHaveBeenCalledWith(true, expect.anything());
   });
 
   it('not enabled and pending: both disabled as before, not marked locked', () => {

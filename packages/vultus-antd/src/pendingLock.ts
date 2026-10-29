@@ -34,6 +34,19 @@ export function useLockedCheckboxClassNames(locked: boolean): { root: string; ic
 }
 
 /**
+ * A locked antd Switch's `classNames` (undefined when not `locked`): antd's
+ * own disabled class on it, under the app's prefix, so it keeps the whole
+ * disabled look: the opacity and cursor, no hover tint, no knob shadow, and
+ * no knob stretching on press (the stretch is the knob's `::before`, which no
+ * `styles` entry reaches).
+ */
+export function useLockedSwitchClassNames(locked: boolean): { root: string } | undefined {
+  const { getPrefixCls } = useContext(ConfigProvider.ConfigContext);
+  if (!locked) return undefined;
+  return { root: `${getPrefixCls('switch')}-disabled` };
+}
+
+/**
  * A locked antd Select's or TreeSelect's look, through theme tokens: the look
  * `disabled` gave it. `style` goes into the control's `style` (a TreeSelect
  * also hands `styles.root` to its popup): antd's disabled text colour and

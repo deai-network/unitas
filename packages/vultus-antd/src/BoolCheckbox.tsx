@@ -31,7 +31,8 @@ export function BoolCheckbox({ field }: { field: BoolFieldControls | MixedBoolFi
       disabled={!field.enabled}
       aria-disabled={locked || undefined}
       classNames={lockedClassNames}
-      onChange={() => click()}
+      // Locked, a click goes nowhere (as BoolSwitch's: no click/double-click timer armed from mixed).
+      onChange={locked ? undefined : () => click()}
       aria-description={fieldAccessibleDescription(field, texts)}
       data-field-id={field.id}
       data-value={String(field.value)}

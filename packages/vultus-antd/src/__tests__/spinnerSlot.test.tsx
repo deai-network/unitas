@@ -281,6 +281,28 @@ describe('OneOfSegmented — spinner slot', () => {
   });
 });
 
+/** A boolean field the app holds pending (its `pending` option), or not, as a switch or a checkbox. */
+function SettlingBool({ kind, pending }: { kind: 'BoolSwitch' | 'BoolCheckbox'; pending: boolean }) {
+  const field = useBoolField({ id: 'enabled', label: 'Enabled', initialValue: true, pending });
+  return kind === 'BoolSwitch' ? <BoolSwitch field={field} /> : <BoolCheckbox field={field} />;
+}
+
+describe.each(['BoolSwitch', 'BoolCheckbox'] as const)('%s — the control keeps its node', (kind) => {
+  const role = kind === 'BoolSwitch' ? 'switch' : 'checkbox';
+
+  it.each([true, false])('when pending comes and goes (a lent Spinner: %s), so the keyboard focus stays on it', (withSpinner) => {
+    const { rerender } = render(wrap(<SettlingBool kind={kind} pending={false} />, withSpinner));
+    const before = screen.getByRole(role);
+    rerender(wrap(<SettlingBool kind={kind} pending />, withSpinner));
+    expect(screen.getByRole(role)).toBe(before);
+    expect(before).toHaveAttribute('aria-disabled', 'true');
+    expect(withSpinner ? screen.queryByTestId('rec-spinner') : document.querySelector('.ant-spin')).not.toBeNull();
+    rerender(wrap(<SettlingBool kind={kind} pending={false} />, withSpinner));
+    expect(screen.getByRole(role)).toBe(before);
+    expect(before).not.toHaveAttribute('aria-disabled');
+  });
+});
+
 describe('SpinnerScope — vultus-antd sites', () => {
   it('prefixes a site\'s key with the scope name', () => {
     render(wrap(<SpinnerScope name="s1"><ActionButton action={makeStatus({ id: 'go', pending: true })} /></SpinnerScope>));

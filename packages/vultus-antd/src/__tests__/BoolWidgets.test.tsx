@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { App as AntApp, theme } from 'antd';
+import { App as AntApp } from 'antd';
 import { useState } from 'react';
 import { denyWithReason, useBoolField, type BoolFieldOptions, type FieldCommit } from 'vultus-core';
 import { BoolCheckbox } from '../BoolCheckbox.js';
@@ -120,17 +120,11 @@ describe.each(['BoolSwitch', 'BoolCheckbox'] as Kind[])('%s', (kind) => {
 });
 
 describe('the locked look (antd\'s disabled look, without disabled)', () => {
-  function OpacityProbe() {
-    const { token } = theme.useToken();
-    return <span data-testid="probe" style={{ opacity: token.opacityLoading }} />;
-  }
-
-  it('BoolSwitch: the switch at antd\'s disabled opacity, with the not-allowed cursor', () => {
-    wrap(<><Inside kind="BoolSwitch" pending /><OpacityProbe /></>);
+  it('BoolSwitch: antd\'s disabled switch (no hover tint, press stretch or knob shadow), the switch itself not disabled', () => {
+    wrap(<Inside kind="BoolSwitch" pending />);
     const sw = screen.getByRole('switch');
-    expect(screen.getByTestId('probe').style.opacity).not.toBe('');
-    expect(sw.style.opacity).toBe(screen.getByTestId('probe').style.opacity);
-    expect(sw.style.cursor).toBe('not-allowed');
+    expect(sw).not.toBeDisabled();
+    expect(sw).toHaveClass('ant-switch-disabled');
   });
 
   it('BoolCheckbox: antd\'s disabled box and label, the input itself not disabled', () => {
@@ -143,7 +137,7 @@ describe('the locked look (antd\'s disabled look, without disabled)', () => {
 
   it('not pending: none of it', () => {
     wrap(<><Inside kind="BoolSwitch" /><Inside kind="BoolCheckbox" /></>);
-    expect(screen.getByRole('switch').style.opacity).toBe('');
+    expect(screen.getByRole('switch')).not.toHaveClass('ant-switch-disabled');
     expect(screen.getByRole('checkbox').closest('.ant-checkbox')).not.toHaveClass('ant-checkbox-disabled');
     expect(screen.getByRole('checkbox').closest('.ant-checkbox-wrapper')).not.toHaveClass('ant-checkbox-wrapper-disabled');
   });

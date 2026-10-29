@@ -145,6 +145,17 @@ describe.each(['ManyOfCheckboxes', 'ManyOfSwitches'] as Kind[])('%s', (kind) => 
     expect(choiceInput(kind, 'a')).not.toHaveAttribute('aria-disabled');
   });
 
+  it('a choice\'s control keeps its node when pending comes and goes (so the keyboard focus stays on it)', () => {
+    const { rerender } = wrap(<Inside kind={kind} pending={false} />);
+    const before = choiceInput(kind, 'b');
+    rerender(<AntApp><Inside kind={kind} pending /></AntApp>);
+    expect(choiceInput(kind, 'b')).toBe(before);
+    expect(before).toHaveAttribute('aria-disabled', 'true');
+    rerender(<AntApp><Inside kind={kind} pending={false} /></AntApp>);
+    expect(choiceInput(kind, 'b')).toBe(before);
+    expect(before).not.toHaveAttribute('aria-disabled');
+  });
+
   it('vertical: lays out the choices in a column', () => {
     wrap(<Inside kind={kind} vertical />);
     expect(root().style.flexDirection).toBe('column');
@@ -200,19 +211,18 @@ describe.each(['ManyOfCheckboxes', 'ManyOfSwitches'] as Kind[])('%s', (kind) => 
 
 function DisabledColorProbe() {
   const { token } = theme.useToken();
-  return <span data-testid="probe" style={{ color: token.colorTextDisabled, opacity: token.opacityLoading }} />;
+  return <span data-testid="probe" style={{ color: token.colorTextDisabled }} />;
 }
 
 describe('the locked look (antd\'s disabled look, without disabled)', () => {
-  it('ManyOfSwitches: each switch at antd\'s disabled opacity with the not-allowed cursor, each label in the disabled text colour', () => {
+  it('ManyOfSwitches: antd\'s disabled switch on each choice, each label in the disabled text colour', () => {
     wrap(<><Inside kind="ManyOfSwitches" pending /><DisabledColorProbe /></>);
     const probe = screen.getByTestId('probe');
-    expect(probe.style.opacity).not.toBe('');
+    expect(probe.style.color).not.toBe('');
     for (const value of ['a', 'b'] as Tag[]) {
       const sw = choiceInput('ManyOfSwitches', value);
       expect(sw).not.toBeDisabled();
-      expect(sw.style.opacity).toBe(probe.style.opacity);
-      expect(sw.style.cursor).toBe('not-allowed');
+      expect(sw).toHaveClass('ant-switch-disabled');
       expect(screen.getByText(LABELS[value]).parentElement!.style.color).toBe(probe.style.color);
       expect(screen.getByText(LABELS[value]).parentElement!.style.cursor).toBe('not-allowed');
     }
@@ -231,7 +241,7 @@ describe('the locked look (antd\'s disabled look, without disabled)', () => {
   it('not pending: none of it', () => {
     wrap(<><Inside kind="ManyOfSwitches" /><Inside kind="ManyOfCheckboxes" /></>);
     const sw = document.querySelector<HTMLElement>('[role="switch"][aria-label="Alpha"]')!;
-    expect(sw.style.opacity).toBe('');
+    expect(sw).not.toHaveClass('ant-switch-disabled');
     const box = document.querySelector<HTMLElement>('input[data-choice-value="a"]')!;
     expect(box.closest('.ant-checkbox')).not.toHaveClass('ant-checkbox-disabled');
   });

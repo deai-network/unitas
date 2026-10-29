@@ -3,7 +3,7 @@ import { useSpinnerKey, useVultusComponents, type ManyOfChoiceControls, type Man
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { ChoiceNote } from './ChoiceNote.js';
 import { choiceTooltip, fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
-import { isLocked } from './pendingLock.js';
+import { isLocked, useLockedSwitchClassNames } from './pendingLock.js';
 import { useManyOfRequest } from './useManyOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -39,6 +39,7 @@ function ChoiceSwitch<T extends string>({ choice, size, disabled, locked, showTo
   onToggle: () => void;
 }) {
   const { token } = theme.useToken();
+  const lockedClassNames = useLockedSwitchClassNames(locked);
   const inactive = disabled || locked;
   return withTooltip(showTooltip ? choiceTooltip(choice) : undefined, !choice.enabled, (
     <span data-choice-value={choice.value} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -47,8 +48,7 @@ function ChoiceSwitch<T extends string>({ choice, size, disabled, locked, showTo
         checked={choice.selected}
         disabled={disabled}
         aria-disabled={locked || undefined}
-        // Locked, the switch keeps the look a disabled Switch has (its opacity and cursor).
-        styles={locked ? { root: { opacity: token.opacityLoading, cursor: 'not-allowed' } } : undefined}
+        classNames={lockedClassNames}
         onChange={() => onToggle()}
         aria-label={choice.label}
       />

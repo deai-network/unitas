@@ -1,7 +1,7 @@
 import { Spin, Switch, theme, type SwitchProps } from 'antd';
 import { useSpinnerKey, useVultusComponents, type BoolFieldControls, type MixedBoolFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
-import { isLocked } from './pendingLock.js';
+import { isLocked, useLockedSwitchClassNames } from './pendingLock.js';
 import { useVultusTexts } from './texts.js';
 import { useBoolRequest } from './useBoolRequest.js';
 import { useConfirm } from './useConfirm.js';
@@ -36,9 +36,10 @@ export function BoolSwitch({ field, size, checkedChildren, unCheckedChildren }: 
   const tipField = useTooltipField(field);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
+  const locked = isLocked(field);
+  const lockedClassNames = useLockedSwitchClassNames(locked);
   if (!field.visible) return null;
   const mixed = field.value === 'mixed';
-  const locked = isLocked(field);
   const switchEl = (
     <Switch
       checked={field.value === true}
@@ -49,18 +50,17 @@ export function BoolSwitch({ field, size, checkedChildren, unCheckedChildren }: 
       // keyboard focus. The spinner follows the switch instead, lent or antd's own.
       disabled={!field.enabled}
       aria-disabled={locked || undefined}
-      onChange={() => click()}
+      classNames={lockedClassNames}
+      // Locked, a click goes nowhere: from mixed it would arm the click/double-click timer
+      // and turn the first click after pending into the second half of a double click.
+      onChange={locked ? undefined : () => click()}
       aria-label={field.label || undefined}
       aria-description={fieldAccessibleDescription(field, texts)}
       data-field-id={field.id}
       data-value={String(field.value)}
-      styles={mixed || locked ? {
-        root: {
-          ...(mixed ? { background: `linear-gradient(90deg, ${token.colorPrimary} 50%, ${token.colorTextQuaternary} 50%)` } : {}),
-          // Locked, the switch keeps the look a disabled Switch has (its opacity and cursor).
-          ...(locked ? { opacity: token.opacityLoading, cursor: 'not-allowed' } : {}),
-        },
-        indicator: mixed ? { insetInlineStart: '50%', transform: 'translateX(-50%)' } : undefined,
+      styles={mixed ? {
+        root: { background: `linear-gradient(90deg, ${token.colorPrimary} 50%, ${token.colorTextQuaternary} 50%)` },
+        indicator: { insetInlineStart: '50%', transform: 'translateX(-50%)' },
       } : undefined}
     />
   );
