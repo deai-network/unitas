@@ -1,10 +1,10 @@
 import { Empty, Tree } from 'antd';
 import { useMemo, useRef, useState } from 'react';
 import {
-  filterTree, normalizeTreeValue, type ManyOfTreeFieldControls,
+  coveredNodes, filterTree, normalizeTreeValue, type ManyOfTreeFieldControls, type TreeSelection,
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
-import { isLocked, lockTreeData } from './pendingLock.js';
+import { isLocked, useLockedTreeStyles } from './pendingLock.js';
 import { useVultusTexts } from './texts.js';
 import { collectValues, nextShown, openOrder, treeData, TreeSearchBox, TreeSwitcherIcon } from './treeData.js';
 import { useManyOfTreeRequest } from './useManyOfTreeRequest.js';
@@ -23,6 +23,42 @@ interface InternalManyOfTreeChecklistProps {
    * the document.
    */
   nested?: boolean;
+}
+
+/**
+ * A locked checklist's tree data: every node's checkbox disabled (`disableCheckbox`), the node
+ * itself not. antd takes no check on it (a click, Space, Enter) and gives the checkbox its own
+ * disabled look, the checkmark included (the checkbox's `::after`, which no `styles` entry
+ * reaches; a tree's checkbox takes no `classNames` either), while the row keeps its
+ * `aria-checked`. antd leaves such nodes out of its conduction, so the tree is then handed what
+ * it showed (shownChecks).
+ */
+function lockChecks<N extends { children?: N[] }>(nodes: N[]): N[] {
+  return nodes.map((node) => ({ ...node, disableCheckbox: true, children: node.children && lockChecks(node.children) }));
+}
+
+/**
+ * The nodes antd's Tree shows checked and half-checked for `value` by its own conduction: the
+ * covered ones (coveredNodes, which follows antd's rule), and every enabled node not covered
+ * one of whose enabled children is checked or half-checked (a disabled node is never
+ * half-checked, nor counts for its parent). A tree handed them as they are (`checkStrictly`)
+ * shows what a conducting one does, whichever of its nodes it takes no check on.
+ */
+function shownChecks<T extends string>(
+  nodes: ManyOfTreeFieldControls<T>['nodes'], value: T[], selection: TreeSelection,
+): { checked: T[]; halfChecked: T[] } {
+  const checked = new Set(coveredNodes(nodes, value, selection));
+  const halfChecked: T[] = [];
+  /** Whether `node` is checked or half-checked. */
+  const walk = (node: ManyOfTreeFieldControls<T>['nodes'][number]): boolean => {
+    let below = false;
+    for (const child of node.children ?? []) if (walk(child) && child.enabled) below = true;
+    const half = below && node.enabled && !checked.has(node.value);
+    if (half) halfChecked.push(node.value);
+    return half || checked.has(node.value);
+  };
+  nodes.forEach(walk);
+  return { checked: [...checked], halfChecked };
 }
 
 /**
@@ -65,9 +101,12 @@ interface InternalManyOfTreeChecklistProps {
  * field's label is the tree's accessible name. While the field is pending (a
  * check that commits, or its `pending` option says the app is busy) the tree
  * is locked (isLocked): it keeps its tab stop and the keyboard focus, is said
- * unavailable, and its checkboxes look disabled (lockTreeData) and check
- * nothing, a click or Space alike, while the arrows still move and open or
- * close nodes; the lent Spinner (or antd's own) shows next to the search box.
+ * unavailable, and its checkboxes are disabled (lockChecks: they check
+ * nothing, a click or Space alike) and its titles look disabled
+ * (useLockedTreeStyles), while every node shows checked, half-checked or not
+ * as before (shownChecks), each row saying so to a screen reader
+ * (`aria-checked`), and the arrows still move and open or close nodes; the
+ * lent Spinner (or antd's own) shows next to the search box.
  */
 export function ManyOfTreeChecklist<T extends string>({ field, nested = false }: ManyOfTreeChecklistProps<T> & InternalManyOfTreeChecklistProps) {
   const texts = useVultusTexts();
@@ -86,9 +125,13 @@ export function ManyOfTreeChecklist<T extends string>({ field, nested = false }:
   // rc-tree new data, cutting short a node's opening or closing.
   const kept = useMemo(() => (query.trim() !== '' ? collectValues(filterTree(field.nodes, query)) : undefined), [field.nodes, query]);
   const locked = isLocked(field);
-  const data = useMemo(() => lockTreeData(treeData(field.nodes, {
-    noteStyle: 'brackets', tooltips: field.enabled, holdTooltips: asking, shown: kept?.all,
-  }), locked), [field.nodes, field.enabled, asking, kept, locked]);
+  const data = useMemo(() => {
+    const rows = treeData(field.nodes, {
+      noteStyle: 'brackets', tooltips: field.enabled, holdTooltips: asking, shown: kept?.all,
+    });
+    return locked ? lockChecks(rows) : rows;
+  }, [field.nodes, field.enabled, asking, kept, locked]);
+  const lockedStyles = useLockedTreeStyles(locked);
   if (!field.visible) return null;
 
   const strict = field.selection === 'independent';
@@ -112,12 +155,18 @@ export function ManyOfTreeChecklist<T extends string>({ field, nested = false }:
       checkable
       selectable={false}
       switcherIcon={<TreeSwitcherIcon />}
-      checkStrictly={strict}
-      // Locked, the nodes are disabled instead (lockTreeData): the tree keeps its tab stop.
+      // Locked, the checkboxes are disabled (lockChecks), which antd leaves out of its
+      // conduction: the tree is handed what it showed (shownChecks), to show as it is.
+      checkStrictly={strict || locked}
+      // Locked, only the checkboxes are, the titles looking disabled (useLockedTreeStyles):
+      // the tree keeps its tab stop and each row its checked state.
       disabled={!field.enabled}
       aria-disabled={locked || undefined}
+      styles={lockedStyles}
       treeData={data}
-      checkedKeys={strict ? { checked: known, halfChecked: [] } : known}
+      checkedKeys={strict
+        ? { checked: known, halfChecked: [] }
+        : locked ? shownChecks(field.nodes, known, field.selection) : known}
       expandedKeys={expandedKeys}
       onExpand={(keys) => {
         if (kept) setSearchExpanded(keys as T[]);
@@ -141,8 +190,8 @@ export function ManyOfTreeChecklist<T extends string>({ field, nested = false }:
       onFocusCapture={() => { travel.current = 1; }}
       onKeyDownCapture={(e) => {
         travel.current = e.key === 'ArrowUp' || e.key === 'End' ? -1 : 1;
-        // Locked, Space on the tree checks nothing (the nodes are disabled), nor scrolls the
-        // page, as antd lets it do on a node it will not check.
+        // Locked, Space on the tree checks nothing (the checkboxes are disabled), nor scrolls
+        // the page, as antd lets it do on a node it will not check.
         if (locked && e.key === ' ' && (e.target as Element).closest('[role="tree"]')) e.preventDefault();
       }}
     >

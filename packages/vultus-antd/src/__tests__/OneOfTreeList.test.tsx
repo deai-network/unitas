@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { App as AntApp } from 'antd';
+import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
 import {
   denyWithReason, useOneOfTreeField, type FieldCommit, type FieldDefinition, type OneOfTreeFieldOptions,
@@ -761,17 +761,28 @@ describe('OneOfTreeList: field conventions', () => {
     await waitFor(() => expect(shown()).toBe('kor'));
   });
 
-  it('pending: the tree locked — focusable, said unavailable, its rows disabled-looking and choosing nothing (a click, Space, Enter), the keys still moving; a spinner by the search box', async () => {
+  it('pending: the tree locked — focusable, said unavailable, its titles disabled-looking, its rows choosing nothing (a click, Space, Enter) but keeping their state, the keys still moving; a spinner by the search box', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
-    wrap(<Committed fire={fire} search />);
+    function DisabledProbe() {
+      const { token } = theme.useToken();
+      return <span data-testid="probe" style={{ color: token.colorTextDisabled }} />;
+    }
+    wrap(<><Committed fire={fire} search /><DisabledProbe /></>);
     fireEvent.click(label('Kör'));
     expect(fire).toHaveBeenCalledWith('kor');
     const tree = screen.getByRole('tree');
     await waitFor(() => expect(tree).toHaveAttribute('aria-disabled', 'true'));
     expect(tree).toHaveAttribute('tabindex', '0');
-    expect(row('Algebra')).toHaveAttribute('aria-disabled', 'true');
-    expect(row('Algebra')).toHaveClass('ant-tree-treenode-disabled');
+    // The rows are not disabled: the current one is still said to be selected.
+    expect(row('Algebra')).not.toHaveAttribute('aria-disabled', 'true');
+    expect(row('Algebra')).not.toHaveClass('ant-tree-treenode-disabled');
+    expect(row('Algebra')).toHaveAttribute('aria-selected', 'true');
+    const title = row('Algebra')!.querySelector<HTMLElement>('.ant-tree-title')!;
+    expect(title.style.color).toBe(screen.getByTestId('probe').style.color);
+    expect(title.style.cursor).toBe('not-allowed');
+    // A disabled node stays disabled.
+    expect(row('Térgeometria')).toHaveAttribute('aria-disabled', 'true');
     expect(document.querySelector('.ant-spin')).toBeTruthy();
     fireEvent.click(label('Algebra'));
     focusTree();
@@ -786,17 +797,19 @@ describe('OneOfTreeList: field conventions', () => {
     expect(row('Kör')).toBeInTheDocument();
     await act(async () => { finish(); });
     await waitFor(() => expect(tree).not.toHaveAttribute('aria-disabled'));
-    expect(row('Algebra')).not.toHaveAttribute('aria-disabled', 'true');
+    expect(row('Algebra')!.querySelector<HTMLElement>('.ant-tree-title')!.style.color).toBe('');
     expect(document.querySelector('.ant-spin')).toBeNull();
     expect(shown()).toBe('kor');
   });
 
-  it('not enabled and pending: disabled as before (out of the tab order), not marked locked', () => {
+  it('not enabled and pending: disabled as before (out of the tab order), its reason on hover, not marked locked', async () => {
     wrap(<Inside initialValue="alg" expand="all" pending enabled={denyWithReason('Read-only here')} />);
     const tree = screen.getByRole('tree');
     expect(tree).not.toHaveAttribute('tabindex');
     expect(tree).not.toHaveAttribute('aria-disabled');
     expect(row('Kör')).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.mouseEnter(root().closest('.vultus-tooltip-anchor')!);
+    await waitFor(() => expect(screen.getByText('Read-only here')).toBeInTheDocument());
   });
 
   it('a disabled field can still be browsed: a click on any node with children opens or closes it, choosing nothing', async () => {

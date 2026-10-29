@@ -52,20 +52,28 @@ export function useLockedSwitchClassNames(locked: boolean): { root: string } | u
  * also hands `styles.root` to its popup): antd's disabled text colour and
  * background, the not-allowed cursor. `styles` is its `styles`: the same
  * colour and cursor on its search input, and no remove icon on its tags (a
- * disabled select's have none). Both undefined when not `locked`. The clear
- * icon goes with `allowClear`, which a locked widget turns off, as `disabled`
- * does. The focus ring stays: the focus does.
+ * disabled select's have none). The clear icon, a button that may hold the
+ * focus, stays mounted, out of sight and out of the pointer's reach (a
+ * disabled select has none; its request is refused like any other), and the
+ * suffix (the spinner) stays shown on hover, where antd hides it for the
+ * clear icon (TreeSelect's `styles` type lacks `clear`, but antd hands it on).
+ * Both undefined when not `locked`. The focus ring stays: the focus does.
  */
 export function useLockedSelectLook(locked: boolean): {
   style?: CSSProperties;
-  styles?: { input: CSSProperties; itemRemove: CSSProperties };
+  styles?: { input: CSSProperties; itemRemove: CSSProperties; clear: CSSProperties; suffix: CSSProperties };
 } {
   const { token } = theme.useToken();
   if (!locked) return {};
   const text: CSSProperties = { color: token.colorTextDisabled, cursor: 'not-allowed' };
   return {
     style: { ...text, background: token.colorBgContainerDisabled },
-    styles: { input: text, itemRemove: { display: 'none' } },
+    styles: {
+      input: text,
+      itemRemove: { display: 'none' },
+      clear: { opacity: 0, pointerEvents: 'none' },
+      suffix: { opacity: 1 },
+    },
   };
 }
 
@@ -114,15 +122,16 @@ export function useLockedInputLook(locked: boolean): { style?: CSSProperties; te
 }
 
 /**
- * A locked tree's data (antd Tree's `treeData`): every node disabled, so the
- * rows keep the look `disabled` gave them, antd's own disabled rows and
- * checkboxes (the checkmark is the checkbox's `::after`, which no `styles`
- * entry reaches, and a tree's checkbox takes no `classNames` either), and
- * antd takes no check or selection on them. The Tree itself is not
- * disabled: it keeps its tab stop and the keyboard focus, its arrows still
- * moving over the rows. `nodes` as they are when not `locked`.
+ * A locked antd Tree's `styles` (undefined when not `locked`): its titles in
+ * antd's disabled text colour, with the not-allowed cursor, the look a
+ * disabled tree gave its rows. Neither the Tree nor its rows are disabled:
+ * the Tree keeps its tab stop and the keyboard focus (its arrows still move
+ * over the rows), and each row keeps its state for a screen reader
+ * (`aria-selected`, `aria-checked`), which rc-tree drops on a disabled one.
+ * A checklist's checkboxes lock on their own (ManyOfTreeChecklist).
  */
-export function lockTreeData<N extends { disabled?: boolean; children?: N[] }>(nodes: N[], locked: boolean): N[] {
-  if (!locked) return nodes;
-  return nodes.map((node) => ({ ...node, disabled: true, children: node.children && lockTreeData(node.children, true) }));
+export function useLockedTreeStyles(locked: boolean): { itemTitle: CSSProperties } | undefined {
+  const { token } = theme.useToken();
+  if (!locked) return undefined;
+  return { itemTitle: { color: token.colorTextDisabled, cursor: 'not-allowed' } };
 }

@@ -77,7 +77,8 @@ function InlineChoice<T extends string>({ choice }: { choice: OneOfChoiceControl
  * accessible name; while the field is pending (a commit runs, or its
  * `pending` option says the app is busy) it is a loading select, locked
  * (isLocked: it keeps the keyboard focus, is said unavailable, and its list
- * closes and opens for nothing, a click or a key alike, until pending ends);
+ * closes; a click or a key asking to open it while locked opens nothing,
+ * then or as pending ends);
  * the field's confirmation for the requested choice comes first, its OK
  * labelled with the choice.
  */
@@ -91,8 +92,8 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
   const locked = isLocked(field);
   const lockedLook = useLockedSelectLook(locked);
   if (!field.visible) return null;
-  // Locked, the list is closed (`open={false}`), which antd does not report.
-  if (locked && open) setOpen(false);
+  // Locked or disabled, the list is closed, which antd does not report.
+  if ((locked || !field.enabled) && open) setOpen(false);
   const byValue = new Map(field.choices.map((c) => [c.value as string, c]));
   const option = (c: (typeof field.choices)[number]) => ({ value: c.value, label: c.label, title: '', disabled: !c.enabled });
   const groups = [...new Set(field.choices.flatMap((c) => (c.group ? [c.group] : [])))];
@@ -116,8 +117,9 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
       // pending — unset the rest of the time, so the normal arrow/search icon still shows.
       suffixIcon={Spinner && field.pending ? <Spinner spinnerKey={spinnerKey} size="small" /> : undefined}
       disabled={!field.enabled}
-      // Locked, the list stays closed; antd's own state comes back closed when pending ends.
-      open={locked ? false : undefined}
+      // Open only as `open` says, closed while locked: antd's own state would keep an opening
+      // asked for while locked and show the list for a moment as pending ends.
+      open={field.enabled && !locked && open}
       aria-disabled={locked || undefined}
       onChange={(next: T) => request(next)}
       onOpenChange={(next) => setOpen(next && !locked)}

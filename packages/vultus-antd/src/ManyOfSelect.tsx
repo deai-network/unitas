@@ -33,9 +33,9 @@ export interface ManyOfSelectProps<T extends string> {
  * accessible name; while the field is pending (a commit runs, or its
  * `pending` option says the app is busy) it is a loading select, locked
  * (isLocked: it keeps the keyboard focus, is said unavailable, its list
- * closes and opens for nothing until pending ends, and a removal, a clear or
- * a search changes nothing: no clear icon, no remove icon on the tags, the
- * search read-only).
+ * closes, an opening asked for while locked opening nothing, then or as
+ * pending ends, and a removal, a clear or a search changes nothing: the clear
+ * icon out of sight, no remove icon on the tags, the search read-only).
  */
 export function ManyOfSelect<T extends string>({ field, size, style }: ManyOfSelectProps<T>) {
   const texts = useVultusTexts();
@@ -47,8 +47,8 @@ export function ManyOfSelect<T extends string>({ field, size, style }: ManyOfSel
   const locked = isLocked(field);
   const lockedLook = useLockedSelectLook(locked);
   if (!field.visible) return null;
-  // Locked, the list is closed (`open={false}`), which antd does not report.
-  if (locked && open) setOpen(false);
+  // Locked or disabled, the list is closed, which antd does not report.
+  if ((locked || !field.enabled) && open) setOpen(false);
   const byValue = new Map(field.choices.map((c) => [c.value as string, c]));
   const option = (c: ManyOfChoiceControls<T>) => ({ value: c.value, label: c.label, title: '', disabled: !c.enabled });
   const groups = [...new Set(field.choices.flatMap((c) => (c.group ? [c.group] : [])))];
@@ -69,14 +69,16 @@ export function ManyOfSelect<T extends string>({ field, size, style }: ManyOfSel
       // strips before forwarding the rest to @rc-component/select.
       suffixIcon={Spinner && field.pending ? <Spinner spinnerKey={spinnerKey} size="small" /> : undefined}
       disabled={!field.enabled}
-      // Locked, the list stays closed (see OneOfSelect), and the search is
-      // read-only: antd keeps a search typed while closed for the next opening.
-      open={locked ? false : undefined}
+      // Open only as `open` says, closed while locked (see OneOfSelect), and
+      // the search read-only while locked: antd keeps a search typed while
+      // closed for the next opening.
+      open={field.enabled && !locked && open}
       showSearch={locked ? false : undefined}
       aria-disabled={locked || undefined}
       onChange={(next: T[]) => request(next)}
       onOpenChange={(next) => setOpen(next && !locked)}
-      allowClear={!locked}
+      // Locked, the clear icon stays (it may hold the focus), out of sight (useLockedSelectLook).
+      allowClear
       maxTagCount="responsive"
       placeholder={field.placeholder}
       virtual={false}

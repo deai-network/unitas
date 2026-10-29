@@ -95,10 +95,11 @@ const STRATEGY: Record<TreeSelection, TreeSelectProps['showCheckedStrategy']> = 
  * accessible name; while the field is pending (a check that commits, or its
  * `pending` option says the app is busy) it shows the lent Spinner as its
  * suffix icon (else antd's loading icon) and is locked (isLocked: it keeps
- * the keyboard focus and is said unavailable; its tree closes and opens for
- * nothing until pending ends; a removal or a clear changes nothing: no clear
- * icon, no remove icon on the tags). The search stays across pending (the
- * focus does, so antd's clearing as it leaves does not come), typing into it
+ * the keyboard focus and is said unavailable; its tree closes, an opening
+ * asked for while locked opening nothing, then or as pending ends; a removal
+ * or a clear changes nothing: the clear icon out of sight, no remove icon on
+ * the tags). The search stays across pending (the focus does, so antd's
+ * clearing as it leaves does not come), typing into it or the clear icon
  * changing nothing; the tree opened again shows it.
  *
  * On a phone (Taskmaster's): `panel="drawer"` keeps the closed field to
@@ -130,6 +131,8 @@ export function ManyOfTreePicker<T extends string>({
   const lockedLook = useLockedSelectLook(locked);
   /** Set by the clear icon, just before antd reports the emptied list (which would otherwise keep the values naming no node). */
   const clearing = useRef(false);
+  /** Set by the clear icon while locked (only the keyboard reaches it then), for the click being handled: its search stays. */
+  const lockedClear = useRef(false);
   // The same tree data while the field stays the same, not new on each
   // re-render of its own (the tree opening or closing): antd rebuilds its
   // tree from new data.
@@ -137,8 +140,8 @@ export function ManyOfTreePicker<T extends string>({
     noteStyle: 'aside', tooltips: field.enabled, holdTooltips: asking, tooltipPlacement: 'right',
   }), [field.nodes, field.enabled, asking]);
   if (!field.visible) return null;
-  // Locked, the tree is closed (`open: false`), which antd does not report.
-  if (locked && open) setOpen(false);
+  // Locked or disabled, the tree is closed, which antd does not report.
+  if ((locked || !field.enabled) && open) setOpen(false);
 
   const strict = field.selection === 'independent';
   const known = field.value.filter((v) => field.byValue.has(v));
@@ -155,19 +158,19 @@ export function ManyOfTreePicker<T extends string>({
       onClick: (e) => { if (!(e.target as HTMLElement).closest(OWN_ACTIONS)) openDrawer(); },
     }
     : {
-      // Locked, the tree stays closed; antd's own state comes back closed when pending ends.
-      open: locked ? false : undefined,
+      // Open only as `open` says, closed while locked (see OneOfSelect).
+      open: field.enabled && !locked && open,
       // `treeNodeFilterProp` only drives antd's highlight of the matches,
       // which ignores case but not accents; the filtering is labelMatches'.
       // antd reports every change of the search (`autoClearSearchValue` off,
-      // it clears none on its own): locked, typing changes nothing, while its
-      // clearing as the focus leaves still comes through.
+      // it clears none on its own): locked, typing or the clear icon changes
+      // nothing, while its clearing as the focus leaves still comes through.
       showSearch: {
         filterTreeNode: labelMatches,
         treeNodeFilterProp: 'label',
         autoClearSearchValue: false,
         searchValue: query,
-        onSearch: (next) => { if (!locked || next === '') setQuery(next); },
+        onSearch: (next) => { if (!locked || (next === '' && !lockedClear.current)) setQuery(next); },
       },
       onOpenChange: (next) => { if (!locked) setOpen(next); },
     };
@@ -194,7 +197,13 @@ export function ManyOfTreePicker<T extends string>({
         const keys = next.map((v) => (typeof v === 'object' ? v.value : v));
         request(normalizeTreeValue(field.nodes, [...keys, ...unknown], field.selection));
       }}
-      onClear={() => { clearing.current = true; }}
+      onClear={() => {
+        clearing.current = true;
+        if (!locked) return;
+        lockedClear.current = true;
+        // Only for the click being handled: antd reports the search last, in the same task.
+        queueMicrotask(() => { lockedClear.current = false; });
+      }}
       treeCheckable
       treeCheckStrictly={strict}
       showCheckedStrategy={STRATEGY[field.selection]}
@@ -202,7 +211,8 @@ export function ManyOfTreePicker<T extends string>({
       {...opening}
       treeDefaultExpandedKeys={field.expandedKeys}
       switcherIcon={<TreeSwitcherIcon />}
-      allowClear={!locked}
+      // Locked, the clear icon stays (it may hold the focus), out of sight (useLockedSelectLook).
+      allowClear
       maxTagCount={summary === 'firstWords' ? 0 : 'responsive'}
       maxTagPlaceholder={summary === 'firstWords'
         ? (omitted) => omitted.map((o) => firstWords(

@@ -95,9 +95,10 @@ const OWN_ACTIONS = '.ant-select-clear';
  * commit runs, or its `pending` option says the app is busy) it shows the
  * lent Spinner as its suffix icon (else antd's loading icon) and is locked
  * (isLocked: it keeps the keyboard focus and is said unavailable; its tree
- * closes and opens for nothing until pending ends; typing into its search
- * changes nothing, the closed field showing the value; no clear icon). The
- * tree closing clears the search, antd's rule whatever closes it.
+ * closes, an opening asked for while locked opening nothing, then or as
+ * pending ends; typing into its search changes nothing, the closed field
+ * showing the value; the clear icon out of sight). The tree closing clears
+ * the search, antd's rule whatever closes it.
  *
  * On a phone: `panel="drawer"` keeps the closed field to showing the choice
  * (no dropdown, no search in it); a tap on it (or Enter while it has focus),
@@ -159,8 +160,8 @@ export function OneOfTreePicker<T extends string>({
     setDrawerOpen(false);
   }, [field.value]);
   if (!field.visible) return null;
-  // Locked, the tree is closed (`open: false`), which antd does not report.
-  if (locked && open) setOpen(false);
+  // Locked or disabled, the tree is closed, which antd does not report.
+  if ((locked || !field.enabled) && open) setOpen(false);
 
   const openDrawer = () => { if (field.enabled && !locked) setDrawerOpen(true); };
   /**
@@ -188,8 +189,8 @@ export function OneOfTreePicker<T extends string>({
       onClick: (e) => { if (!(e.target as HTMLElement).closest(OWN_ACTIONS)) openDrawer(); },
     }
     : {
-      // Locked, the tree stays closed; antd's own state comes back closed when pending ends.
-      open: locked ? false : undefined,
+      // Open only as `open` says, closed while locked (see OneOfSelect).
+      open: field.enabled && !locked && open,
       // `treeNodeFilterProp` only drives antd's highlight of the matches,
       // which ignores case but not accents; the filtering is labelMatches'.
       // The search is held here (antd clears it as the tree closes), so the
@@ -242,7 +243,8 @@ export function OneOfTreePicker<T extends string>({
       }}
       treeExpandAction="click"
       switcherIcon={<TreeSwitcherIcon />}
-      allowClear={field.optional && !locked}
+      // Locked, the clear icon stays (it may hold the focus), out of sight (useLockedSelectLook).
+      allowClear={field.optional}
       placeholder={field.placeholder}
       listHeight={listHeight}
       popupMatchSelectWidth={popupMatchSelectWidth}

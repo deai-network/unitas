@@ -400,7 +400,18 @@ describe('OneOfTreePicker: field conventions', () => {
     await waitFor(() => expect(isOpen()).toBe(true));
   });
 
-  it('pending keeps the disabled look: the disabled text colour and background, the not-allowed cursor; no clear icon', () => {
+  it('an opening asked for while locked (a click, a key, typing) shows nothing as pending ends, not even for a moment', () => {
+    const { rerender } = wrap(<Inside initialValue="alg" pending />);
+    fireEvent.mouseDown(combobox());
+    fireEvent.keyDown(combobox(), { key: 'ArrowDown', keyCode: 40, which: 40 });
+    fireEvent.change(combobox(), { target: { value: 'kö' } });
+    rerender(<AntApp><Inside initialValue="alg" /></AntApp>);
+    // A tree shown for a single commit would have been mounted (antd keeps it after).
+    expect(document.querySelector('.ant-select-dropdown')).toBeNull();
+    expect(isOpen()).toBe(false);
+  });
+
+  it('pending keeps the disabled look: the disabled text colour and background, the not-allowed cursor; the clear icon out of sight', () => {
     function DisabledProbe() {
       const { token } = theme.useToken();
       return <span data-testid="probe" style={{ color: token.colorTextDisabled, background: token.colorBgContainerDisabled }} />;
@@ -411,7 +422,12 @@ describe('OneOfTreePicker: field conventions', () => {
     expect(root().style.background).toBe(probe.style.background);
     expect(root().style.cursor).toBe('not-allowed');
     expect(combobox().style.cursor).toBe('not-allowed');
-    expect(root().querySelector('.ant-select-clear')).toBeNull();
+    const clear = root().querySelector<HTMLElement>('.ant-select-clear')!;
+    expect(clear.style.opacity).toBe('0');
+    expect(clear.style.pointerEvents).toBe('none');
+    expect(root().querySelector<HTMLElement>('.ant-select-suffix')!.style.opacity).toBe('1');
+    fireEvent.click(clear);
+    expect(shown()).toBe('alg');
   });
 
   it('not enabled and pending: disabled as before, not marked locked', () => {

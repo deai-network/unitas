@@ -204,19 +204,27 @@ describe('ManyOfSelect', () => {
     await waitFor(() => expect(root()).not.toHaveClass('ant-select-loading'));
   });
 
-  it('pending locks it: the list (open after the pick) closes and stays closed, the combobox stays focusable and is said unavailable; no clear icon, its search read-only, Backspace removes nothing; back to normal after', async () => {
+  it('pending locks it: the list (open after the pick) closes and stays closed, the same input keeps the focus, read-only and said unavailable; its clear icon out of sight and requesting nothing, Backspace removing nothing; back to normal after', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
     wrap(<Committed fire={fire} />);
+    const combobox = screen.getByRole('combobox');
     await choose('Beta');
     expect(fire).toHaveBeenCalledWith(['a', 'b']);
-    const combobox = screen.getByRole('combobox');
+    expect(document.activeElement).toBe(combobox);
     await waitFor(() => expect(combobox).toHaveAttribute('aria-disabled', 'true'));
+    // The search turning read-only keeps its input (and the focus on it).
+    expect(screen.getByRole('combobox')).toBe(combobox);
+    expect(document.activeElement).toBe(combobox);
     expect(combobox).not.toBeDisabled();
     expect(root()).not.toHaveClass('ant-select-disabled');
     expect(combobox).toHaveAttribute('aria-expanded', 'false');
     expect(combobox).toHaveAttribute('readonly');
-    expect(root().querySelector('.ant-select-clear')).toBeNull();
+    const clear = root().querySelector<HTMLElement>('.ant-select-clear')!;
+    expect(clear).not.toBeNull();
+    expect(clear.style.opacity).toBe('0');
+    expect(clear.style.pointerEvents).toBe('none');
+    fireEvent.click(clear);
     fireEvent.mouseDown(combobox);
     fireEvent.keyDown(combobox, { key: 'ArrowDown', keyCode: 40, which: 40 });
     fireEvent.keyDown(combobox, { key: 'Backspace', keyCode: 8, which: 8 });
@@ -227,7 +235,24 @@ describe('ManyOfSelect', () => {
     await waitFor(() => expect(combobox).not.toHaveAttribute('aria-disabled'));
     expect(shown()).toBe('a,b');
     expect(combobox).not.toHaveAttribute('readonly');
-    expect(root().querySelector('.ant-select-clear')).not.toBeNull();
+    expect(root().querySelector<HTMLElement>('.ant-select-clear')!.style.opacity).toBe('');
+  });
+
+  it('the app\'s pending: a focused clear button stays (and keeps the focus); an opening asked for while locked shows nothing as pending ends', () => {
+    const { rerender } = wrap(<Inside initialValue={['a']} />);
+    const clear = root().querySelector<HTMLElement>('.ant-select-clear')!;
+    act(() => clear.focus());
+    rerender(<AntApp><Inside initialValue={['a']} pending /></AntApp>);
+    expect(root().querySelector('.ant-select-clear')).toBe(clear);
+    expect(document.activeElement).toBe(clear);
+    const combobox = screen.getByRole('combobox');
+    fireEvent.mouseDown(combobox);
+    fireEvent.keyDown(combobox, { key: 'ArrowDown', keyCode: 40, which: 40 });
+    rerender(<AntApp><Inside initialValue={['a']} /></AntApp>);
+    // A list shown for a single commit would have been mounted (antd keeps it after).
+    expect(document.querySelector('.ant-select-dropdown')).toBeNull();
+    expect(combobox).toHaveAttribute('aria-expanded', 'false');
+    expect(shown()).toBe('a');
   });
 
   it('pending keeps the disabled look: the disabled text colour and background, the not-allowed cursor, no remove icon on the tags', async () => {
@@ -242,6 +267,8 @@ describe('ManyOfSelect', () => {
     expect(root().style.background).toBe(probe.style.background);
     expect(root().style.cursor).toBe('not-allowed');
     expect(screen.getByRole('combobox').style.cursor).toBe('not-allowed');
+    // antd hides the suffix (the spinner) on hover for the clear icon, which stays hidden here.
+    expect(root().querySelector<HTMLElement>('.ant-select-suffix')!.style.opacity).toBe('1');
     await waitFor(() => expect(root().querySelectorAll('.ant-select-selection-item-remove')).toHaveLength(2));
     for (const remove of Array.from(root().querySelectorAll<HTMLElement>('.ant-select-selection-item-remove'))) {
       expect(remove.style.display).toBe('none');

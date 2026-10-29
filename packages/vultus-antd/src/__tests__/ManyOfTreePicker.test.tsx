@@ -405,7 +405,7 @@ describe('ManyOfTreePicker: field conventions', () => {
     expect(shown()).toBe('alg');
   });
 
-  it('pending: a locked, loading select: focusable (not disabled), said unavailable, its tree (open after the check) closed and kept closed, no clear icon, Backspace removes nothing; back to normal after', async () => {
+  it('pending: a locked, loading select: focusable (not disabled), said unavailable, its tree (open after the check) closed and kept closed, its clear icon out of sight and requesting nothing, Backspace removing nothing; back to normal after', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
     wrap(<Committed fire={fire} initial={['alg']} />);
@@ -417,7 +417,10 @@ describe('ManyOfTreePicker: field conventions', () => {
     expect(input).not.toBeDisabled();
     expect(input).toHaveAttribute('aria-disabled', 'true');
     expect(input).toHaveAttribute('aria-expanded', 'false');
-    expect(root().querySelector('.ant-select-clear')).toBeNull();
+    const clear = root().querySelector<HTMLElement>('.ant-select-clear')!;
+    expect(clear.style.opacity).toBe('0');
+    expect(clear.style.pointerEvents).toBe('none');
+    fireEvent.click(clear);
     fireEvent.mouseDown(input);
     fireEvent.keyDown(input, { key: 'ArrowDown', keyCode: 40, which: 40 });
     fireEvent.keyDown(input, { key: 'Backspace', keyCode: 8, which: 8 });
@@ -427,7 +430,19 @@ describe('ManyOfTreePicker: field conventions', () => {
     await act(async () => { finish(); });
     await waitFor(() => expect(root()).not.toHaveClass('ant-select-loading'));
     expect(input).not.toHaveAttribute('aria-disabled');
-    expect(root().querySelector('.ant-select-clear')).not.toBeNull();
+    expect(root().querySelector<HTMLElement>('.ant-select-clear')!.style.opacity).toBe('');
+  });
+
+  it('an opening asked for while locked (a click, a key, typing) shows nothing as pending ends, not even for a moment', () => {
+    const { rerender } = wrap(<Inside initialValue={['alg']} pending />);
+    const input = screen.getByRole('combobox');
+    fireEvent.mouseDown(input);
+    fireEvent.keyDown(input, { key: 'ArrowDown', keyCode: 40, which: 40 });
+    fireEvent.change(input, { target: { value: 'egy' } });
+    rerender(<AntApp><Inside initialValue={['alg']} /></AntApp>);
+    // A tree shown for a single commit would have been mounted (antd keeps it after).
+    expect(document.querySelector('.ant-select-dropdown')).toBeNull();
+    expect(input).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('a check that commits keeps the search: the tree closes while pending, the search stays (typing into it changes nothing) and filters the tree when it opens again', async () => {
@@ -443,6 +458,10 @@ describe('ManyOfTreePicker: field conventions', () => {
     expect(input).toHaveValue('egyenl');
     fireEvent.change(input, { target: { value: 'egyenlő' } });
     expect(input).toHaveValue('egyenl');
+    // The clear icon (out of sight, so only the keyboard reaches it) clears the search neither.
+    fireEvent.click(root().querySelector('.ant-select-clear')!);
+    expect(input).toHaveValue('egyenl');
+    expect(fire).toHaveBeenCalledTimes(1);
     await act(async () => { finish(); });
     await waitFor(() => expect(shown()).toBe('egy'));
     expect(input).toHaveValue('egyenl');
@@ -463,6 +482,7 @@ describe('ManyOfTreePicker: field conventions', () => {
     expect(root().style.background).toBe(probe.style.background);
     expect(root().style.cursor).toBe('not-allowed');
     expect(screen.getByRole('combobox').style.cursor).toBe('not-allowed');
+    expect(root().querySelector<HTMLElement>('.ant-select-suffix')!.style.opacity).toBe('1');
     await waitFor(() => expect(root().querySelectorAll('.ant-select-selection-item-remove')).toHaveLength(2));
     for (const remove of Array.from(root().querySelectorAll<HTMLElement>('.ant-select-selection-item-remove'))) {
       expect(remove.style.display).toBe('none');

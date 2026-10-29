@@ -4,7 +4,7 @@ import {
 } from 'react';
 import { filterTree, type OneOfTreeFieldControls, type OneOfTreeNodeControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
-import { isLocked, lockTreeData } from './pendingLock.js';
+import { isLocked, useLockedTreeStyles } from './pendingLock.js';
 import { useVultusTexts } from './texts.js';
 import {
   collectValues, nextShown, openOrder, treeData, TreeSearchBox, TreeSwitcherIcon, type FieldTreeDataNode,
@@ -68,9 +68,10 @@ type ListDataNode<T extends string> = Omit<FieldTreeDataNode<T | ''>, 'children'
  * default — it takes `fresh()` (`field.hrefFor` asked again: a URL store answers from the URL as
  * it is then).
  *
- * While `locked` (the field's isLocked) the link stays, so one with the focus keeps it, but goes
- * nowhere and is said unavailable: a click, modified or not, and the middle button's auxclick
- * have their default prevented (no new tab either).
+ * While `locked` (the field's isLocked) the link stays, so one with the focus keeps it, and is
+ * said unavailable; a click, modified or not, and the middle button's auxclick have their
+ * default prevented, so neither follows it (no new tab either). Its context menu and a long
+ * press still offer "open in new tab".
  */
 function rowLink(href: string, title: ReactNode, fresh: () => string | undefined, locked: boolean): ReactNode {
   const refresh = (e: SyntheticEvent<HTMLAnchorElement>) => {
@@ -171,12 +172,12 @@ function listRows<T extends string>(
  * text). A plain click requests the node as any click does, the browser not following the link;
  * a click with Ctrl, Cmd, Shift or Alt, or the middle button, is left to the browser and
  * requests nothing. While the field is locked (pending) a link stays, so a focused one keeps
- * the focus, but goes nowhere, not even into a new tab. The optional row links to `''`
- * likewise. A row's `href` is the one the tree data was last built with (a new value alone does
- * not rebuild it; see Rendering). A link asks `field.hrefFor` again whenever it may be used (the
- * pointer entering it, its focus, a button, a touch or a pen put down on it, its context menu, a
- * modified click), so it follows the URL as it is then (a new value, another parameter of the
- * query, the path).
+ * the focus, but a click (modified or not) or the middle button follows nothing; its context
+ * menu can still open it in a new tab. The optional row links to `''` likewise. A row's `href`
+ * is the one the tree data was last built with (a new value alone does not rebuild it; see
+ * Rendering). A link asks `field.hrefFor` again whenever it may be used (the pointer entering
+ * it, its focus, a button, a touch or a pen put down on it, its context menu, a modified click),
+ * so it follows the URL as it is then (a new value, another parameter of the query, the path).
  *
  * Rendering: a new value alone (a click, the previous / next buttons, the URL) hands antd's Tree
  * the same tree data and, while the value's ancestors are open already, the same expansion:
@@ -199,10 +200,11 @@ function listRows<T extends string>(
  *
  * The field's label is the tree's accessible name. While the field is pending (a commit runs,
  * or its `pending` option says the app is busy) the tree is locked (isLocked): it keeps its tab
- * stop and the keyboard focus, and its links; it is said unavailable; its rows look disabled
- * (lockTreeData) and choose nothing, a click, Space or Enter alike, while the arrows still move
- * and a folder still opens and closes; the lent Spinner (or antd's own) shows by the search
- * box. Tooltips are held back while a confirmation is asking.
+ * stop and the keyboard focus, and its links; it is said unavailable; its titles look disabled
+ * (useLockedTreeStyles); its rows are not disabled, so each keeps its state for a screen reader
+ * (the current one `aria-selected`), but they choose nothing, a click, Space or Enter alike,
+ * while the arrows still move and a folder still opens and closes; the lent Spinner (or
+ * antd's own) shows by the search box. Tooltips are held back while a confirmation is asking.
  */
 export function OneOfTreeList<T extends string>({
   field, search = false, style, nested = false, onChosen,
@@ -264,7 +266,7 @@ export function OneOfTreeList<T extends string>({
     const rows = listRows(treeData(nodes, {
       noteStyle: 'brackets', tooltips: field.enabled, holdTooltips: asking, shown: kept?.all,
     }), nodes, hrefFor, locked);
-    if (!field.optional) return lockTreeData(rows, locked);
+    if (!field.optional) return rows;
     const label = field.placeholder || texts.none;
     const href = hrefFor?.('');
     const title = <span>{label}</span>;
@@ -273,8 +275,9 @@ export function OneOfTreeList<T extends string>({
       title: typeof href === 'string' ? rowLink(href, title, () => hrefFor?.(''), locked) : title,
       style: kept ? { display: 'none' } : undefined,
     };
-    return lockTreeData([none, ...rows], locked);
+    return [none, ...rows];
   }, [nodes, field.enabled, field.optional, field.placeholder, field.hrefFor, locked, asking, kept, texts.none]);
+  const lockedStyles = useLockedTreeStyles(locked);
   const currentValue = field.current?.value;
   const selectedKeys = useMemo<(T | '')[]>(
     () => (currentValue !== undefined ? [currentValue] : field.optional && field.value === '' ? [''] : []),
@@ -315,9 +318,11 @@ export function OneOfTreeList<T extends string>({
       <Tree<ListDataNode<T>>
         blockNode
         switcherIcon={<TreeSwitcherIcon />}
-        // Locked, the rows are disabled instead (lockTreeData): the tree keeps its tab stop.
+        // Locked, only the titles look disabled (useLockedTreeStyles): the tree keeps its tab
+        // stop and each row its state; choose() takes no row.
         disabled={!field.enabled}
         aria-disabled={locked || undefined}
+        styles={lockedStyles}
         treeData={data}
         selectedKeys={selectedKeys}
         expandedKeys={expandedKeys}
@@ -349,8 +354,8 @@ export function OneOfTreeList<T extends string>({
       onFocusCapture={() => { travel.current = 1; }}
       onKeyDownCapture={(e) => {
         travel.current = e.key === 'ArrowUp' || e.key === 'End' ? -1 : 1;
-        // Locked, Space on the tree chooses nothing (the rows are disabled), nor scrolls the
-        // page, as antd lets it do on a row it will not select.
+        // Locked, Space on the tree chooses nothing (choose), nor scrolls the page, as antd
+        // lets it do on a row it will not select (a folder).
         if (locked && e.key === ' ' && (e.target as Element).closest('[role="tree"]')) e.preventDefault();
         // Enter in the tree is the tree's, wherever the focus is in it: on the tree, or on a
         // row's link, which keeps the focus after a click (the browser does not follow that

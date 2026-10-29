@@ -411,6 +411,29 @@ describe('OneOfSelect while pending (the app\'s own)', () => {
     await waitFor(() => expect(isListOpen()).toBe(true));
   });
 
+  it('an opening asked for while locked shows nothing as pending ends, not even for a moment', () => {
+    const { rerender } = wrap(<Inside kind="OneOfSelect" pending />);
+    const combobox = screen.getByRole('combobox');
+    fireEvent.mouseDown(combobox);
+    pressOpeningKeys(combobox);
+    rerender(<AntApp><Inside kind="OneOfSelect" /></AntApp>);
+    // A list shown for a single commit would have been mounted (antd keeps it after).
+    expect(document.querySelector('.ant-select-dropdown')).toBeNull();
+    expect(isListOpen()).toBe(false);
+  });
+
+  it('a list open as the field turns disabled is closed, and stays closed when it is enabled again', async () => {
+    const { rerender } = wrap(<Inside kind="OneOfSelect" />);
+    await openChoices('OneOfSelect');
+    expect(isListOpen()).toBe(true);
+    rerender(<AntApp><Inside kind="OneOfSelect" enabled={denyWithReason('Read-only here')} /></AntApp>);
+    expect(isListOpen()).toBe(false);
+    rerender(<AntApp><Inside kind="OneOfSelect" /></AntApp>);
+    expect(isListOpen()).toBe(false);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)); });
+    expect(isListOpen()).toBe(false);
+  });
+
   it('keeps the disabled look: the disabled text colour and background, the not-allowed cursor', () => {
     function DisabledProbe() {
       const { token } = theme.useToken();
@@ -425,12 +448,14 @@ describe('OneOfSelect while pending (the app\'s own)', () => {
     expect(screen.getByRole('combobox').style.cursor).toBe('not-allowed');
   });
 
-  it('not enabled and pending: disabled as before, not marked locked', () => {
+  it('not enabled and pending: disabled as before, its reason on hover, not marked locked', async () => {
     wrap(<Inside kind="OneOfSelect" pending enabled={denyWithReason('Read-only here')} />);
     expect(selectRoot()).toHaveClass('ant-select-disabled');
     expect(screen.getByRole('combobox')).toBeDisabled();
     expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-disabled');
     expect(selectRoot().style.cursor).toBe('');
+    fireEvent.mouseEnter(selectRoot().closest('span[style]')!);
+    await waitFor(() => expect(screen.getByText('Read-only here')).toBeInTheDocument());
   });
 });
 

@@ -109,6 +109,37 @@ describe('ManyOfTreeChecklist: disabled nodes, as antd and the hook both conduct
   });
 });
 
+describe('ManyOfTreeChecklist: locked, every node shows checked, half-checked or not as before', () => {
+  const GEO: TreeNode<string>[] = [
+    { value: 'geometria', label: 'Geometria', children: [{ value: 'sik', label: 'Síkgeometria' }, { value: 'ter', label: 'Térgeometria', disabled: true }] },
+  ];
+  function Held({ nodes, value, pending, selection }: { nodes: TreeNode<string>[]; value: string[]; pending: boolean; selection?: TreeSelection }) {
+    const field = useManyOfTreeField<string>({ id: 'cats', label: 'Categories', nodes, value, onChange: () => {}, pending, expand: 'all', selection });
+    return <ManyOfTreeChecklist field={field} />;
+  }
+  /** Each row's checked state, as the row and its checkbox say it. */
+  const checks = () => screen.getAllByRole('treeitem').map((r) => (
+    `${r.textContent}: ${r.getAttribute('aria-checked')}/${r.querySelector('[role="checkbox"]')!.getAttribute('aria-checked')}`));
+
+  it.each<[string, TreeNode<string>[], string[], TreeSelection?]>([
+    ['nothing', NODES, []],
+    ['a child (its parent half-checked)', NODES, ['lesz']],
+    ['a parent (its children checked)', NODES, ['komb']],
+    ['every child of a parent (the parent checked)', NODES, ['egy', 'egyl', 'ossz']],
+    ['a disabled node', NODES, ['alg', 'geo']],
+    ['the only enabled child beside a disabled one', GEO, ['sik']],
+    ['a disabled child alone', GEO, ['ter']],
+    ['a parent beside its disabled child', GEO, ['geometria', 'ter']],
+    ['independent: a parent alone', NODES, ['komb'], 'independent'],
+  ])('%s', (_, nodes, value, selection) => {
+    const { rerender } = wrap(<Held nodes={nodes} value={value} pending={false} selection={selection} />);
+    const before = checks();
+    rerender(<AntApp><Held nodes={nodes} value={value} pending selection={selection} /></AntApp>);
+    expect(screen.getByRole('tree')).toHaveAttribute('aria-disabled', 'true');
+    expect(checks()).toEqual(before);
+  });
+});
+
 describe('ManyOfTreeChecklist: rendering', () => {
   it('renders the tree open at the top, each node with its note in brackets after the label', () => {
     wrap(<><Inside /><DescriptionColorProbe /></>);
@@ -393,10 +424,14 @@ describe('ManyOfTreeChecklist: field conventions', () => {
     await waitFor(() => expect(shown()).toBe('komb'));
   });
 
-  it('pending locks the tree: focusable, said unavailable, its checkboxes disabled-looking and checking nothing (a click, Space); a spinner; back to normal after', async () => {
+  it('pending locks the tree: focusable, said unavailable, its checkboxes and titles disabled-looking, checking nothing (a click, Space), its rows keeping their checked state; a spinner; back to normal after', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
-    wrap(<Committed fire={fire} />);
+    function DisabledProbe() {
+      const { token } = theme.useToken();
+      return <span data-testid="probe" style={{ color: token.colorTextDisabled }} />;
+    }
+    wrap(<><Committed fire={fire} initial={['lesz']} /><DisabledProbe /></>);
     fireEvent.click(checkbox('Kombinatorika'));
     expect(fire).toHaveBeenCalledWith(['komb']);
     const tree = screen.getByRole('tree');
@@ -404,28 +439,40 @@ describe('ManyOfTreeChecklist: field conventions', () => {
     expect(tree).toHaveAttribute('tabindex', '0');
     expect(checkbox('Algebra')).toHaveAttribute('aria-disabled', 'true');
     expect(checkbox('Algebra')).toHaveClass('ant-tree-checkbox-disabled');
+    // The rows are not disabled: each is still said to be checked, or not.
+    expect(row('Algebra')).not.toHaveAttribute('aria-disabled', 'true');
+    expect(row('Leszámlálás')).toHaveAttribute('aria-checked', 'true');
+    expect(row('Kombinatorika')).toHaveAttribute('aria-checked', 'mixed');
+    expect(row('Algebra')).toHaveAttribute('aria-checked', 'false');
+    const title = row('Algebra')!.querySelector<HTMLElement>('.ant-tree-title')!;
+    expect(title.style.color).toBe(screen.getByTestId('probe').style.color);
+    expect(title.style.cursor).toBe('not-allowed');
     expect(document.querySelector('.ant-spin')).toBeTruthy();
     fireEvent.click(checkbox('Algebra'));
+    fireEvent.click(screen.getByText('Gráfok'));
     act(() => { tree.focus(); });
     // Space checks nothing, nor scrolls the page (its default, on a node antd will not check).
     expect(fireEvent.keyDown(tree, { key: ' ' })).toBe(false);
     expect(fire).toHaveBeenCalledTimes(1);
     expect(checkbox('Algebra')).toHaveAttribute('aria-checked', 'false');
-    expect(checkbox('Kombinatorika')).toHaveAttribute('aria-checked', 'false');
-    expect(shown()).toBe('');
+    expect(checkbox('Gráfok')).toHaveAttribute('aria-checked', 'false');
+    expect(shown()).toBe('lesz');
     await act(async () => { finish(); });
     await waitFor(() => expect(tree).not.toHaveAttribute('aria-disabled'));
     expect(checkbox('Algebra')).not.toHaveAttribute('aria-disabled', 'true');
+    expect(row('Algebra')!.querySelector<HTMLElement>('.ant-tree-title')!.style.color).toBe('');
     expect(document.querySelector('.ant-spin')).toBeNull();
     expect(shown()).toBe('komb');
   });
 
-  it('not enabled and pending: disabled as before (out of the tab order), not marked locked', () => {
+  it('not enabled and pending: disabled as before (out of the tab order), its reason on hover, not marked locked', async () => {
     wrap(<Inside pending enabled={denyWithReason('Read-only here')} />);
     const tree = screen.getByRole('tree');
     expect(tree).not.toHaveAttribute('tabindex');
     expect(tree).not.toHaveAttribute('aria-disabled');
     expect(checkbox('Kombinatorika')).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.mouseEnter(tree);
+    await waitFor(() => expect(screen.getByText('Read-only here')).toBeInTheDocument());
   });
 
   it('an enabled field: hovering a node shows its description; a disabled node its reason, then its description', async () => {
