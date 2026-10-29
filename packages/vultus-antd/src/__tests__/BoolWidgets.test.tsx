@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { App as AntApp } from 'antd';
+import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
 import { denyWithReason, useBoolField, type BoolFieldOptions, type FieldCommit } from 'vultus-core';
 import { BoolCheckbox } from '../BoolCheckbox.js';
@@ -44,17 +44,42 @@ describe.each(['BoolSwitch', 'BoolCheckbox'] as Kind[])('%s', (kind) => {
     expect(screen.getByRole('status').textContent).toBe('true');
   });
 
-  it('commit: fires with the requested value, is locked while pending, then shows the stored value', async () => {
+  it('commit: fires with the requested value, is locked while pending (focusable, said unavailable, changes ignored), then shows the stored value', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
     wrap(<Committed kind={kind} fire={fire} />);
     fireEvent.click(control(kind));
     expect(fire).toHaveBeenCalledWith(false);
-    await waitFor(() => expect(control(kind)).toBeDisabled());
+    await waitFor(() => expect(control(kind)).toHaveAttribute('aria-disabled', 'true'));
+    expect(control(kind)).not.toBeDisabled();
+    expect(document.querySelector('.ant-spin')).toBeTruthy();
+    // A second click, and the switch's own arrow key, request nothing; the control still shows the field's value.
+    fireEvent.click(control(kind));
+    if (kind === 'BoolSwitch') fireEvent.keyDown(control(kind), { key: 'ArrowLeft', keyCode: 37, which: 37 });
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(control(kind)).toBeChecked();
     expect(screen.getByRole('status').textContent).toBe('true');
     await act(async () => { finish(); });
-    await waitFor(() => expect(control(kind)).not.toBeDisabled());
+    await waitFor(() => expect(control(kind)).not.toHaveAttribute('aria-disabled'));
+    expect(control(kind)).not.toBeDisabled();
+    expect(document.querySelector('.ant-spin')).toBeNull();
     expect(screen.getByRole('status').textContent).toBe('false');
+  });
+
+  it('pending (the app\'s own): locked, a click or key requests nothing', () => {
+    wrap(<Inside kind={kind} pending />);
+    expect(control(kind)).not.toBeDisabled();
+    expect(control(kind)).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(control(kind));
+    if (kind === 'BoolSwitch') fireEvent.keyDown(control(kind), { key: 'ArrowRight', keyCode: 39, which: 39 });
+    expect(control(kind)).not.toBeChecked();
+    expect(screen.getByRole('status').textContent).toBe('false');
+  });
+
+  it('not enabled and pending: disabled as before, not marked locked', () => {
+    wrap(<Inside kind={kind} pending enabled={denyWithReason('Admins only')} />);
+    expect(control(kind)).toBeDisabled();
+    expect(control(kind)).not.toHaveAttribute('aria-disabled');
   });
 
   it('disabled: the reason on hover, no change', async () => {
@@ -91,6 +116,36 @@ describe.each(['BoolSwitch', 'BoolCheckbox'] as Kind[])('%s', (kind) => {
   it('renders nothing when hidden', () => {
     wrap(<Inside kind={kind} hidden />);
     expect(screen.queryByRole(kind === 'BoolSwitch' ? 'switch' : 'checkbox')).toBeNull();
+  });
+});
+
+describe('the locked look (antd\'s disabled look, without disabled)', () => {
+  function OpacityProbe() {
+    const { token } = theme.useToken();
+    return <span data-testid="probe" style={{ opacity: token.opacityLoading }} />;
+  }
+
+  it('BoolSwitch: the switch at antd\'s disabled opacity, with the not-allowed cursor', () => {
+    wrap(<><Inside kind="BoolSwitch" pending /><OpacityProbe /></>);
+    const sw = screen.getByRole('switch');
+    expect(screen.getByTestId('probe').style.opacity).not.toBe('');
+    expect(sw.style.opacity).toBe(screen.getByTestId('probe').style.opacity);
+    expect(sw.style.cursor).toBe('not-allowed');
+  });
+
+  it('BoolCheckbox: antd\'s disabled box and label, the input itself not disabled', () => {
+    wrap(<Inside kind="BoolCheckbox" pending />);
+    const input = screen.getByRole('checkbox');
+    expect(input).not.toBeDisabled();
+    expect(input.closest('.ant-checkbox')).toHaveClass('ant-checkbox-disabled');
+    expect(input.closest('.ant-checkbox-wrapper')).toHaveClass('ant-checkbox-wrapper-disabled');
+  });
+
+  it('not pending: none of it', () => {
+    wrap(<><Inside kind="BoolSwitch" /><Inside kind="BoolCheckbox" /></>);
+    expect(screen.getByRole('switch').style.opacity).toBe('');
+    expect(screen.getByRole('checkbox').closest('.ant-checkbox')).not.toHaveClass('ant-checkbox-disabled');
+    expect(screen.getByRole('checkbox').closest('.ant-checkbox-wrapper')).not.toHaveClass('ant-checkbox-wrapper-disabled');
   });
 });
 

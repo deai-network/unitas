@@ -3,6 +3,7 @@ import { useSpinnerKey, useVultusComponents, type ManyOfChoiceControls, type Man
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { ChoiceNote } from './ChoiceNote.js';
 import { choiceTooltip, fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { isLocked, useLockedCheckboxClassNames } from './pendingLock.js';
 import { useManyOfRequest } from './useManyOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -16,20 +17,25 @@ export interface ManyOfCheckboxesProps<T extends string> {
 /**
  * One choice's checkbox: its label (ChoiceLabel) and note (ChoiceNote),
  * disabled while the choice is, with its own tooltip (choiceTooltip) while
- * `showTooltip` (the field is enabled).
+ * `showTooltip` (the field is enabled). While `locked` (isLocked) it looks
+ * disabled but is not: it keeps the keyboard focus and is said unavailable.
  */
-function ChoiceCheckbox<T extends string>({ choice, disabled, showTooltip, asking, onToggle }: {
+function ChoiceCheckbox<T extends string>({ choice, disabled, locked, showTooltip, asking, onToggle }: {
   choice: ManyOfChoiceControls<T>;
   disabled: boolean;
+  locked: boolean;
   showTooltip: boolean;
   asking: boolean;
   onToggle: () => void;
 }) {
+  const lockedClassNames = useLockedCheckboxClassNames(locked);
   return withTooltip(showTooltip ? choiceTooltip(choice) : undefined, !choice.enabled, (
     <Checkbox
       skipGroup
       checked={choice.selected}
       disabled={disabled}
+      aria-disabled={locked || undefined}
+      classNames={lockedClassNames}
       onChange={() => onToggle()}
       data-choice-value={choice.value}
     >
@@ -52,9 +58,11 @@ function ChoiceCheckbox<T extends string>({ choice, disabled, showTooltip, askin
  * choice's reason first, then its description — no "Current state:"/"Switch
  * to:" lead, since every choice is already shown, selected or not); a
  * disabled field shows its reason for the whole control instead
- * (fieldTooltip). The field's label is the group's accessible name; a
- * pending commit disables the group and shows the lent Spinner (or antd's
- * own) after it.
+ * (fieldTooltip). The field's label is the group's accessible name; while
+ * the field is pending (a commit runs, or its `pending` option says the app
+ * is busy) its checkboxes are locked (isLocked: they keep the keyboard
+ * focus, are said unavailable, and a click requests nothing) and the lent
+ * Spinner (or antd's own) follows the group.
  */
 export function ManyOfCheckboxes<T extends string>({ field, vertical }: ManyOfCheckboxesProps<T>) {
   const texts = useVultusTexts();
@@ -63,14 +71,14 @@ export function ManyOfCheckboxes<T extends string>({ field, vertical }: ManyOfCh
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   if (!field.visible) return null;
-  const disabled = !field.enabled || field.pending;
+  const locked = isLocked(field);
   const toggle = (choice: ManyOfChoiceControls<T>) => {
     if (!choice.enabled) return;
     request(choice.selected ? field.value.filter((v) => v !== choice.value) : [...field.value, choice.value]);
   };
   const group = (
     <Checkbox.Group
-      disabled={disabled}
+      disabled={!field.enabled}
       style={{ display: 'inline-flex', flexDirection: vertical ? 'column' : 'row' }}
       aria-label={field.label || undefined}
       aria-description={fieldAccessibleDescription(field, texts)}
@@ -81,7 +89,8 @@ export function ManyOfCheckboxes<T extends string>({ field, vertical }: ManyOfCh
         <ChoiceCheckbox
           key={c.value}
           choice={c}
-          disabled={!c.enabled || disabled}
+          disabled={!c.enabled || !field.enabled}
+          locked={c.enabled && locked}
           showTooltip={field.enabled}
           asking={asking}
           onToggle={() => toggle(c)}

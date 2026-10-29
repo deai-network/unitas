@@ -161,13 +161,15 @@ describe('Field: the widget for a definition', () => {
     expect(screen.queryByRole('switch')).toBeNull();
   });
 
-  it('render-site pending locks the field', () => {
+  it('render-site pending locks the field (focusable, said unavailable)', () => {
     wrap(<Field definition={DEFINITIONS.boolean} pending />);
-    expect(screen.getByRole('switch')).toBeDisabled();
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('switch')).not.toBeDisabled();
   });
 
   it('render-site pending={false} replaces the definition\'s pending function', () => {
     wrap(<Field definition={{ ...DEFINITIONS.boolean, pending: () => true }} pending={false} />);
+    expect(screen.getByRole('switch')).not.toHaveAttribute('aria-disabled');
     expect(screen.getByRole('switch')).not.toBeDisabled();
   });
 
@@ -365,7 +367,7 @@ describe('Field: storage', () => {
 
   it('stored: the definition\'s pending reaches the field (the store does not read it)', () => {
     wrap(<ArgStoreProvider store={memoryStore()}><Field stored definition={{ ...DEFINITIONS.boolean, pending: true }} /></ArgStoreProvider>);
-    expect(screen.getByRole('switch')).toBeDisabled();
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('stored: overriding a value the store does not read works (label, placeholder, enabled)', () => {

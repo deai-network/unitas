@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
-import { App as AntApp } from 'antd';
+import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
 import { denyWithReason, useOneOfField, type FieldCommit, type OneOfChoice, type OneOfFieldOptions } from 'vultus-core';
 import { OneOfSegmented } from '../OneOfSegmented.js';
@@ -293,6 +293,67 @@ describe('OneOfSegmented while pending (the app\'s own)', () => {
     await hoverChoice('OneOfSegmented', 'Plan');
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 300)); });
     expect(openTooltips()).toHaveLength(0);
+  });
+
+  it('is locked, not disabled: its radios stay focusable, the group is said unavailable; a click or an arrow key requests nothing', () => {
+    wrap(<Inside kind="OneOfSegmented" pending />);
+    const group = screen.getByRole('radiogroup');
+    expect(group).not.toHaveClass('ant-segmented-disabled');
+    expect(group).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('radio', { name: 'Manual' })).not.toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'Plan' })).not.toBeDisabled();
+    // A disabled choice stays disabled.
+    expect(screen.getByRole('radio', { name: 'Bypass' })).toBeDisabled();
+    fireEvent.click(screen.getByText('Plan'));
+    fireEvent.keyDown(screen.getByRole('radio', { name: 'Manual' }), { key: 'ArrowRight' });
+    expect(shown()).toBe('manual');
+    expect(screen.getByRole('radio', { name: 'Manual' })).toBeChecked();
+  });
+
+  it('keeps the disabled look: every segment in the disabled text colour, with the not-allowed cursor', () => {
+    function DisabledColorProbe() {
+      const { token } = theme.useToken();
+      return <span data-testid="probe" style={{ color: token.colorTextDisabled }} />;
+    }
+    wrap(<><Inside kind="OneOfSegmented" pending /><DisabledColorProbe /></>);
+    const color = screen.getByTestId('probe').style.color;
+    expect(color).not.toBe('');
+    const items = Array.from(document.querySelectorAll<HTMLElement>('.ant-segmented-item'));
+    expect(items).toHaveLength(3);
+    for (const item of items) {
+      expect(item.style.color).toBe(color);
+      expect(item.style.cursor).toBe('not-allowed');
+    }
+  });
+
+  it('not enabled and pending: disabled as before, not marked locked', () => {
+    wrap(<Inside kind="OneOfSegmented" pending enabled={denyWithReason('Read-only here')} />);
+    const group = screen.getByRole('radiogroup');
+    expect(group).toHaveClass('ant-segmented-disabled');
+    expect(group).not.toHaveAttribute('aria-disabled');
+    expect(screen.getByRole('radio', { name: 'Manual' })).toBeDisabled();
+    expect(document.querySelector<HTMLElement>('.ant-segmented-item')!.style.cursor).toBe('');
+  });
+});
+
+describe('OneOfSegmented while its commit is pending', () => {
+  it('is locked: focusable, said unavailable, another choice requests nothing; back to normal after', async () => {
+    let finish!: () => void;
+    const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    wrap(<Committed kind="OneOfSegmented" fire={fire} />);
+    await choose('OneOfSegmented', 'Plan');
+    expect(fire).toHaveBeenCalledWith('plan');
+    const group = screen.getByRole('radiogroup');
+    await waitFor(() => expect(group).toHaveAttribute('aria-disabled', 'true'));
+    expect(screen.getByRole('radio', { name: 'Plan' })).not.toBeDisabled();
+    fireEvent.click(screen.getByText('Plan'));
+    fireEvent.keyDown(screen.getByRole('radio', { name: 'Manual' }), { key: 'ArrowRight' });
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('radio', { name: 'Manual' })).toBeChecked();
+    await act(async () => { finish(); });
+    await waitFor(() => expect(group).not.toHaveAttribute('aria-disabled'));
+    expect(screen.getByRole('radio', { name: 'Plan' })).toBeChecked();
+    expect(shown()).toBe('plan');
   });
 });
 

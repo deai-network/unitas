@@ -1,6 +1,7 @@
-import { Switch, theme, type SwitchProps } from 'antd';
+import { Spin, Switch, theme, type SwitchProps } from 'antd';
 import { useSpinnerKey, useVultusComponents, type BoolFieldControls, type MixedBoolFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { isLocked } from './pendingLock.js';
 import { useVultusTexts } from './texts.js';
 import { useBoolRequest } from './useBoolRequest.js';
 import { useConfirm } from './useConfirm.js';
@@ -21,7 +22,10 @@ interface Props {
  * click requests on, a double click off. The field's label is the switch's
  * accessible name; its description and current state (ARIA's switch has no
  * "mixed") the accessible description. The tooltip follows
- * fieldTooltip; a pending commit shows a loading switch; the field's
+ * fieldTooltip; while the field is pending (a commit runs, or its `pending`
+ * option says the app is busy) the switch is locked (isLocked: it keeps the
+ * keyboard focus, is said unavailable, and a click or arrow key requests
+ * nothing) and the lent Spinner (or antd's own) follows it; the field's
  * confirmation for the requested value comes first.
  */
 export function BoolSwitch({ field, size, checkedChildren, unCheckedChildren }: Props) {
@@ -34,30 +38,39 @@ export function BoolSwitch({ field, size, checkedChildren, unCheckedChildren }: 
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   if (!field.visible) return null;
   const mixed = field.value === 'mixed';
+  const locked = isLocked(field);
   const switchEl = (
     <Switch
       checked={field.value === true}
       size={size}
       checkedChildren={checkedChildren}
       unCheckedChildren={unCheckedChildren}
-      // With a lent Spinner, the Switch shows no built-in loading state (antd's Switch has
-      // no icon slot for one) — the Spinner renders right after it instead (Decision 6); it
-      // still disables while pending either way.
-      loading={Spinner ? undefined : field.pending}
-      disabled={!field.enabled || field.pending}
+      // No `loading`: antd's Switch counts it as disabled, and a disabled switch loses the
+      // keyboard focus. The spinner follows the switch instead, lent or antd's own.
+      disabled={!field.enabled}
+      aria-disabled={locked || undefined}
       onChange={() => click()}
       aria-label={field.label || undefined}
       aria-description={fieldAccessibleDescription(field, texts)}
       data-field-id={field.id}
       data-value={String(field.value)}
-      styles={mixed ? {
-        root: { background: `linear-gradient(90deg, ${token.colorPrimary} 50%, ${token.colorTextQuaternary} 50%)` },
-        indicator: { insetInlineStart: '50%', transform: 'translateX(-50%)' },
+      styles={mixed || locked ? {
+        root: {
+          ...(mixed ? { background: `linear-gradient(90deg, ${token.colorPrimary} 50%, ${token.colorTextQuaternary} 50%)` } : {}),
+          // Locked, the switch keeps the look a disabled Switch has (its opacity and cursor).
+          ...(locked ? { opacity: token.opacityLoading, cursor: 'not-allowed' } : {}),
+        },
+        indicator: mixed ? { insetInlineStart: '50%', transform: 'translateX(-50%)' } : undefined,
       } : undefined}
     />
   );
-  const control = Spinner
-    ? <>{switchEl}{field.pending && <span style={{ marginInlineStart: 8 }}><Spinner spinnerKey={spinnerKey} size="small" /></span>}</>
-    : switchEl;
+  const control = (
+    <>
+      {switchEl}
+      {field.pending && (Spinner
+        ? <span style={{ marginInlineStart: 8 }}><Spinner spinnerKey={spinnerKey} size="small" /></span>
+        : <Spin size="small" style={{ marginInlineStart: 8 }} />)}
+    </>
+  );
   return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, control, { open: asking ? false : undefined, stable: true }));
 }

@@ -3,6 +3,7 @@ import { useSpinnerKey, useVultusComponents, type ManyOfChoiceControls, type Man
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { ChoiceNote } from './ChoiceNote.js';
 import { choiceTooltip, fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { isLocked } from './pendingLock.js';
 import { useManyOfRequest } from './useManyOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -20,35 +21,42 @@ export interface ManyOfSwitchesProps<T extends string> {
  * ManyOfCheckboxes lays a checkbox's out; the switch and the label are both
  * disabled while the choice is (the label then in the disabled text colour,
  * as a disabled checkbox's is) and either one (the label with its note)
- * toggles it. It has its own
+ * toggles it. While `locked` (isLocked) both look disabled too, but the
+ * switch is not: it keeps the keyboard focus, is said unavailable, and
+ * neither one requests anything. It has its own
  * tooltip (choiceTooltip) while `showTooltip` (the field is enabled). The
  * choice's label is also the switch's accessible name (as BoolSwitch's field
  * label is its own switch's), since the label sits next to it rather than
  * inside it.
  */
-function ChoiceSwitch<T extends string>({ choice, size, disabled, showTooltip, asking, onToggle }: {
+function ChoiceSwitch<T extends string>({ choice, size, disabled, locked, showTooltip, asking, onToggle }: {
   choice: ManyOfChoiceControls<T>;
   size: ManyOfSwitchesProps<T>['size'];
   disabled: boolean;
+  locked: boolean;
   showTooltip: boolean;
   asking: boolean;
   onToggle: () => void;
 }) {
   const { token } = theme.useToken();
+  const inactive = disabled || locked;
   return withTooltip(showTooltip ? choiceTooltip(choice) : undefined, !choice.enabled, (
     <span data-choice-value={choice.value} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
       <Switch
         size={size}
         checked={choice.selected}
         disabled={disabled}
+        aria-disabled={locked || undefined}
+        // Locked, the switch keeps the look a disabled Switch has (its opacity and cursor).
+        styles={locked ? { root: { opacity: token.opacityLoading, cursor: 'not-allowed' } } : undefined}
         onChange={() => onToggle()}
         aria-label={choice.label}
       />
       <span
-        onClick={disabled ? undefined : () => onToggle()}
+        onClick={inactive ? undefined : () => onToggle()}
         style={{
           display: 'inline-flex', alignItems: 'baseline', gap: 6,
-          cursor: disabled ? 'not-allowed' : 'pointer', color: disabled ? token.colorTextDisabled : undefined,
+          cursor: inactive ? 'not-allowed' : 'pointer', color: inactive ? token.colorTextDisabled : undefined,
         }}
       >
         <ChoiceLabel choice={choice} />
@@ -75,7 +83,7 @@ export function ManyOfSwitches<T extends string>({ field, vertical, size }: Many
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   if (!field.visible) return null;
-  const disabled = !field.enabled || field.pending;
+  const locked = isLocked(field);
   const toggle = (choice: ManyOfChoiceControls<T>) => {
     if (!choice.enabled) return;
     request(choice.selected ? field.value.filter((v) => v !== choice.value) : [...field.value, choice.value]);
@@ -97,7 +105,8 @@ export function ManyOfSwitches<T extends string>({ field, vertical, size }: Many
           key={c.value}
           choice={c}
           size={size}
-          disabled={!c.enabled || disabled}
+          disabled={!c.enabled || !field.enabled}
+          locked={c.enabled && locked}
           showTooltip={field.enabled}
           asking={asking}
           onToggle={() => toggle(c)}

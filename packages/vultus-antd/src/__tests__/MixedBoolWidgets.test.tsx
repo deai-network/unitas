@@ -4,6 +4,7 @@ import { App as AntApp } from 'antd';
 import { denyWithReason, useBoolField, useMixedBoolField, type MixedBool } from 'vultus-core';
 import { BoolCheckbox } from '../BoolCheckbox.js';
 import { BoolSwitch } from '../BoolSwitch.js';
+import { DOUBLE_CLICK_MS } from '../useClickOrDoubleClick.js';
 import { VultusProvider } from '../VultusProvider.js';
 import { openTooltips } from './helpers/tooltips.js';
 
@@ -13,11 +14,12 @@ const descriptions = {
   mixed: 'Some entities are on autopilot, but not all. Click to enable all.',
 };
 
-function Aggregate({ value, fire, enabled = true }: { value: MixedBool; fire: (next: boolean) => void; enabled?: boolean }) {
+function Aggregate({ value, fire, enabled = true, pending }: { value: MixedBool; fire: (next: boolean) => void; enabled?: boolean; pending?: boolean }) {
   const field = useMixedBoolField({
     id: 'autopilot', label: 'Autopilot', description: 'Runs the syncs unattended.',
     valueDescriptions: descriptions, value, commit: { fire },
     enabled: enabled ? true : denyWithReason('Only admins can change autopilot.'),
+    pending,
   });
   return <><BoolSwitch field={field} /><BoolCheckbox field={field} /></>;
 }
@@ -57,6 +59,32 @@ describe('mixed boolean fields in the boolean widgets', () => {
     const expected = `Runs the syncs unattended. Current state: ${descriptions.mixed}`;
     expect(screen.getByRole('switch')).toHaveAttribute('aria-description', expected);
     expect(screen.getByRole('checkbox')).toHaveAttribute('aria-description', expected);
+  });
+});
+
+describe('a pending mixed field', () => {
+  it('both widgets lock (focusable, said unavailable); a click from mixed requests nothing and mixed stays shown', async () => {
+    const fire = vi.fn();
+    wrap(<Aggregate value="mixed" fire={fire} pending />);
+    for (const el of [screen.getByRole('switch'), screen.getByRole('checkbox')]) {
+      expect(el).not.toBeDisabled();
+      expect(el).toHaveAttribute('aria-disabled', 'true');
+      fireEvent.click(el);
+    }
+    await act(() => new Promise((resolve) => { setTimeout(resolve, DOUBLE_CLICK_MS + 100); }));
+    expect(fire).not.toHaveBeenCalled();
+    const sw = screen.getByRole('switch');
+    expect(sw.querySelector<HTMLElement>('.ant-switch-handle')!.style.insetInlineStart).toBe('50%');
+    expect(sw.style.cursor).toBe('not-allowed');
+    expect(screen.getByRole('checkbox').closest('.ant-checkbox')).toHaveClass('ant-checkbox-indeterminate');
+  });
+
+  it('not enabled and pending: both disabled as before, not marked locked', () => {
+    wrap(<Aggregate value="mixed" fire={vi.fn()} enabled={false} pending />);
+    for (const el of [screen.getByRole('switch'), screen.getByRole('checkbox')]) {
+      expect(el).toBeDisabled();
+      expect(el).not.toHaveAttribute('aria-disabled');
+    }
   });
 });
 

@@ -105,17 +105,44 @@ describe.each(['ManyOfCheckboxes', 'ManyOfSwitches'] as Kind[])('%s', (kind) => 
     expect(fire).toHaveBeenCalledWith(['a', 'b']);
   });
 
-  it('pending disables the control and shows a spinner', async () => {
+  it('pending locks the control (focusable, said unavailable, changes ignored) and shows a spinner', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
     wrap(<Committed kind={kind} fire={fire} />);
     fireEvent.click(choiceInput(kind, 'b'));
     expect(fire).toHaveBeenCalledWith(['a', 'b']);
-    await waitFor(() => expect(choiceInput(kind, 'a')).toBeDisabled());
+    await waitFor(() => expect(choiceInput(kind, 'a')).toHaveAttribute('aria-disabled', 'true'));
+    expect(choiceInput(kind, 'a')).not.toBeDisabled();
     expect(document.querySelector('.ant-spin')).toBeTruthy();
+    // A click on a choice (and on a switch's label, and a switch's own arrow key) requests nothing.
+    fireEvent.click(choiceInput(kind, 'a'));
+    if (kind === 'ManyOfSwitches') {
+      fireEvent.click(screen.getByText('Alpha'));
+      fireEvent.keyDown(choiceInput(kind, 'a'), { key: 'ArrowLeft', keyCode: 37, which: 37 });
+    }
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(choiceInput(kind, 'a')).toBeChecked();
     await act(async () => { finish(); });
-    await waitFor(() => expect(choiceInput(kind, 'a')).not.toBeDisabled());
+    await waitFor(() => expect(choiceInput(kind, 'a')).not.toHaveAttribute('aria-disabled'));
+    expect(choiceInput(kind, 'a')).not.toBeDisabled();
     expect(document.querySelector('.ant-spin')).toBeNull();
+    expect(shown()).toBe('a,b');
+  });
+
+  it('pending (the app\'s own): locked, a click requests nothing; a disabled choice stays disabled', () => {
+    wrap(<Inside kind={kind} pending />);
+    expect(choiceInput(kind, 'b')).not.toBeDisabled();
+    expect(choiceInput(kind, 'b')).toHaveAttribute('aria-disabled', 'true');
+    expect(choiceInput(kind, 'c')).toBeDisabled();
+    fireEvent.click(choiceInput(kind, 'b'));
+    expect(choiceInput(kind, 'b')).not.toBeChecked();
+    expect(shown()).toBe('a');
+  });
+
+  it('not enabled and pending: disabled as before, not marked locked', () => {
+    wrap(<Inside kind={kind} pending enabled={denyWithReason('Read-only here')} />);
+    expect(choiceInput(kind, 'a')).toBeDisabled();
+    expect(choiceInput(kind, 'a')).not.toHaveAttribute('aria-disabled');
   });
 
   it('vertical: lays out the choices in a column', () => {
@@ -171,11 +198,46 @@ describe.each(['ManyOfCheckboxes', 'ManyOfSwitches'] as Kind[])('%s', (kind) => 
   });
 });
 
+function DisabledColorProbe() {
+  const { token } = theme.useToken();
+  return <span data-testid="probe" style={{ color: token.colorTextDisabled, opacity: token.opacityLoading }} />;
+}
+
+describe('the locked look (antd\'s disabled look, without disabled)', () => {
+  it('ManyOfSwitches: each switch at antd\'s disabled opacity with the not-allowed cursor, each label in the disabled text colour', () => {
+    wrap(<><Inside kind="ManyOfSwitches" pending /><DisabledColorProbe /></>);
+    const probe = screen.getByTestId('probe');
+    expect(probe.style.opacity).not.toBe('');
+    for (const value of ['a', 'b'] as Tag[]) {
+      const sw = choiceInput('ManyOfSwitches', value);
+      expect(sw).not.toBeDisabled();
+      expect(sw.style.opacity).toBe(probe.style.opacity);
+      expect(sw.style.cursor).toBe('not-allowed');
+      expect(screen.getByText(LABELS[value]).parentElement!.style.color).toBe(probe.style.color);
+      expect(screen.getByText(LABELS[value]).parentElement!.style.cursor).toBe('not-allowed');
+    }
+  });
+
+  it('ManyOfCheckboxes: antd\'s disabled box and label on each checkbox, the inputs themselves not disabled', () => {
+    wrap(<Inside kind="ManyOfCheckboxes" pending />);
+    for (const value of ['a', 'b'] as Tag[]) {
+      const input = choiceInput('ManyOfCheckboxes', value);
+      expect(input).not.toBeDisabled();
+      expect(input.closest('.ant-checkbox')).toHaveClass('ant-checkbox-disabled');
+      expect(input.closest('.ant-checkbox-wrapper')).toHaveClass('ant-checkbox-wrapper-disabled');
+    }
+  });
+
+  it('not pending: none of it', () => {
+    wrap(<><Inside kind="ManyOfSwitches" /><Inside kind="ManyOfCheckboxes" /></>);
+    const sw = document.querySelector<HTMLElement>('[role="switch"][aria-label="Alpha"]')!;
+    expect(sw.style.opacity).toBe('');
+    const box = document.querySelector<HTMLElement>('input[data-choice-value="a"]')!;
+    expect(box.closest('.ant-checkbox')).not.toHaveClass('ant-checkbox-disabled');
+  });
+});
+
 describe('ManyOfSwitches: disabled choices and rows', () => {
-  function DisabledColorProbe() {
-    const { token } = theme.useToken();
-    return <span data-testid="probe" style={{ color: token.colorTextDisabled }} />;
-  }
 
   it('a disabled choice\'s label is in the disabled text colour; an enabled one\'s is not', () => {
     wrap(<><Inside kind="ManyOfSwitches" /><DisabledColorProbe /></>);

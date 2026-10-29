@@ -122,7 +122,8 @@ describe('BoolCheckbox — spinner slot', () => {
   it('pending: the provided Spinner where antd\'s Spin was, no .ant-spin, inside the checkbox label, size small', async () => {
     render(wrap(<PendingCheckbox />));
     fireEvent.click(screen.getByRole('checkbox'));
-    await waitFor(() => expect(screen.getByRole('checkbox')).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true'));
+    expect(screen.getByRole('checkbox')).not.toBeDisabled();
     expect(document.querySelector('.ant-spin')).toBeNull();
     const spinner = screen.getByTestId('rec-spinner');
     expect(spinner).toHaveAttribute('data-key', 'vultus:field:enabled');
@@ -133,7 +134,7 @@ describe('BoolCheckbox — spinner slot', () => {
   it('without a provider: today\'s antd Spin, unchanged', async () => {
     render(wrap(<PendingCheckbox />, false));
     fireEvent.click(screen.getByRole('checkbox'));
-    await waitFor(() => expect(screen.getByRole('checkbox')).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true'));
     expect(screen.queryByTestId('rec-spinner')).toBeNull();
     expect(document.querySelector('.ant-spin')).not.toBeNull();
   });
@@ -145,14 +146,15 @@ function PendingSwitch() {
 }
 
 describe('BoolSwitch — spinner slot', () => {
-  it('pending: no ant-switch-loading, the switch stays disabled, the provided Spinner follows it, size small', async () => {
+  it('pending: no ant-switch-loading, the switch stays focusable (locked, not disabled), the provided Spinner follows it, size small', async () => {
     render(wrap(<PendingSwitch />));
     fireEvent.click(screen.getByRole('switch'));
     const switchEl = await waitFor(() => {
       const el = screen.getByRole('switch');
-      expect(el).toBeDisabled();
+      expect(el).toHaveAttribute('aria-disabled', 'true');
       return el;
     });
+    expect(switchEl).not.toBeDisabled();
     expect(switchEl.className).not.toContain('ant-switch-loading');
     const spinner = screen.getByTestId('rec-spinner');
     expect(spinner).toHaveAttribute('data-key', 'vultus:field:enabled');
@@ -161,10 +163,19 @@ describe('BoolSwitch — spinner slot', () => {
     expect(sizeOf('vultus:field:enabled')).toBe('small');
   });
 
-  it('without a provider: today\'s loading switch, unchanged', async () => {
+  it('without a provider: antd\'s Spin follows the switch; no loading switch (antd\'s Switch counts loading as disabled)', async () => {
     render(wrap(<PendingSwitch />, false));
     fireEvent.click(screen.getByRole('switch'));
-    await waitFor(() => expect(screen.getByRole('switch').className).toContain('ant-switch-loading'));
+    const switchEl = await waitFor(() => {
+      const el = screen.getByRole('switch');
+      expect(el).toHaveAttribute('aria-disabled', 'true');
+      return el;
+    });
+    expect(switchEl).not.toBeDisabled();
+    expect(switchEl.className).not.toContain('ant-switch-loading');
+    const spin = document.querySelector('.ant-spin');
+    expect(spin).not.toBeNull();
+    expect(switchEl.compareDocumentPosition(spin!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByTestId('rec-spinner')).toBeNull();
   });
 });
@@ -236,10 +247,11 @@ function SettlingSegmented({ pending }: { pending: boolean }) {
 }
 
 describe('OneOfSegmented — spinner slot', () => {
-  it('pending (the app\'s own): the control is locked and the provided Spinner follows it, keyed to the field, size small', () => {
+  it('pending (the app\'s own): the control is locked (not disabled) and the provided Spinner follows it, keyed to the field, size small', () => {
     render(wrap(<SettlingSegmented pending />));
     const segmented = document.querySelector('.ant-segmented') as HTMLElement;
-    expect(segmented).toHaveClass('ant-segmented-disabled');
+    expect(segmented).not.toHaveClass('ant-segmented-disabled');
+    expect(segmented).toHaveAttribute('aria-disabled', 'true');
     const spinner = screen.getByTestId('rec-spinner');
     expect(spinner).toHaveAttribute('data-key', 'vultus:field:variant');
     expect(segmented.compareDocumentPosition(spinner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -256,6 +268,7 @@ describe('OneOfSegmented — spinner slot', () => {
     render(wrap(<SettlingSegmented pending={false} />));
     expect(screen.queryByTestId('rec-spinner')).toBeNull();
     expect(document.querySelector('.ant-segmented')).not.toHaveClass('ant-segmented-disabled');
+    expect(document.querySelector('.ant-segmented')).not.toHaveAttribute('aria-disabled');
   });
 
   it('the control keeps its node when pending comes and goes', () => {
