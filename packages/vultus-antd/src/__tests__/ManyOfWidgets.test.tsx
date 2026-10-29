@@ -176,11 +176,17 @@ describe.each(['ManyOfCheckboxes', 'ManyOfSwitches'] as Kind[])('%s', (kind) => 
     expect(place.querySelector('.ant-spin')).not.toBeNull();
   });
 
-  it('vertical: the spinner\'s place follows the column, not a row of its own under the choices', () => {
-    wrap(<Inside kind={kind} vertical pending />);
+  it('vertical: the spinner\'s place follows the column, not a row of its own under the choices, idle and pending alike', () => {
+    const { rerender } = wrap(<Inside kind={kind} vertical pending={false} />);
     expect(root().querySelector('.vultus-spinner-place')).toBeNull();
     const place = document.querySelector('.vultus-spinner-place')!;
     expect(root().compareDocumentPosition(place) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(place).toBeEmptyDOMElement();
+    expect(place).toHaveAttribute('aria-hidden', 'true');
+    rerender(<AntApp><Inside kind={kind} vertical pending /></AntApp>);
+    expect(document.querySelector('.vultus-spinner-place')).toBe(place);
+    expect(root().querySelector('.vultus-spinner-place')).toBeNull();
+    expect(place).not.toHaveAttribute('aria-hidden');
     expect(place.querySelector('.ant-spin')).not.toBeNull();
   });
 

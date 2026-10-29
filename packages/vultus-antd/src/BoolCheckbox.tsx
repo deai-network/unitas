@@ -13,7 +13,8 @@ import { withTooltip } from './WithReason.js';
  * antd's Checkbox with the field's label next to it; mixed is the
  * indeterminate state (a click requests on, a double click off). Same
  * behaviour as BoolSwitch otherwise, locked while pending too; its spinner
- * sits inside its label, after the text, in its place kept for it idle too
+ * follows the checkbox and its label (not in the label, so neither its click
+ * target nor its name takes it in), in its place kept for it idle too
  * (SpinnerPlace).
  */
 export function BoolCheckbox({ field }: { field: BoolFieldControls | MixedBoolFieldControls }) {
@@ -24,7 +25,7 @@ export function BoolCheckbox({ field }: { field: BoolFieldControls | MixedBoolFi
   const locked = isLocked(field);
   const lockedClassNames = useLockedCheckboxClassNames(locked);
   if (!field.visible) return null;
-  return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, (
+  return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, (<>
     <Checkbox
       checked={field.value === true}
       indeterminate={field.value === 'mixed'}
@@ -41,7 +42,9 @@ export function BoolCheckbox({ field }: { field: BoolFieldControls | MixedBoolFi
       data-value={String(field.value)}
     >
       {field.label}
-      <SpinnerPlace field={field} />
     </Checkbox>
-  ), { open: asking ? false : undefined, stable: true }));
+    {/* After the label, not in it: the click target stays the label's. antd renders the label
+        (and its padding, which spaces the place) only for a label that is not empty. */}
+    <SpinnerPlace field={field} gap={field.label ? 0 : undefined} />
+  </>), { open: asking ? false : undefined, stable: true }));
 }

@@ -1,8 +1,9 @@
-import { Input, Spin } from 'antd';
+import { Input } from 'antd';
 import type { ChangeEvent, CSSProperties, KeyboardEvent } from 'react';
-import { useSpinnerKey, useVultusComponents, type TextFieldControls } from 'vultus-core';
+import type { TextFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { isLocked, useLockedLook } from './pendingLock.js';
+import { SpinnerPlace } from './SpinnerPlace.js';
 import { useTextDraft } from './useTextDraft.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -38,13 +39,14 @@ export interface SearchInputProps {
  * app is busy) it is locked (isLocked): it is read-only, not disabled, so it
  * keeps the keyboard focus and its draft, is said unavailable, shows no clear
  * button, and typing, Escape and Enter do nothing (`onEnter` is not called).
+ * The lent Spinner (or antd's own) shows while pending in the suffix, after
+ * the clear button, in its place kept for it idle too (SpinnerPlace), so the
+ * input keeps its width.
  */
 export function SearchInput({ field, onEnter, style }: SearchInputProps) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { value, change, commit, clear, wrap, asking } = useTextDraft(field);
-  const { Spinner } = useVultusComponents();
-  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   const locked = isLocked(field);
   const lockedLook = useLockedLook(locked);
   if (!field.visible) return null;
@@ -58,9 +60,6 @@ export function SearchInput({ field, onEnter, style }: SearchInputProps) {
       onEnter?.(value);
     }
   };
-  const spinner = field.pending
-    ? (Spinner ? <Spinner spinnerKey={spinnerKey} size="small" /> : <Spin size="small" />)
-    : null;
   // Without a width, antd's Input fills its container: so does the tooltip's span (always there, see withTooltip).
   return wrap(withTooltip(fieldTooltip(tipField, texts), !field.enabled, (
     <Input
@@ -74,9 +73,10 @@ export function SearchInput({ field, onEnter, style }: SearchInputProps) {
       prefix={<SearchIcon />}
       // Always a real element, never undefined: toggling antd's `suffix` between a node and
       // undefined as `field.pending` flips makes antd remount the affix wrapper and drop focus
-      // (its own dev warning). An always-present (if sometimes empty) slot keeps the wrapper
-      // stable; here `allowClear` already forces that wrapper to exist regardless.
-      suffix={spinner ?? <></>}
+      // (its own dev warning). The spinner's place, there idle too, keeps the wrapper stable
+      // (here `allowClear` already forces that wrapper to exist regardless) and the input its
+      // width. No gap of its own: antd's suffix keeps its room.
+      suffix={<SpinnerPlace field={field} gap={0} />}
       onChange={onChange}
       onClear={field.commits && !locked ? clear : undefined}
       onBlur={field.commits ? commit : undefined}

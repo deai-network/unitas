@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { App as AntApp, ConfigProvider } from 'antd';
 import {
-  SpinnerScope, useBoolField, useManyOfField, useManyOfTreeField, useNumericField, useOneOfField,
+  SpinnerScope, useBoolField, useManyOfField, useManyOfTreeField, useNumericField, useOneOfField, useTextField,
   type OneOfChoice, type SpinnerProps,
 } from 'vultus-core';
 import { VultusProvider } from '../VultusProvider.js';
@@ -18,6 +18,8 @@ import { ManyOfTreeChecklist } from '../ManyOfTreeChecklist.js';
 import { NumericInput } from '../NumericInput.js';
 import { OneOfSelect } from '../OneOfSelect.js';
 import { OneOfSegmented } from '../OneOfSegmented.js';
+import { SearchInput } from '../SearchInput.js';
+import { TextInput } from '../TextInput.js';
 import { makeStatus } from './helpers/makeStatus.js';
 
 const calls: SpinnerProps[] = [];
@@ -139,7 +141,7 @@ function PendingCheckbox() {
 }
 
 describe('BoolCheckbox — spinner slot', () => {
-  it('pending: the provided Spinner where antd\'s Spin was, no .ant-spin, inside the checkbox label, size small', async () => {
+  it('pending: the provided Spinner where antd\'s Spin was, no .ant-spin, after the checkbox and its label (not in it), size small', async () => {
     render(wrap(<PendingCheckbox />));
     fireEvent.click(screen.getByRole('checkbox'));
     await waitFor(() => expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true'));
@@ -147,7 +149,10 @@ describe('BoolCheckbox — spinner slot', () => {
     expect(document.querySelector('.ant-spin')).toBeNull();
     const spinner = screen.getByTestId('rec-spinner');
     expect(spinner).toHaveAttribute('data-key', 'vultus:field:enabled');
-    expect(spinner.closest('.ant-checkbox-wrapper')).not.toBeNull();
+    // Out of the label: it neither lengthens the click target nor reads into the checkbox's name.
+    const label = document.querySelector('.ant-checkbox-wrapper')!;
+    expect(label).not.toContainElement(spinner);
+    expect(label.compareDocumentPosition(spinner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(sizeOf('vultus:field:enabled')).toBe('small');
   });
 
@@ -356,6 +361,18 @@ const PLACED = {
     const field = useManyOfTreeField<Choice>({ id: 'f', label: 'F', nodes: CHOICES, pending });
     return <ManyOfTreeChecklist field={field} />;
   },
+  TextInput: function PlacedText({ pending }: { pending: boolean }) {
+    const field = useTextField({ id: 'f', label: 'F', initialValue: 'text', pending });
+    return <TextInput field={field} />;
+  },
+  'TextInput (textarea)': function PlacedTextArea({ pending }: { pending: boolean }) {
+    const field = useTextField({ id: 'f', label: 'F', control: 'textarea', initialValue: 'text', pending });
+    return <TextInput field={field} />;
+  },
+  SearchInput: function PlacedSearch({ pending }: { pending: boolean }) {
+    const field = useTextField({ id: 'f', label: 'F', initialValue: 'text', pending });
+    return <SearchInput field={field} />;
+  },
 } satisfies Record<string, (props: { pending: boolean }) => ReactElement>;
 
 type Placed = keyof typeof PLACED;
@@ -366,7 +383,7 @@ const place = () => document.querySelector<HTMLElement>('.vultus-spinner-place')
 /** Where each widget's place is: beside its control, or inside its group's line flow, after the last choice. */
 const WHERE: Record<Placed, (place: HTMLElement) => void> = {
   BoolSwitch: (p) => expect(screen.getByRole('switch').nextElementSibling).toBe(p),
-  BoolCheckbox: (p) => expect(p.closest('.ant-checkbox-wrapper')).not.toBeNull(),
+  BoolCheckbox: (p) => expect(document.querySelector('.ant-checkbox-wrapper')!.nextElementSibling).toBe(p),
   OneOfSegmented: (p) => expect(document.querySelector('.ant-segmented')!.nextElementSibling).toBe(p),
   ManyOfCheckboxes: (p) => expect(document.querySelector('[data-field-id="f"]')!.lastElementChild).toBe(p),
   ManyOfSwitches: (p) => expect(document.querySelector('[data-field-id="f"]')!.lastElementChild).toBe(p),
@@ -375,6 +392,20 @@ const WHERE: Record<Placed, (place: HTMLElement) => void> = {
     expect(p.nextSibling?.textContent).toBe('%');
   },
   ManyOfTreeChecklist: (p) => expect(p.previousElementSibling).toContainElement(screen.getByRole('textbox', { name: 'Search F' })),
+  TextInput: (p) => {
+    expect(p.closest('.ant-input-suffix')).not.toBeNull();
+    expect(p.closest('.ant-input-affix-wrapper')).toContainElement(screen.getByRole('textbox'));
+  },
+  // Beside the textarea, at the top of its row (by its first line), as its spinner was.
+  'TextInput (textarea)': (p) => {
+    expect(screen.getByRole('textbox').nextElementSibling).toBe(p);
+    expect(p.style.alignSelf).toBe('flex-start');
+  },
+  // After the clear button, which keeps its room whether it shows or not.
+  SearchInput: (p) => {
+    expect(p.closest('.ant-input-suffix')).not.toBeNull();
+    expect(p.previousElementSibling).toHaveClass('ant-input-clear-icon');
+  },
 };
 
 describe.each(Object.keys(PLACED) as Placed[])('%s — the spinner\'s place, always reserved', (kind) => {
@@ -414,7 +445,7 @@ describe.each(Object.keys(PLACED) as Placed[])('%s — the spinner\'s place, alw
     expect(idle).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('a lent Spinner larger than the place overflows it, centred, moving nothing', () => {
+  it('centres what it holds and clips nothing, so a larger lent Spinner would overflow it, centred (its styles: jsdom lays nothing out)', () => {
     render(wrap(<Placed pending />));
     const p = place()!;
     expect(p.style.justifyContent).toBe('center');
@@ -423,19 +454,28 @@ describe.each(Object.keys(PLACED) as Placed[])('%s — the spinner\'s place, alw
   });
 });
 
-describe('the spinner\'s place: its size', () => {
+describe('the spinner\'s place: its size and gap', () => {
   it('holds antd\'s small Spin as it turns: its dot size from the theme (controlHeightLG), across the diagonal', () => {
     render(wrap(<PLACED.BoolSwitch pending={false} />));
     // antd's small dot: controlHeightLG (40) * 0.35 = 14; turning, it reaches 14 * √2.
     expect(place()!.style.width).toBe(`${Math.ceil(14 * Math.SQRT2)}px`);
   });
 
-  it('follows the theme: controlHeightLG, or the Spin component\'s own dotSizeSM', () => {
-    const { unmount } = render(wrap(<ConfigProvider theme={{ token: { controlHeightLG: 60 } }}><PLACED.BoolSwitch pending={false} /></ConfigProvider>));
-    expect(place()!.style.width).toBe(`${Math.ceil(60 * 0.35 * Math.SQRT2)}px`);
+  it.each([
+    ['the global controlHeightLG', { token: { controlHeightLG: 60 } }, 60 * 0.35],
+    ['the Spin component\'s own controlHeightLG, as antd takes it', { components: { Spin: { controlHeightLG: 60 } } }, 60 * 0.35],
+    ['the Spin component\'s own dotSizeSM', { components: { Spin: { dotSizeSM: 30 } } }, 30],
+  ])('follows the theme: %s', (_name, theme, dot) => {
+    render(wrap(<ConfigProvider theme={theme}><PLACED.BoolSwitch pending={false} /></ConfigProvider>));
+    expect(place()!.style.width).toBe(`${Math.ceil(dot * Math.SQRT2)}px`);
+  });
+
+  it('its gap before it is the theme\'s marginXS (8 by default)', () => {
+    const { unmount } = render(wrap(<PLACED.BoolSwitch pending={false} />));
+    expect(place()!.style.marginInlineStart).toBe('8px');
     unmount();
-    render(wrap(<ConfigProvider theme={{ components: { Spin: { dotSizeSM: 30 } } }}><PLACED.BoolSwitch pending={false} /></ConfigProvider>));
-    expect(place()!.style.width).toBe(`${Math.ceil(30 * Math.SQRT2)}px`);
+    render(wrap(<ConfigProvider theme={{ token: { marginXS: 6 } }}><PLACED.BoolSwitch pending={false} /></ConfigProvider>));
+    expect(place()!.style.marginInlineStart).toBe('6px');
   });
 });
 
@@ -443,6 +483,11 @@ describe('SpinnerScope — vultus-antd sites', () => {
   it('prefixes a site\'s key with the scope name', () => {
     render(wrap(<SpinnerScope name="s1"><ActionButton action={makeStatus({ id: 'go', pending: true })} /></SpinnerScope>));
     expect(screen.getByTestId('rec-spinner')).toHaveAttribute('data-key', 's1/vultus:action:go');
+  });
+
+  it('a field\'s, in the spinner\'s place, too', () => {
+    render(wrap(<SpinnerScope name="s1"><PLACED.BoolSwitch pending /></SpinnerScope>));
+    expect(within(place()!).getByTestId('rec-spinner')).toHaveAttribute('data-key', 's1/vultus:field:f');
   });
 });
 

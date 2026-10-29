@@ -1,8 +1,9 @@
-import { Input, Spin } from 'antd';
+import { Input } from 'antd';
 import type { ChangeEvent, CSSProperties, ReactElement } from 'react';
-import { useSpinnerKey, useVultusComponents, type TextFieldControls } from 'vultus-core';
+import type { TextFieldControls } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { isLocked, useLockedLook } from './pendingLock.js';
+import { SpinnerPlace } from './SpinnerPlace.js';
 import { useTextDraft } from './useTextDraft.js';
 import { useVultusTexts } from './texts.js';
 import { splitLayout, withTooltip } from './WithReason.js';
@@ -31,22 +32,20 @@ export interface TextInputProps {
  * this widget's own requests. While the field is pending (a commit runs, or
  * its `pending` option says the app is busy) it is locked (isLocked): it is
  * read-only, not disabled, so it keeps the keyboard focus and its draft, is
- * said unavailable, and typing changes nothing.
+ * said unavailable, and typing changes nothing. The lent Spinner (or antd's
+ * own) shows while pending in its place, kept for it idle too (SpinnerPlace),
+ * so the input keeps its width: in the input's suffix, or beside the
+ * textarea, at its top.
  */
 export function TextInput({ field, style }: TextInputProps) {
   const texts = useVultusTexts();
   const tipField = useTooltipField(field);
   const { value, change, commit, wrap, asking } = useTextDraft(field);
-  const { Spinner } = useVultusComponents();
-  const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
   const locked = isLocked(field);
   const lockedLook = useLockedLook(locked);
   if (!field.visible) return null;
   // Locked, a change goes nowhere: read-only stops typing, this any change that gets past it.
   const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { if (!locked) change(e.target.value); };
-  const spinner = field.pending
-    ? (Spinner ? <Spinner spinnerKey={spinnerKey} size="small" /> : <Spin size="small" />)
-    : null;
   const sharedProps = {
     value,
     placeholder: field.placeholder,
@@ -60,13 +59,14 @@ export function TextInput({ field, style }: TextInputProps) {
     'data-field-id': field.id,
     'data-value': field.value,
   };
-  // The textarea and its spinner in one row, which a given width (and the tooltip's span) can size: the textarea grows in it.
+  // The textarea and its spinner's place in one row, which a given width (and the tooltip's span) can
+  // size: the textarea grows in it, and keeps its width as pending comes and goes.
   const { width, ...rest } = splitLayout(style).rest;
   const control: ReactElement = field.control === 'textarea'
     ? (
-      <span style={{ display: 'flex', alignItems: 'flex-start', gap: 8, width }}>
+      <span style={{ display: 'flex', alignItems: 'flex-start', width }}>
         <Input.TextArea {...sharedProps} style={{ minWidth: 220, ...rest, flex: 1, ...lockedLook.style }} />
-        {spinner}
+        <SpinnerPlace field={field} align="start" />
       </span>
     )
     : (
@@ -75,9 +75,9 @@ export function TextInput({ field, style }: TextInputProps) {
         onPressEnter={field.commits ? commit : undefined}
         // Always a real element, never undefined: toggling antd's `suffix` between a node and
         // undefined as `field.pending` flips makes antd remount the affix wrapper and drop
-        // focus (its own dev warning) — an always-present (if sometimes empty) slot keeps the
-        // wrapper stable instead.
-        suffix={spinner ?? <></>}
+        // focus (its own dev warning). The spinner's place, there idle too, keeps the wrapper
+        // stable, and the input its width. No gap of its own: antd's suffix keeps its room.
+        suffix={<SpinnerPlace field={field} gap={0} />}
         style={{ minWidth: 200, ...style, ...lockedLook.style }}
         styles={lockedLook.text && { input: lockedLook.text }}
       />

@@ -156,7 +156,7 @@ export function TreeSearchBox({ field, query, onSearch }: {
 }) {
   const texts = useVultusTexts();
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
       <Input
         allowClear
         placeholder={texts.search}
@@ -164,7 +164,7 @@ export function TreeSearchBox({ field, query, onSearch }: {
         value={query}
         onChange={(e) => onSearch(e.target.value)}
       />
-      <SpinnerPlace field={field} gap={0} />
+      <SpinnerPlace field={field} />
     </div>
   );
 }

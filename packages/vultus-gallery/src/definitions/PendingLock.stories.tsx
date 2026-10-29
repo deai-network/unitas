@@ -29,6 +29,7 @@ const EVERY_WIDGET: FieldDefinition[] = [
   { kind: 'range', id: 'range', label: 'Range (slider)', min: 2010, max: 2025, format: schoolYear },
   { kind: 'text', id: 'textInput', label: 'Text (input)', placeholder: 'Type, then Enter' },
   { kind: 'text', id: 'textSearch', label: 'Text (search)', placeholder: 'Type, then Enter', widget: 'search' },
+  { kind: 'text', id: 'textArea', label: 'Text (textarea)', placeholder: 'Type, then Tab away', control: 'textarea' },
   { kind: 'oneOfTree', id: 'oneOfTreePicker', label: 'One of tree (picker)', nodes: CATEGORIES },
   { kind: 'oneOfTree', id: 'oneOfTreeList', label: 'One of tree (list)', nodes: CATEGORIES, widget: 'list' },
   { kind: 'manyOfTree', id: 'manyOfTreePicker', label: 'Many of tree (picker)', nodes: CATEGORIES },
@@ -41,6 +42,7 @@ const INITIAL: Record<string, unknown> = {
   manyOfCheckboxes: ['final'], manyOfSelect: ['final'], manyOfSwitches: ['final'],
   numericInput: 12, numericSlider: 3, range: [2015, 2020],
   textInput: '', textSearch: '',
+  textArea: 'A note long enough to wrap over the lines of the textarea, which keep their breaks while it is pending.',
   oneOfTreePicker: 'algebra', oneOfTreeList: 'algebra', manyOfTreePicker: ['oszthatosag'], manyOfTreeChecklist: ['oszthatosag'],
 };
 
