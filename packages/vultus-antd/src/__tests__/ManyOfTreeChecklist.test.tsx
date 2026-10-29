@@ -393,17 +393,39 @@ describe('ManyOfTreeChecklist: field conventions', () => {
     await waitFor(() => expect(shown()).toBe('komb'));
   });
 
-  it('pending disables the tree and shows a spinner', async () => {
+  it('pending locks the tree: focusable, said unavailable, its checkboxes disabled-looking and checking nothing (a click, Space); a spinner; back to normal after', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
     wrap(<Committed fire={fire} />);
     fireEvent.click(checkbox('Kombinatorika'));
     expect(fire).toHaveBeenCalledWith(['komb']);
-    await waitFor(() => expect(checkbox('Algebra')).toHaveAttribute('aria-disabled', 'true'));
+    const tree = screen.getByRole('tree');
+    await waitFor(() => expect(tree).toHaveAttribute('aria-disabled', 'true'));
+    expect(tree).toHaveAttribute('tabindex', '0');
+    expect(checkbox('Algebra')).toHaveAttribute('aria-disabled', 'true');
+    expect(checkbox('Algebra')).toHaveClass('ant-tree-checkbox-disabled');
     expect(document.querySelector('.ant-spin')).toBeTruthy();
+    fireEvent.click(checkbox('Algebra'));
+    act(() => { tree.focus(); });
+    // Space checks nothing, nor scrolls the page (its default, on a node antd will not check).
+    expect(fireEvent.keyDown(tree, { key: ' ' })).toBe(false);
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(checkbox('Algebra')).toHaveAttribute('aria-checked', 'false');
+    expect(checkbox('Kombinatorika')).toHaveAttribute('aria-checked', 'false');
+    expect(shown()).toBe('');
     await act(async () => { finish(); });
-    await waitFor(() => expect(checkbox('Algebra')).not.toHaveAttribute('aria-disabled', 'true'));
+    await waitFor(() => expect(tree).not.toHaveAttribute('aria-disabled'));
+    expect(checkbox('Algebra')).not.toHaveAttribute('aria-disabled', 'true');
     expect(document.querySelector('.ant-spin')).toBeNull();
+    expect(shown()).toBe('komb');
+  });
+
+  it('not enabled and pending: disabled as before (out of the tab order), not marked locked', () => {
+    wrap(<Inside pending enabled={denyWithReason('Read-only here')} />);
+    const tree = screen.getByRole('tree');
+    expect(tree).not.toHaveAttribute('tabindex');
+    expect(tree).not.toHaveAttribute('aria-disabled');
+    expect(checkbox('Kombinatorika')).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('an enabled field: hovering a node shows its description; a disabled node its reason, then its description', async () => {

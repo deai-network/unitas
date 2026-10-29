@@ -554,18 +554,32 @@ describe('OneOfTreeList: links', () => {
     expect(shown()).toBe('alg');
   });
 
-  it('a pending commit: no links, and a click requests nothing', async () => {
+  it('a pending commit: each link keeps its element (a focused one keeps the focus) but goes nowhere, said unavailable; a click requests nothing', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
     wrap(<Committed fire={fire} hrefFor={toc} />);
-    expect(link('Kör')).toHaveAttribute('href', '#?toc=kor');
-    fireEvent.click(link('Kör')!);
+    const kor = link('Kör')!;
+    expect(kor).toHaveAttribute('href', '#?toc=kor');
+    act(() => kor.focus());
+    fireEvent.click(kor);
     expect(fire).toHaveBeenCalledTimes(1);
-    await waitFor(() => expect(document.querySelector('a')).toBeNull());
+    await waitFor(() => expect(screen.getByRole('tree')).toHaveAttribute('aria-disabled', 'true'));
+    expect(link('Kör')).toBe(kor);
+    expect(document.activeElement).toBe(kor);
+    expect(kor).toHaveAttribute('href', '#?toc=kor');
+    expect(kor).toHaveAttribute('aria-disabled', 'true');
+    // Not followed, not even into a new tab: a plain click, a modified one, the middle button.
+    expect(fireEvent.click(link('Algebra')!)).toBe(false);
+    expect(fireEvent.click(link('Algebra')!, { ctrlKey: true })).toBe(false);
+    expect(fireEvent(link('Algebra')!, new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 }))).toBe(false);
     fireEvent.click(label('Síkgeometria'));
     expect(fire).toHaveBeenCalledTimes(1);
+    expect(shown()).toBe('alg');
     await act(async () => { finish(); });
-    await waitFor(() => expect(link('Algebra')).toHaveAttribute('href', '#?toc=alg'));
+    await waitFor(() => expect(screen.getByRole('tree')).not.toHaveAttribute('aria-disabled'));
+    expect(link('Algebra')).toHaveAttribute('href', '#?toc=alg');
+    expect(link('Kör')).not.toHaveAttribute('aria-disabled');
+    expect(fireEvent.click(link('Algebra')!, { ctrlKey: true })).toBe(true);
     expect(shown()).toBe('kor');
   });
 
@@ -747,17 +761,42 @@ describe('OneOfTreeList: field conventions', () => {
     await waitFor(() => expect(shown()).toBe('kor'));
   });
 
-  it('pending: the tree disabled, a spinner by the search box', async () => {
+  it('pending: the tree locked — focusable, said unavailable, its rows disabled-looking and choosing nothing (a click, Space, Enter), the keys still moving; a spinner by the search box', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
     wrap(<Committed fire={fire} search />);
     fireEvent.click(label('Kör'));
     expect(fire).toHaveBeenCalledWith('kor');
-    await waitFor(() => expect(row('Algebra')).toHaveAttribute('aria-disabled', 'true'));
+    const tree = screen.getByRole('tree');
+    await waitFor(() => expect(tree).toHaveAttribute('aria-disabled', 'true'));
+    expect(tree).toHaveAttribute('tabindex', '0');
+    expect(row('Algebra')).toHaveAttribute('aria-disabled', 'true');
+    expect(row('Algebra')).toHaveClass('ant-tree-treenode-disabled');
     expect(document.querySelector('.ant-spin')).toBeTruthy();
+    fireEvent.click(label('Algebra'));
+    focusTree();
+    await expectActive('Algebra');
+    // Space chooses nothing, nor scrolls the page (its default, on a row antd will not select).
+    expect(fireEvent.keyDown(screen.getByRole('tree'), { key: ' ' })).toBe(false);
+    press('Enter');
+    press('ArrowUp');
+    await expectActive('Térgeometria');
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(shown()).toBe('alg');
+    expect(row('Kör')).toBeInTheDocument();
     await act(async () => { finish(); });
-    await waitFor(() => expect(row('Algebra')).not.toHaveAttribute('aria-disabled', 'true'));
+    await waitFor(() => expect(tree).not.toHaveAttribute('aria-disabled'));
+    expect(row('Algebra')).not.toHaveAttribute('aria-disabled', 'true');
     expect(document.querySelector('.ant-spin')).toBeNull();
+    expect(shown()).toBe('kor');
+  });
+
+  it('not enabled and pending: disabled as before (out of the tab order), not marked locked', () => {
+    wrap(<Inside initialValue="alg" expand="all" pending enabled={denyWithReason('Read-only here')} />);
+    const tree = screen.getByRole('tree');
+    expect(tree).not.toHaveAttribute('tabindex');
+    expect(tree).not.toHaveAttribute('aria-disabled');
+    expect(row('Kör')).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('a disabled field can still be browsed: a click on any node with children opens or closes it, choosing nothing', async () => {

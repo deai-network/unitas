@@ -357,17 +357,69 @@ describe('OneOfTreePicker: field conventions', () => {
     expect(shown()).toBe('');
   });
 
-  it('pending: a disabled, loading select', async () => {
+  it('pending: a locked, loading select: focusable (not disabled), said unavailable, closed; opening it or typing into it does nothing; back to normal after', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
     wrap(<Committed fire={fire} />);
     await pick('Kör');
     expect(fire).toHaveBeenCalledWith('kor');
     await waitFor(() => expect(root()).toHaveClass('ant-select-loading'));
-    expect(root()).toHaveClass('ant-select-disabled');
+    expect(root()).not.toHaveClass('ant-select-disabled');
+    expect(combobox()).not.toBeDisabled();
+    expect(combobox()).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.mouseDown(combobox());
+    fireEvent.keyDown(combobox(), { key: 'ArrowDown', keyCode: 40, which: 40 });
+    fireEvent.keyDown(combobox(), { key: 'Enter', keyCode: 13, which: 13 });
+    expect(isOpen()).toBe(false);
+    // Typing would show over the value: it changes nothing while locked.
+    fireEvent.change(combobox(), { target: { value: 'kö' } });
+    expect(combobox()).toHaveValue('');
+    expect(closedText()).toBe('Algebra');
+    expect(isOpen()).toBe(false);
+    expect(fire).toHaveBeenCalledTimes(1);
     await act(async () => { finish(); });
     await waitFor(() => expect(root()).not.toHaveClass('ant-select-loading'));
-    expect(root()).not.toHaveClass('ant-select-disabled');
+    expect(combobox()).not.toHaveAttribute('aria-disabled');
+    expect(shown()).toBe('kor');
+    fireEvent.mouseDown(combobox());
+    await waitFor(() => expect(isOpen()).toBe(true));
+  });
+
+  it('the app\'s pending: an open tree closes and stays closed until it ends; it does not reopen by itself', async () => {
+    const { rerender } = wrap(<Inside initialValue="alg" />);
+    await openTree();
+    expect(isOpen()).toBe(true);
+    rerender(<AntApp><Inside initialValue="alg" pending /></AntApp>);
+    expect(isOpen()).toBe(false);
+    expect(combobox()).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.mouseDown(combobox());
+    expect(isOpen()).toBe(false);
+    rerender(<AntApp><Inside initialValue="alg" /></AntApp>);
+    expect(isOpen()).toBe(false);
+    fireEvent.mouseDown(combobox());
+    await waitFor(() => expect(isOpen()).toBe(true));
+  });
+
+  it('pending keeps the disabled look: the disabled text colour and background, the not-allowed cursor; no clear icon', () => {
+    function DisabledProbe() {
+      const { token } = theme.useToken();
+      return <span data-testid="probe" style={{ color: token.colorTextDisabled, background: token.colorBgContainerDisabled }} />;
+    }
+    wrap(<><Inside initialValue="alg" optional pending /><DisabledProbe /></>);
+    const probe = screen.getByTestId('probe');
+    expect(root().style.color).toBe(probe.style.color);
+    expect(root().style.background).toBe(probe.style.background);
+    expect(root().style.cursor).toBe('not-allowed');
+    expect(combobox().style.cursor).toBe('not-allowed');
+    expect(root().querySelector('.ant-select-clear')).toBeNull();
+  });
+
+  it('not enabled and pending: disabled as before, not marked locked', () => {
+    wrap(<Inside initialValue="alg" pending enabled={denyWithReason('Read-only here')} />);
+    expect(root()).toHaveClass('ant-select-disabled');
+    expect(combobox()).toBeDisabled();
+    expect(combobox()).not.toHaveAttribute('aria-disabled');
+    expect(root().style.cursor).toBe('');
   });
 
   it('a disabled field: a disabled select, its reason on hover, no change', async () => {

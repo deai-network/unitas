@@ -5,6 +5,7 @@ import {
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { OneOfTreeList } from './OneOfTreeList.js';
+import { isLocked, useLockedSelectLook } from './pendingLock.js';
 import { useVultusTexts } from './texts.js';
 import { labelMatches, treeData, TreeSwitcherIcon, type FieldTreeDataNode } from './treeData.js';
 import { useOneOfTreeRequest } from './useOneOfTreeRequest.js';
@@ -90,9 +91,13 @@ const OWN_ACTIONS = '.ant-select-clear';
  * the chosen node keeps the value, shown again when the tree closes. The
  * closed field's tooltip (fieldTooltip: disabled, its reason first) is held
  * back while the tree is open or a confirmation is asking, as are the nodes'.
- * The field's label is the accessible name; a pending commit disables the
- * field and shows the lent Spinner as its suffix icon (else antd's loading
- * icon).
+ * The field's label is the accessible name; while the field is pending (a
+ * commit runs, or its `pending` option says the app is busy) it shows the
+ * lent Spinner as its suffix icon (else antd's loading icon) and is locked
+ * (isLocked: it keeps the keyboard focus and is said unavailable; its tree
+ * closes and opens for nothing until pending ends; typing into its search
+ * changes nothing, the closed field showing the value; no clear icon). The
+ * tree closing clears the search, antd's rule whatever closes it.
  *
  * On a phone: `panel="drawer"` keeps the closed field to showing the choice
  * (no dropdown, no search in it); a tap on it (or Enter while it has focus),
@@ -100,7 +105,8 @@ const OWN_ACTIONS = '.ant-select-clear';
  * titled with the field's label, holding an `OneOfTreeList` of the same
  * field (`nested`: the list carries no `data-field-id` or `data-value` of
  * its own, the closed field's root being the only carrier), its search box
- * included. A disabled or pending field does not open it.
+ * included. A disabled or pending field does not open it; one open as
+ * pending starts stays open, its list locked.
  *
  * The drawer closes whenever the field's value changes while it is open, whatever the source (a
  * choice with no confirmation, a confirmed one, the URL, the Back button, another widget of the
@@ -130,6 +136,8 @@ export function OneOfTreePicker<T extends string>({
   const toggled = useRef<{ key: T; before: T[] } | null>(null);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
+  const locked = isLocked(field);
+  const lockedLook = useLockedSelectLook(locked);
   // The same tree data while the field stays the same, not new on each
   // re-render of its own (the tree opening or closing): antd rebuilds its
   // tree from new data.
@@ -151,9 +159,10 @@ export function OneOfTreePicker<T extends string>({
     setDrawerOpen(false);
   }, [field.value]);
   if (!field.visible) return null;
+  // Locked, the tree is closed (`open: false`), which antd does not report.
+  if (locked && open) setOpen(false);
 
-  const disabled = !field.enabled || field.pending;
-  const openDrawer = () => { if (!disabled) setDrawerOpen(true); };
+  const openDrawer = () => { if (field.enabled && !locked) setDrawerOpen(true); };
   /**
    * The drawer list's `onChosen`: `value` is the row chosen, whether or not the request was
    * taken. `value === field.value` means the already-current node was chosen (`request` refused
@@ -179,6 +188,8 @@ export function OneOfTreePicker<T extends string>({
       onClick: (e) => { if (!(e.target as HTMLElement).closest(OWN_ACTIONS)) openDrawer(); },
     }
     : {
+      // Locked, the tree stays closed; antd's own state comes back closed when pending ends.
+      open: locked ? false : undefined,
       // `treeNodeFilterProp` only drives antd's highlight of the matches,
       // which ignores case but not accents; the filtering is labelMatches'.
       // The search is held here (antd clears it as the tree closes), so the
@@ -188,11 +199,15 @@ export function OneOfTreePicker<T extends string>({
         treeNodeFilterProp: 'label',
         searchValue: query,
         onSearch: (next) => {
+          // Locked, typing changes nothing (it would show over the value); antd's clearing
+          // as the tree closes still comes through.
+          if (locked && next !== '') return;
           setQuery(next);
           setSearchExpanded(null);
         },
       },
       onOpenChange: (next) => {
+        if (locked) return;
         setOpen(next);
         if (!next) return;
         const ancestors = field.path.slice(0, -1).map((node) => node.value);
@@ -227,17 +242,19 @@ export function OneOfTreePicker<T extends string>({
       }}
       treeExpandAction="click"
       switcherIcon={<TreeSwitcherIcon />}
-      allowClear={field.optional}
+      allowClear={field.optional && !locked}
       placeholder={field.placeholder}
       listHeight={listHeight}
       popupMatchSelectWidth={popupMatchSelectWidth}
       size={size}
-      style={{ minWidth: 200, ...style }}
+      style={{ minWidth: 200, ...style, ...lockedLook.style }}
+      styles={lockedLook.styles}
       loading={field.pending}
       // See OneOfSelect: `suffixIcon` is the one loading-related prop antd
       // strips before forwarding the rest to @rc-component/select.
       suffixIcon={Spinner && field.pending ? <Spinner spinnerKey={spinnerKey} size="small" /> : undefined}
-      disabled={disabled}
+      disabled={!field.enabled}
+      aria-disabled={locked || undefined}
       // As OneOfSelect's: an empty title keeps antd from putting the label in a native tooltip on
       // the closed select, where it would compete with ours.
       title=""

@@ -4,6 +4,7 @@ import { useSpinnerKey, useVultusComponents, type OneOfChoiceControls, type OneO
 import { ChoiceLabel } from './ChoiceLabel.js';
 import { ChoiceNote, ChoiceRow } from './ChoiceNote.js';
 import { choiceTooltip, fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { isLocked, useLockedSelectLook } from './pendingLock.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
 import { useOneOfRequest } from './useOneOfRequest.js';
 import { useVultusTexts } from './texts.js';
@@ -73,9 +74,12 @@ function InlineChoice<T extends string>({ choice }: { choice: OneOfChoiceControl
  * selectable. Choices with a `group` are listed after
  * the others, under their group's heading (antd option groups, in the order
  * the groups first appear). The field's label is the
- * accessible name; a pending commit shows a loading select; the field's
- * confirmation for the requested choice comes first, its OK labelled with the
- * choice.
+ * accessible name; while the field is pending (a commit runs, or its
+ * `pending` option says the app is busy) it is a loading select, locked
+ * (isLocked: it keeps the keyboard focus, is said unavailable, and its list
+ * closes and opens for nothing, a click or a key alike, until pending ends);
+ * the field's confirmation for the requested choice comes first, its OK
+ * labelled with the choice.
  */
 export function OneOfSelect<T extends string>({ field, size, style, inlineDescriptions }: Props<T>) {
   const texts = useVultusTexts();
@@ -84,7 +88,11 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
   const [open, setOpen] = useState(false);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
+  const locked = isLocked(field);
+  const lockedLook = useLockedSelectLook(locked);
   if (!field.visible) return null;
+  // Locked, the list is closed (`open={false}`), which antd does not report.
+  if (locked && open) setOpen(false);
   const byValue = new Map(field.choices.map((c) => [c.value as string, c]));
   const option = (c: (typeof field.choices)[number]) => ({ value: c.value, label: c.label, title: '', disabled: !c.enabled });
   const groups = [...new Set(field.choices.flatMap((c) => (c.group ? [c.group] : [])))];
@@ -97,7 +105,8 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
     <Select
       value={field.value}
       size={size}
-      style={{ minWidth: 160, ...style }}
+      style={{ minWidth: 160, ...style, ...lockedLook.style }}
+      styles={lockedLook.styles}
       loading={field.pending}
       // `loadingIcon` isn't stripped before antd forwards the rest of the Select's props
       // to @rc-component/select, which spreads it onto the root div — an invalid DOM
@@ -106,9 +115,12 @@ export function OneOfSelect<T extends string>({ field, size, style, inlineDescri
       // wins over the default loading icon whenever it's defined, so only set it while
       // pending — unset the rest of the time, so the normal arrow/search icon still shows.
       suffixIcon={Spinner && field.pending ? <Spinner spinnerKey={spinnerKey} size="small" /> : undefined}
-      disabled={!field.enabled || field.pending}
+      disabled={!field.enabled}
+      // Locked, the list stays closed; antd's own state comes back closed when pending ends.
+      open={locked ? false : undefined}
+      aria-disabled={locked || undefined}
       onChange={(next: T) => request(next)}
-      onOpenChange={setOpen}
+      onOpenChange={(next) => setOpen(next && !locked)}
       popupMatchSelectWidth={inlineDescriptions ? INLINE_LIST_WIDTH : undefined}
       virtual={false}
       // An empty title keeps antd from putting the label in a native

@@ -1,5 +1,5 @@
-import { ConfigProvider } from 'antd';
-import { useContext } from 'react';
+import { ConfigProvider, theme } from 'antd';
+import { useContext, type CSSProperties } from 'react';
 
 /**
  * Whether a field widget is locked: its field is enabled and pending (a
@@ -31,4 +31,41 @@ export function useLockedCheckboxClassNames(locked: boolean): { root: string; ic
   if (!locked) return undefined;
   const prefix = getPrefixCls('checkbox');
   return { root: `${prefix}-wrapper-disabled`, icon: `${prefix}-disabled` };
+}
+
+/**
+ * A locked antd Select's or TreeSelect's look, through theme tokens: the look
+ * `disabled` gave it. `style` goes into the control's `style` (a TreeSelect
+ * also hands `styles.root` to its popup): antd's disabled text colour and
+ * background, the not-allowed cursor. `styles` is its `styles`: the same
+ * colour and cursor on its search input, and no remove icon on its tags (a
+ * disabled select's have none). Both undefined when not `locked`. The clear
+ * icon goes with `allowClear`, which a locked widget turns off, as `disabled`
+ * does. The focus ring stays: the focus does.
+ */
+export function useLockedSelectLook(locked: boolean): {
+  style?: CSSProperties;
+  styles?: { input: CSSProperties; itemRemove: CSSProperties };
+} {
+  const { token } = theme.useToken();
+  if (!locked) return {};
+  const text: CSSProperties = { color: token.colorTextDisabled, cursor: 'not-allowed' };
+  return {
+    style: { ...text, background: token.colorBgContainerDisabled },
+    styles: { input: text, itemRemove: { display: 'none' } },
+  };
+}
+
+/**
+ * A locked tree's data (antd Tree's `treeData`): every node disabled, so the
+ * rows keep the look `disabled` gave them, antd's own disabled rows and
+ * checkboxes (the checkmark is the checkbox's `::after`, which no `styles`
+ * entry reaches, and a tree's checkbox takes no `classNames` either), and
+ * antd takes no check or selection on them. The Tree itself is not
+ * disabled: it keeps its tab stop and the keyboard focus, its arrows still
+ * moving over the rows. `nodes` as they are when not `locked`.
+ */
+export function lockTreeData<N extends { disabled?: boolean; children?: N[] }>(nodes: N[], locked: boolean): N[] {
+  if (!locked) return nodes;
+  return nodes.map((node) => ({ ...node, disabled: true, children: node.children && lockTreeData(node.children, true) }));
 }

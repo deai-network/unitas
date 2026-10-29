@@ -405,17 +405,76 @@ describe('ManyOfTreePicker: field conventions', () => {
     expect(shown()).toBe('alg');
   });
 
-  it('pending: a disabled, loading select', async () => {
+  it('pending: a locked, loading select: focusable (not disabled), said unavailable, its tree (open after the check) closed and kept closed, no clear icon, Backspace removes nothing; back to normal after', async () => {
+    let finish!: () => void;
+    const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    wrap(<Committed fire={fire} initial={['alg']} />);
+    await pick('Kombinatorika');
+    expect(fire).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(root()).toHaveClass('ant-select-loading'));
+    const input = screen.getByRole('combobox');
+    expect(root()).not.toHaveClass('ant-select-disabled');
+    expect(input).not.toBeDisabled();
+    expect(input).toHaveAttribute('aria-disabled', 'true');
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+    expect(root().querySelector('.ant-select-clear')).toBeNull();
+    fireEvent.mouseDown(input);
+    fireEvent.keyDown(input, { key: 'ArrowDown', keyCode: 40, which: 40 });
+    fireEvent.keyDown(input, { key: 'Backspace', keyCode: 8, which: 8 });
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(shown()).toBe('alg');
+    await act(async () => { finish(); });
+    await waitFor(() => expect(root()).not.toHaveClass('ant-select-loading'));
+    expect(input).not.toHaveAttribute('aria-disabled');
+    expect(root().querySelector('.ant-select-clear')).not.toBeNull();
+  });
+
+  it('a check that commits keeps the search: the tree closes while pending, the search stays (typing into it changes nothing) and filters the tree when it opens again', async () => {
     let finish!: () => void;
     const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
     wrap(<Committed fire={fire} />);
-    await pick('Kombinatorika');
-    expect(fire).toHaveBeenCalledWith(['komb']);
-    await waitFor(() => expect(root()).toHaveClass('ant-select-loading'));
-    expect(root()).toHaveClass('ant-select-disabled');
+    await search('egyenl');
+    await waitFor(() => expect(treeLabels()).toEqual(['Algebra', 'Egyenletek', 'Egyenlőtlenségek']));
+    fireEvent.click(treeRow('Egyenletek')!.querySelector('.ant-select-tree-checkbox')!);
+    expect(fire).toHaveBeenCalledWith(['egy']);
+    const input = screen.getByRole('combobox');
+    await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'false'));
+    expect(input).toHaveValue('egyenl');
+    fireEvent.change(input, { target: { value: 'egyenlő' } });
+    expect(input).toHaveValue('egyenl');
     await act(async () => { finish(); });
-    await waitFor(() => expect(root()).not.toHaveClass('ant-select-loading'));
-    expect(root()).not.toHaveClass('ant-select-disabled');
+    await waitFor(() => expect(shown()).toBe('egy'));
+    expect(input).toHaveValue('egyenl');
+    fireEvent.mouseDown(input);
+    await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'true'));
+    expect(treeLabels()).toEqual(['Algebra', 'Egyenletek', 'Egyenlőtlenségek']);
+  });
+
+  it('pending keeps the disabled look: the disabled text colour and background, the not-allowed cursor, no remove icon on the tags', async () => {
+    measureTags();
+    function DisabledProbe() {
+      const { token } = theme.useToken();
+      return <span data-testid="probe" style={{ color: token.colorTextDisabled, background: token.colorBgContainerDisabled }} />;
+    }
+    wrap(<><Inside initialValue={['egy', 'komb']} pending /><DisabledProbe /></>);
+    const probe = screen.getByTestId('probe');
+    expect(root().style.color).toBe(probe.style.color);
+    expect(root().style.background).toBe(probe.style.background);
+    expect(root().style.cursor).toBe('not-allowed');
+    expect(screen.getByRole('combobox').style.cursor).toBe('not-allowed');
+    await waitFor(() => expect(root().querySelectorAll('.ant-select-selection-item-remove')).toHaveLength(2));
+    for (const remove of Array.from(root().querySelectorAll<HTMLElement>('.ant-select-selection-item-remove'))) {
+      expect(remove.style.display).toBe('none');
+    }
+  });
+
+  it('not enabled and pending: disabled as before, not marked locked', () => {
+    wrap(<Inside initialValue={['alg']} pending enabled={denyWithReason('Read-only here')} />);
+    expect(root()).toHaveClass('ant-select-disabled');
+    expect(screen.getByRole('combobox')).toBeDisabled();
+    expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-disabled');
+    expect(root().style.cursor).toBe('');
   });
 
   it('pending with a lent Spinner: it is the suffix icon, keyed to the field, size small', async () => {

@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { App as AntApp } from 'antd';
+import { App as AntApp, theme } from 'antd';
 import { useState } from 'react';
 import { denyWithReason, useManyOfField, type FieldCommit, type ManyOfFieldOptions, type OneOfChoice } from 'vultus-core';
 import { ManyOfSelect } from '../ManyOfSelect.js';
+import { measureTags, stopMeasuring } from './helpers/measureTags.js';
 import { openTooltips } from './helpers/tooltips.js';
 
 type Tag = 'a' | 'b' | 'c';
@@ -56,6 +57,11 @@ async function choose(label: string) {
   await openChoices();
   fireEvent.click(optionRow(label));
 }
+
+afterEach(() => {
+  stopMeasuring();
+  vi.restoreAllMocks();
+});
 
 describe('ManyOfSelect', () => {
   it('shows every choice in the open list, with its note', async () => {
@@ -196,6 +202,58 @@ describe('ManyOfSelect', () => {
     await waitFor(() => expect(root()).toHaveClass('ant-select-loading'));
     await act(async () => { finish(); });
     await waitFor(() => expect(root()).not.toHaveClass('ant-select-loading'));
+  });
+
+  it('pending locks it: the list (open after the pick) closes and stays closed, the combobox stays focusable and is said unavailable; no clear icon, its search read-only, Backspace removes nothing; back to normal after', async () => {
+    let finish!: () => void;
+    const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    wrap(<Committed fire={fire} />);
+    await choose('Beta');
+    expect(fire).toHaveBeenCalledWith(['a', 'b']);
+    const combobox = screen.getByRole('combobox');
+    await waitFor(() => expect(combobox).toHaveAttribute('aria-disabled', 'true'));
+    expect(combobox).not.toBeDisabled();
+    expect(root()).not.toHaveClass('ant-select-disabled');
+    expect(combobox).toHaveAttribute('aria-expanded', 'false');
+    expect(combobox).toHaveAttribute('readonly');
+    expect(root().querySelector('.ant-select-clear')).toBeNull();
+    fireEvent.mouseDown(combobox);
+    fireEvent.keyDown(combobox, { key: 'ArrowDown', keyCode: 40, which: 40 });
+    fireEvent.keyDown(combobox, { key: 'Backspace', keyCode: 8, which: 8 });
+    expect(combobox).toHaveAttribute('aria-expanded', 'false');
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(shown()).toBe('a');
+    await act(async () => { finish(); });
+    await waitFor(() => expect(combobox).not.toHaveAttribute('aria-disabled'));
+    expect(shown()).toBe('a,b');
+    expect(combobox).not.toHaveAttribute('readonly');
+    expect(root().querySelector('.ant-select-clear')).not.toBeNull();
+  });
+
+  it('pending keeps the disabled look: the disabled text colour and background, the not-allowed cursor, no remove icon on the tags', async () => {
+    measureTags();
+    function DisabledProbe() {
+      const { token } = theme.useToken();
+      return <span data-testid="probe" style={{ color: token.colorTextDisabled, background: token.colorBgContainerDisabled }} />;
+    }
+    wrap(<><Inside initialValue={['a', 'b']} pending /><DisabledProbe /></>);
+    const probe = screen.getByTestId('probe');
+    expect(root().style.color).toBe(probe.style.color);
+    expect(root().style.background).toBe(probe.style.background);
+    expect(root().style.cursor).toBe('not-allowed');
+    expect(screen.getByRole('combobox').style.cursor).toBe('not-allowed');
+    await waitFor(() => expect(root().querySelectorAll('.ant-select-selection-item-remove')).toHaveLength(2));
+    for (const remove of Array.from(root().querySelectorAll<HTMLElement>('.ant-select-selection-item-remove'))) {
+      expect(remove.style.display).toBe('none');
+    }
+  });
+
+  it('not enabled and pending: disabled as before, not marked locked', () => {
+    wrap(<Inside pending enabled={denyWithReason('Read-only here')} />);
+    expect(root()).toHaveClass('ant-select-disabled');
+    expect(screen.getByRole('combobox')).toBeDisabled();
+    expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-disabled');
+    expect(root().style.cursor).toBe('');
   });
 
   describe('groups', () => {

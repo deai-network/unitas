@@ -3,6 +3,7 @@ import { useState, type CSSProperties } from 'react';
 import { normalizeText, useSpinnerKey, useVultusComponents, type ManyOfChoiceControls, type ManyOfFieldControls } from 'vultus-core';
 import { ChoiceRow } from './ChoiceNote.js';
 import { choiceTooltip, fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { isLocked, useLockedSelectLook } from './pendingLock.js';
 import { useManyOfRequest } from './useManyOfRequest.js';
 import { useVultusTexts } from './texts.js';
 import { withTooltip } from './WithReason.js';
@@ -29,7 +30,12 @@ export interface ManyOfSelectProps<T extends string> {
  * open or a confirmation is asking. Each change (picking, removing a tag,
  * clearing) requests the new list through `useManyOfRequest`, which
  * normalizes it to the field's choice order. The field's label is the
- * accessible name; a pending commit shows a loading select.
+ * accessible name; while the field is pending (a commit runs, or its
+ * `pending` option says the app is busy) it is a loading select, locked
+ * (isLocked: it keeps the keyboard focus, is said unavailable, its list
+ * closes and opens for nothing until pending ends, and a removal, a clear or
+ * a search changes nothing: no clear icon, no remove icon on the tags, the
+ * search read-only).
  */
 export function ManyOfSelect<T extends string>({ field, size, style }: ManyOfSelectProps<T>) {
   const texts = useVultusTexts();
@@ -38,7 +44,11 @@ export function ManyOfSelect<T extends string>({ field, size, style }: ManyOfSel
   const [open, setOpen] = useState(false);
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
+  const locked = isLocked(field);
+  const lockedLook = useLockedSelectLook(locked);
   if (!field.visible) return null;
+  // Locked, the list is closed (`open={false}`), which antd does not report.
+  if (locked && open) setOpen(false);
   const byValue = new Map(field.choices.map((c) => [c.value as string, c]));
   const option = (c: ManyOfChoiceControls<T>) => ({ value: c.value, label: c.label, title: '', disabled: !c.enabled });
   const groups = [...new Set(field.choices.flatMap((c) => (c.group ? [c.group] : [])))];
@@ -52,15 +62,21 @@ export function ManyOfSelect<T extends string>({ field, size, style }: ManyOfSel
       mode="multiple"
       value={field.value}
       size={size}
-      style={{ minWidth: 200, ...style }}
+      style={{ minWidth: 200, ...style, ...lockedLook.style }}
+      styles={lockedLook.styles}
       loading={field.pending}
       // See OneOfSelect: `suffixIcon` is the one loading-related prop antd
       // strips before forwarding the rest to @rc-component/select.
       suffixIcon={Spinner && field.pending ? <Spinner spinnerKey={spinnerKey} size="small" /> : undefined}
-      disabled={!field.enabled || field.pending}
+      disabled={!field.enabled}
+      // Locked, the list stays closed (see OneOfSelect), and the search is
+      // read-only: antd keeps a search typed while closed for the next opening.
+      open={locked ? false : undefined}
+      showSearch={locked ? false : undefined}
+      aria-disabled={locked || undefined}
       onChange={(next: T[]) => request(next)}
-      onOpenChange={setOpen}
-      allowClear
+      onOpenChange={(next) => setOpen(next && !locked)}
+      allowClear={!locked}
       maxTagCount="responsive"
       placeholder={field.placeholder}
       virtual={false}

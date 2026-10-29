@@ -116,6 +116,18 @@ describe('OneOfTreePicker panel="drawer": the closed field', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(openDrawer()).toBeNull();
   });
+
+  it('a pending field does not open it either; its field is locked (focusable, said unavailable), not disabled', async () => {
+    wrap(<Inside panel="drawer" initialValue="alg" pending />);
+    const input = within(root()).getByRole('combobox');
+    expect(input).not.toBeDisabled();
+    expect(input).toHaveAttribute('aria-disabled', 'true');
+    tap(root());
+    input.focus();
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(openDrawer()).toBeNull();
+  });
 });
 
 describe('OneOfTreePicker panel="drawer": the drawer', () => {

@@ -6,6 +6,7 @@ import {
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
 import { firstWords } from './firstWords.js';
+import { isLocked, useLockedSelectLook } from './pendingLock.js';
 import { useVultusTexts } from './texts.js';
 import { ManyOfTreeChecklist } from './ManyOfTreeChecklist.js';
 import { labelMatches, treeData, TreeSwitcherIcon } from './treeData.js';
@@ -88,13 +89,17 @@ const STRATEGY: Record<TreeSelection, TreeSelectProps['showCheckedStrategy']> = 
  * (normalizeText), keeping antd's rule, which vultus-core's filterTree
  * follows: a match with its whole subtree, and its ancestors, every kept node
  * open. The search stays after a check (antd would clear it), so several
- * matches can be checked in a row; a check that commits disables the field
- * while pending, which closes the tree and clears the search (antd's rule
- * for a select losing focus). The closed field's tooltip (fieldTooltip:
+ * matches can be checked in a row. The closed field's tooltip (fieldTooltip:
  * disabled, its reason first) is held back while the tree is open or a
  * confirmation is asking, as are the nodes'. The field's label is the
- * accessible name; a pending commit disables the field and shows the lent
- * Spinner as its suffix icon (else antd's loading icon).
+ * accessible name; while the field is pending (a check that commits, or its
+ * `pending` option says the app is busy) it shows the lent Spinner as its
+ * suffix icon (else antd's loading icon) and is locked (isLocked: it keeps
+ * the keyboard focus and is said unavailable; its tree closes and opens for
+ * nothing until pending ends; a removal or a clear changes nothing: no clear
+ * icon, no remove icon on the tags). The search stays across pending (the
+ * focus does, so antd's clearing as it leaves does not come), typing into it
+ * changing nothing; the tree opened again shows it.
  *
  * On a phone (Taskmaster's): `panel="drawer"` keeps the closed field to
  * showing the choice (no dropdown, no search in it); a tap on it (or Enter
@@ -103,7 +108,8 @@ const STRATEGY: Record<TreeSelection, TreeSelectProps['showCheckedStrategy']> = 
  * label, Done (`texts.done`) closing it, holding a ManyOfTreeChecklist of the same
  * field: its search box, notes in brackets, each check requested at once
  * through the field's confirmation. A disabled or pending field does not open
- * it. `summary="firstWords"` shows no tags but one line: each selected node's
+ * it; one open as a check commits stays open, its checklist locked.
+ * `summary="firstWords"` shows no tags but one line: each selected node's
  * first words (firstWords: about 16 characters each when more than one is
  * selected, else 40, never ending on one of `texts.joiningWords`), joined
  * with ", ".
@@ -116,8 +122,12 @@ export function ManyOfTreePicker<T extends string>({
   const { request, wrap, asking } = useManyOfTreeRequest(field);
   const [open, setOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  /** The dropdown's search, held here so that typing while locked changes nothing. */
+  const [query, setQuery] = useState('');
   const { Spinner } = useVultusComponents();
   const spinnerKey = useSpinnerKey(`vultus:field:${field.id}`);
+  const locked = isLocked(field);
+  const lockedLook = useLockedSelectLook(locked);
   /** Set by the clear icon, just before antd reports the emptied list (which would otherwise keep the values naming no node). */
   const clearing = useRef(false);
   // The same tree data while the field stays the same, not new on each
@@ -127,12 +137,13 @@ export function ManyOfTreePicker<T extends string>({
     noteStyle: 'aside', tooltips: field.enabled, holdTooltips: asking, tooltipPlacement: 'right',
   }), [field.nodes, field.enabled, asking]);
   if (!field.visible) return null;
+  // Locked, the tree is closed (`open: false`), which antd does not report.
+  if (locked && open) setOpen(false);
 
   const strict = field.selection === 'independent';
-  const disabled = !field.enabled || field.pending;
   const known = field.value.filter((v) => field.byValue.has(v));
   const unknown = field.value.filter((v) => !field.byValue.has(v));
-  const openDrawer = () => { if (!disabled) setDrawerOpen(true); };
+  const openDrawer = () => { if (field.enabled && !locked) setDrawerOpen(true); };
   const opening: Partial<TreeSelectProps> = panel === 'drawer'
     ? {
       open: false,
@@ -144,10 +155,21 @@ export function ManyOfTreePicker<T extends string>({
       onClick: (e) => { if (!(e.target as HTMLElement).closest(OWN_ACTIONS)) openDrawer(); },
     }
     : {
+      // Locked, the tree stays closed; antd's own state comes back closed when pending ends.
+      open: locked ? false : undefined,
       // `treeNodeFilterProp` only drives antd's highlight of the matches,
       // which ignores case but not accents; the filtering is labelMatches'.
-      showSearch: { filterTreeNode: labelMatches, treeNodeFilterProp: 'label', autoClearSearchValue: false },
-      onOpenChange: setOpen,
+      // antd reports every change of the search (`autoClearSearchValue` off,
+      // it clears none on its own): locked, typing changes nothing, while its
+      // clearing as the focus leaves still comes through.
+      showSearch: {
+        filterTreeNode: labelMatches,
+        treeNodeFilterProp: 'label',
+        autoClearSearchValue: false,
+        searchValue: query,
+        onSearch: (next) => { if (!locked || next === '') setQuery(next); },
+      },
+      onOpenChange: (next) => { if (!locked) setOpen(next); },
     };
 
   const select = (
@@ -180,7 +202,7 @@ export function ManyOfTreePicker<T extends string>({
       {...opening}
       treeDefaultExpandedKeys={field.expandedKeys}
       switcherIcon={<TreeSwitcherIcon />}
-      allowClear
+      allowClear={!locked}
       maxTagCount={summary === 'firstWords' ? 0 : 'responsive'}
       maxTagPlaceholder={summary === 'firstWords'
         ? (omitted) => omitted.map((o) => firstWords(
@@ -191,12 +213,14 @@ export function ManyOfTreePicker<T extends string>({
       listHeight={listHeight}
       popupMatchSelectWidth={popupMatchSelectWidth}
       size={size}
-      style={{ minWidth: 200, ...style }}
+      style={{ minWidth: 200, ...style, ...lockedLook.style }}
+      styles={lockedLook.styles}
       loading={field.pending}
       // See OneOfSelect: `suffixIcon` is the one loading-related prop antd
       // strips before forwarding the rest to @rc-component/select.
       suffixIcon={Spinner && field.pending ? <Spinner spinnerKey={spinnerKey} size="small" /> : undefined}
-      disabled={disabled}
+      disabled={!field.enabled}
+      aria-disabled={locked || undefined}
       aria-label={field.label || undefined}
       aria-description={fieldAccessibleDescription(field, texts)}
       data-field-id={field.id}

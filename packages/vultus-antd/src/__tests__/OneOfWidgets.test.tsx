@@ -357,6 +357,83 @@ describe('OneOfSegmented while its commit is pending', () => {
   });
 });
 
+/** The closed select's root (antd's `.ant-select`, carrying the field's id). */
+const selectRoot = () => document.querySelector<HTMLElement>('[data-field-id="mode"]')!;
+const isListOpen = () => screen.getByRole('combobox').getAttribute('aria-expanded') === 'true';
+/** The keys that open a closed select: the arrows, Enter and Space. */
+function pressOpeningKeys(target: HTMLElement) {
+  for (const [key, keyCode] of [['ArrowDown', 40], ['Enter', 13], [' ', 32]] as const) {
+    fireEvent.keyDown(target, { key, keyCode, which: keyCode });
+  }
+}
+
+describe('OneOfSelect while its commit is pending', () => {
+  it('is locked: the combobox stays focusable (not disabled), is said unavailable, still loading; the list does not open, nothing is requested; back to normal after', async () => {
+    let finish!: () => void;
+    const fire = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    wrap(<Committed kind="OneOfSelect" fire={fire} />);
+    await choose('OneOfSelect', 'Plan');
+    expect(fire).toHaveBeenCalledWith('plan');
+    const combobox = screen.getByRole('combobox');
+    await waitFor(() => expect(combobox).toHaveAttribute('aria-disabled', 'true'));
+    expect(combobox).not.toBeDisabled();
+    expect(selectRoot()).not.toHaveClass('ant-select-disabled');
+    expect(selectRoot()).toHaveClass('ant-select-loading');
+    fireEvent.mouseDown(combobox);
+    pressOpeningKeys(combobox);
+    expect(isListOpen()).toBe(false);
+    expect(fire).toHaveBeenCalledTimes(1);
+    expect(shown()).toBe('manual');
+    await act(async () => { finish(); });
+    await waitFor(() => expect(combobox).not.toHaveAttribute('aria-disabled'));
+    expect(shown()).toBe('plan');
+    fireEvent.mouseDown(combobox);
+    await waitFor(() => expect(isListOpen()).toBe(true));
+  });
+});
+
+describe('OneOfSelect while pending (the app\'s own)', () => {
+  it('an open list closes as pending starts and stays closed, whatever asks to open it; it does not reopen by itself after', async () => {
+    const { rerender } = wrap(<Inside kind="OneOfSelect" />);
+    await openChoices('OneOfSelect');
+    const combobox = screen.getByRole('combobox');
+    expect(isListOpen()).toBe(true);
+    rerender(<AntApp><Inside kind="OneOfSelect" pending /></AntApp>);
+    expect(isListOpen()).toBe(false);
+    expect(combobox).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.mouseDown(combobox);
+    pressOpeningKeys(combobox);
+    expect(isListOpen()).toBe(false);
+    rerender(<AntApp><Inside kind="OneOfSelect" /></AntApp>);
+    expect(isListOpen()).toBe(false);
+    expect(combobox).not.toHaveAttribute('aria-disabled');
+    fireEvent.mouseDown(combobox);
+    await waitFor(() => expect(isListOpen()).toBe(true));
+  });
+
+  it('keeps the disabled look: the disabled text colour and background, the not-allowed cursor', () => {
+    function DisabledProbe() {
+      const { token } = theme.useToken();
+      return <span data-testid="probe" style={{ color: token.colorTextDisabled, background: token.colorBgContainerDisabled }} />;
+    }
+    wrap(<><Inside kind="OneOfSelect" pending /><DisabledProbe /></>);
+    const probe = screen.getByTestId('probe');
+    expect(probe.style.color).not.toBe('');
+    expect(selectRoot().style.color).toBe(probe.style.color);
+    expect(selectRoot().style.background).toBe(probe.style.background);
+    expect(selectRoot().style.cursor).toBe('not-allowed');
+    expect(screen.getByRole('combobox').style.cursor).toBe('not-allowed');
+  });
+
+  it('not enabled and pending: disabled as before, not marked locked', () => {
+    wrap(<Inside kind="OneOfSelect" pending enabled={denyWithReason('Read-only here')} />);
+    expect(selectRoot()).toHaveClass('ant-select-disabled');
+    expect(screen.getByRole('combobox')).toBeDisabled();
+    expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-disabled');
+    expect(selectRoot().style.cursor).toBe('');
+  });
+});
+
 describe('OneOfSegmented iconOnly', () => {
   it('shows only the icons; the label is the accessible name and leads the tooltip, before the field\'s description', async () => {
     wrap(<ThemeField kind="OneOfSegmented" iconOnly />);

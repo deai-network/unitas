@@ -4,6 +4,7 @@ import {
   filterTree, normalizeTreeValue, type ManyOfTreeFieldControls,
 } from 'vultus-core';
 import { fieldAccessibleDescription, fieldTooltip, useTooltipField } from './fieldTooltip.js';
+import { isLocked, lockTreeData } from './pendingLock.js';
 import { useVultusTexts } from './texts.js';
 import { collectValues, nextShown, openOrder, treeData, TreeSearchBox, TreeSwitcherIcon } from './treeData.js';
 import { useManyOfTreeRequest } from './useManyOfTreeRequest.js';
@@ -61,8 +62,12 @@ interface InternalManyOfTreeChecklistProps {
  * Expansion starts from `field.expandedKeys` (the field's `expand`); the user
  * opens and closes nodes. Every request goes through the field's
  * confirmation (useManyOfTreeRequest), during which the tooltips are held back. The
- * field's label is the tree's accessible name; a pending commit disables the
- * tree and shows the lent Spinner (or antd's own) next to the search box.
+ * field's label is the tree's accessible name. While the field is pending (a
+ * check that commits, or its `pending` option says the app is busy) the tree
+ * is locked (isLocked): it keeps its tab stop and the keyboard focus, is said
+ * unavailable, and its checkboxes look disabled (lockTreeData) and check
+ * nothing, a click or Space alike, while the arrows still move and open or
+ * close nodes; the lent Spinner (or antd's own) shows next to the search box.
  */
 export function ManyOfTreeChecklist<T extends string>({ field, nested = false }: ManyOfTreeChecklistProps<T> & InternalManyOfTreeChecklistProps) {
   const texts = useVultusTexts();
@@ -80,12 +85,12 @@ export function ManyOfTreeChecklist<T extends string>({ field, nested = false }:
   // re-render of its own (the keyboard's active node) would otherwise hand
   // rc-tree new data, cutting short a node's opening or closing.
   const kept = useMemo(() => (query.trim() !== '' ? collectValues(filterTree(field.nodes, query)) : undefined), [field.nodes, query]);
-  const data = useMemo(() => treeData(field.nodes, {
+  const locked = isLocked(field);
+  const data = useMemo(() => lockTreeData(treeData(field.nodes, {
     noteStyle: 'brackets', tooltips: field.enabled, holdTooltips: asking, shown: kept?.all,
-  }), [field.nodes, field.enabled, asking, kept]);
+  }), locked), [field.nodes, field.enabled, asking, kept, locked]);
   if (!field.visible) return null;
 
-  const disabled = !field.enabled || field.pending;
   const strict = field.selection === 'independent';
   const expandedKeys = !kept ? expanded : searchExpanded ?? kept.parents;
   const known = field.value.filter((v) => field.byValue.has(v));
@@ -108,7 +113,9 @@ export function ManyOfTreeChecklist<T extends string>({ field, nested = false }:
       selectable={false}
       switcherIcon={<TreeSwitcherIcon />}
       checkStrictly={strict}
-      disabled={disabled}
+      // Locked, the nodes are disabled instead (lockTreeData): the tree keeps its tab stop.
+      disabled={!field.enabled}
+      aria-disabled={locked || undefined}
       treeData={data}
       checkedKeys={strict ? { checked: known, halfChecked: [] } : known}
       expandedKeys={expandedKeys}
@@ -132,7 +139,12 @@ export function ManyOfTreeChecklist<T extends string>({ field, nested = false }:
       data-field-id={nested ? undefined : field.id}
       data-value={nested ? undefined : field.value.join(',')}
       onFocusCapture={() => { travel.current = 1; }}
-      onKeyDownCapture={(e) => { travel.current = e.key === 'ArrowUp' || e.key === 'End' ? -1 : 1; }}
+      onKeyDownCapture={(e) => {
+        travel.current = e.key === 'ArrowUp' || e.key === 'End' ? -1 : 1;
+        // Locked, Space on the tree checks nothing (the nodes are disabled), nor scrolls the
+        // page, as antd lets it do on a node it will not check.
+        if (locked && e.key === ' ' && (e.target as Element).closest('[role="tree"]')) e.preventDefault();
+      }}
     >
       <TreeSearchBox
         field={field}
