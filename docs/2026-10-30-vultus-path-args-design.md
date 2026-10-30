@@ -72,12 +72,14 @@ is the app's own navigation.
   and its store, and tells the store as it renders: a new optional `ArgStore` method,
   `declare?(key, { permanent })`. `useArg` (so `useStoredField`), `useStoredFields` and
   `useFieldGroup` with `{ stored: true }` call it, for every definition, hidden ones too. It is
-  idempotent and notifies nobody. A wrapper store forwards it with one line.
+  idempotent and notifies nobody. A wrapper store forwards it with one line. The fragment's
+  permanence the store knows from its `fragment` prop, which is the definition, so no hook is needed
+  for that.
 - Rule on going somewhere else: a key **declared non-permanent** is dropped; **declared permanent**
   is kept; **never declared** is kept. Stellar-router drops the undeclared, but it registers every
   argument when it is defined. Here a permanent argument whose hook is not mounted is unknown, and a
   stale key nothing reads is a better failure than a user's filter silently lost. A wrapper that does
-  not forward `declare` gets today's behaviour: nothing is dropped.
+  not forward `declare` gets today's behaviour for the query: no key is dropped.
 
 ## Reading
 

@@ -474,8 +474,8 @@ declare: (key, facts) => inner.declare?.(key, facts),
 ```
 
 If it does not, the store it wraps is told nothing of the keys used through the wrapper, and to a
-URL store a key never declared is one to keep. So nothing is dropped: no value is lost, but a
-filter meant to go with the old place stays in the URL.
+URL store a query key never declared is one to keep. So no query key is dropped: no value is lost,
+but a filter meant to go with the old place stays in the URL.
 
 **Links.** Every kind's hook gives its controls `hrefFor(value)`: the link that requesting `value`
 amounts to, or `undefined` where nothing gives one. With `value` + `onChange` or `value` +
