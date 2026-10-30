@@ -74,6 +74,8 @@ describe('the token constructors', () => {
   it('vanishing throws for what the types refuse, naming the key', () => {
     expect(() => vanishing(arg('bare') as never)).toThrow(/'bare'/);
     expect(() => vanishing({ kind: 'text', id: 'words' } as never)).toThrow(/'words'/);
+    // A variable passes the compiler; the choices are the allowed values, and they are not said twice.
+    expect(() => vanishing(VARIANT, { allowedValues: ['other'] } as never)).toThrow(/'variant'/);
   });
 });
 
@@ -210,6 +212,28 @@ describe('readPath', () => {
     expect(read(resolved(rest(TASK)), 'x', 'a/b')).toEqual({ task: 'x/a/b' });
   });
 
+  it('a typed %2F in a rest reads a value a write can rebuild: no empty segment from it', () => {
+    const tokens = resolved(rest(TASK));
+    expect(read(tokens, 'x/')).toEqual({ task: 'x' });
+    expect(read(tokens, '/x')).toEqual({ task: 'x' });
+    expect(read(tokens, 'a//b')).toEqual({ task: 'a/b' });
+    expect(read(tokens, 'a/b', '/')).toEqual({ task: 'a/b' });
+    for (const typed of ['x/', '/x', 'a//b']) {
+      expect(buildPath(tokens, readPath(tokens, [typed]))).toEqual({ segments: read(tokens, typed).task.split('/') });
+    }
+  });
+
+  it('a rest of nothing but a typed %2F reads as no value', () => {
+    expect(read(resolved(rest(TASK)), '/')).toEqual({});
+    expect(read(resolved(rest(TASK)), '/', '//')).toEqual({});
+  });
+
+  it('a typed .. inside a rest\'s %2F still reads as it is, and building it is refused', () => {
+    const tokens = resolved(rest(TASK));
+    expect(read(tokens, 'a/../b')).toEqual({ task: 'a/../b' });
+    expect(buildPath(tokens, readPath(tokens, ['a/../b']))).toMatchObject({ refused: { key: 'task' } });
+  });
+
   it('a slash inside a token segment stays in its value', () => {
     expect(read(resolved(token(arg('a')), token(arg('b'))), 'x/y', 'z')).toEqual({ a: 'x/y', b: 'z' });
   });
@@ -242,6 +266,11 @@ describe('buildPath', () => {
     expect(build(resolved(vanishing(VARIANT), rest(TASK)), { variant: '', task: '' })).toEqual({ segments: [] });
     expect(build(resolved(token(arg('a'))), { a: '' })).toEqual({ segments: [] });
     expect(build(resolved(token(arg('a'))), { a: undefined })).toEqual({ segments: [] });
+  });
+
+  it('a later token that is present but has no value does not make an earlier token required', () => {
+    expect(build(resolved(token(arg('a')), token(arg('b'))), { b: '' })).toEqual({ segments: [] });
+    expect(build(resolved(token(arg('a')), token(arg('b'))), { b: undefined })).toEqual({ segments: [] });
   });
 
   it('a token\'s slash stays in its one segment, a rest\'s slashes separate', () => {
@@ -487,6 +516,7 @@ describe('goingElsewhere', () => {
     expect(goingElsewhere(ABC, new Map(), [removalOf('a')])).toEqual(STAYS);
     expect(goingElsewhere(ABC, new Map(), [{ key: 'a', raw: '' }])).toEqual(STAYS);
     expect(goingElsewhere(ABC, new Map([['a', undefined]]), [{ key: 'a', raw: '' }])).toEqual(STAYS);
+    expect(goingElsewhere(ABC, new Map([['a', '']]), [removalOf('a')])).toEqual(STAYS);
   });
 
   it('a key that is no token changes nothing', () => {

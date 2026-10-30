@@ -76,6 +76,7 @@ export function vanishing(
     return { key, kind: 'vanishing', independent, allowedIn: () => allowedValues };
   }
   if (definition.kind !== 'oneOf') throw new Error(`Path token '${key}': a vanishing field must be a one-of field`);
+  if (options.allowedValues !== undefined) throw new Error(`Path token '${key}': a one-of field's choices are its allowed values, so it takes no allowedValues`);
   return {
     key,
     kind: 'vanishing',
@@ -134,7 +135,7 @@ export function resolveTokens(tokens: readonly PathToken[], ctx: FieldCtx): Reso
  * surrogate, on which `encodeURIComponent` throws, is U+FFFD, as a URL parser makes it.
  */
 export function encodeSegment(text: string): string {
-  return encodeURIComponent(text.replace(/\p{Cs}/gu, '�')).replace(/%40/g, '@').replace(/%3A/g, ':').replace(/%2C/g, ',');
+  return encodeURIComponent(text.replace(/\p{Cs}/gu, '\uFFFD')).replace(/%40/g, '@').replace(/%3A/g, ':').replace(/%2C/g, ',');
 }
 
 /** A segment's text; a malformed escape, as in a typed address, reads raw. */
@@ -164,8 +165,9 @@ export function joinPath(base: string, segments: readonly string[]): string {
 /**
  * The tokens' raw values in decoded `segments` (from `splitPath`): a `token` takes the next
  * segment if any, a `vanishing` token takes it if allowed and else leaves it, a `rest` takes the
- * remaining ones joined with `/` (so a `%2F` of a typed address inside them reads as a separator).
- * A token without a segment has no key in the result; segments beyond the tokens are ignored.
+ * remaining ones joined with `/` (so a `%2F` of a typed address inside them reads as a separator,
+ * and gives no empty segment, as `splitPath` gives none). A token without a segment has no key in
+ * the result; segments beyond the tokens are ignored.
  */
 export function readPath(tokens: readonly ResolvedPathToken[], segments: readonly string[]): Map<string, string> {
   const values = new Map<string, string>();
@@ -173,7 +175,8 @@ export function readPath(tokens: readonly ResolvedPathToken[], segments: readonl
   for (const t of tokens) {
     if (next === segments.length) break;
     if (t.kind === 'rest') {
-      values.set(t.key, segments.slice(next).join('/'));
+      const parts = segments.slice(next).flatMap((segment) => segment.split('/')).filter((segment) => segment !== '');
+      if (parts.length > 0) values.set(t.key, parts.join('/'));
       next = segments.length;
     } else if (t.kind !== 'vanishing' || t.allowed.has(segments[next])) {
       values.set(t.key, segments[next]);
