@@ -13,7 +13,7 @@ import { useTextField } from './useTextField.js';
 /**
  * A definition in its outside form, as its kind's hook takes it: without `initialValue` (whoever
  * keeps the value keeps its default too), with the value, its writer, and the link a value
- * amounts to where whoever keeps it has one.
+ * amounts to where whoever keeps it has one. `permanent` stays on it, and the hook does not read it.
  */
 export type KindFieldOptions = OutsideForm<FieldDefinition>;
 

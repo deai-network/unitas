@@ -17,9 +17,10 @@ import { manyOfTreeInitialValue, type ManyOfTreeOwnOptions, type useManyOfTreeFi
 import { booleanType, numberType, rangeType, stringSetType, stringType, type ValueType } from './valueTypes.js';
 
 /**
- * A definition of kind `K`: the kind's hook options in their inside form, with `kind` required.
- * It has no `value`, `onChange` or `commit`: where the value lives is chosen by whoever runs the
- * field, and a store holds the definition's initial value as its default.
+ * A definition of kind `K`: the kind's hook options in their inside form, with `kind` required,
+ * plus `permanent`, which is for the store: it reaches the hook with the rest, unread. It has no
+ * `value`, `onChange` or `commit`: where the value lives is chosen by whoever runs the field, and a
+ * store holds the definition's initial value as its default.
  */
 type Definition<K extends FieldKind, V, Own, Ctx> =
   { kind: K } & FieldBaseOptions<V, Ctx> & {
@@ -33,8 +34,9 @@ type Definition<K extends FieldKind, V, Own, Ctx> =
 
 /**
  * A field as plain data (a module's filters, a dialog's options), tagged by its kind. Narrowed
- * by `kind`, a definition is its kind's hook options as they are: `useOneOfField(definition)`.
- * Its functions receive the field context `Ctx` (see FieldContextProvider).
+ * by `kind`, a definition is its kind's hook options as they are, but for `permanent`, which no
+ * hook reads: `useOneOfField(definition)`. Its functions receive the field context `Ctx` (see
+ * FieldContextProvider).
  */
 export type FieldDefinition<Ctx = any> =
   | Definition<'boolean', boolean, {}, Ctx>
@@ -52,7 +54,8 @@ type HookOptions<H extends (...args: any[]) => unknown> = Parameters<H>[0];
 
 /**
  * A compile-time check, the gate for "a definition is its kind's hook options as they are": if a
- * hook's options and the definition drift apart, `tsc` fails here.
+ * hook's options and the definition drift apart, `tsc` fails here. It checks assignability, so a
+ * key no hook takes passes: `permanent` is the one there is.
  */
 type DefinitionsFitTheirHooks = [
   Fits<DefinitionOf<'boolean'>, HookOptions<typeof useBoolField>>,

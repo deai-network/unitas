@@ -14,18 +14,17 @@ type DefinitionOf<K extends FieldKind> = Extract<FieldDefinition, { kind: K }>;
 
 /**
  * What a render site may override of a definition of kind `K` (of any kind, for a union): any
- * of its values but `kind` and `id` (moxb's parseProps), each optional; the hint is overridden
- * by `widget`.
+ * of its values but `kind` and `id` (moxb's parseProps) and `permanent` (only the definition says
+ * it), each optional; the hint is overridden by `widget`.
  */
-export type DefinitionOverridesOf<K extends FieldKind> = Merged<K extends FieldKind ? Omit<DefinitionOf<K>, 'kind' | 'id' | 'widget'> : never>;
+export type DefinitionOverridesOf<K extends FieldKind> = Merged<K extends FieldKind ? Omit<DefinitionOf<K>, 'kind' | 'id' | 'widget' | 'permanent'> : never>;
 
 /**
  * The values the store layer reads from the definition itself (useStoredField and
- * useStoredFields resolve the default and sanitize the stored value against them, and tell the
- * store `permanent`): with `stored`, they come from the definition only, so a render site cannot
- * override them.
+ * useStoredFields resolve the default and sanitize the stored value against them): with
+ * `stored`, they come from the definition only, so a render site cannot override them.
  */
-const STORE_KEYS = ['initialValue', 'choices', 'nodes', 'selection', 'choose', 'optional', 'min', 'max', 'integer', 'permanent'] as const;
+const STORE_KEYS = ['initialValue', 'choices', 'nodes', 'selection', 'choose', 'optional', 'min', 'max', 'integer'] as const;
 type StoreKey = (typeof STORE_KEYS)[number];
 
 /**
@@ -34,7 +33,8 @@ type StoreKey = (typeof STORE_KEYS)[number];
  * widgets; without `stored`, the value and its setters and the definition's values as
  * overrides; with `stored`, no value or setter of the render site's (the store keeps the value)
  * and the definition's values but the ones the store reads (`initialValue`, `choices`, `nodes`,
- * `selection`, `choose`, `optional`, `min`, `max`, `integer`, `permanent`).
+ * `selection`, `choose`, `optional`, `min`, `max`, `integer`). Never `permanent`, which only the
+ * definition says.
  */
 export type FieldProps<D extends FieldDefinition = FieldDefinition> = {
   /** The field as data; its `kind` picks the hook and, with its `widget` hint, the widget. */
@@ -65,7 +65,11 @@ export type FieldProps<D extends FieldDefinition = FieldDefinition> = {
   } & Omit<DefinitionOverridesOf<D['kind']>, StoreKey>)
 );
 
-/** Every value of a definition a render site may override, of every kind; checked against FieldDefinition below. */
+/**
+ * Every value of a definition but `kind`, `id` and `widget`, of every kind: a render-site prop so
+ * named is an override, not a widget's display prop. `permanent` cannot be overridden, and is here
+ * so that it throws rather than reach a widget. Checked against FieldDefinition below.
+ */
 const DEFINITION_KEYS = [
   'label', 'description', 'placeholder', 'visible', 'hidden', 'enabled', 'disabled', 'pending', 'valueDescriptions', 'initialValue',
   'choices', 'min', 'max', 'step', 'integer', 'unit', 'format', 'nodes', 'selection', 'expand', 'control',
@@ -148,18 +152,19 @@ const SILENT_SINK: MessageSink = () => {};
  * A field definition rendered: its kind's hook, then its widget (FieldWidget). Storage: inside
  * the field by default (from `initialValue`); `stored` keeps it in the nearest ArgStore; or the
  * render site passes `value` with `onChange` or `commit`. Render-site props win over the
- * definition: any of its values but `kind` and `id` (an `initialValue` only for a value inside
- * the field), `widget` over its hint; the other props are the display props of the kind's
- * widgets, over the hint's. `registry` goes to the kind's hook, for a commit's `errorRoute`.
+ * definition: any of its values but `kind`, `id` and `permanent` (an `initialValue` only for a
+ * value inside the field), `widget` over its hint; the other props are the display props of the
+ * kind's widgets, over the hint's. Only the definition says `permanent`: a render-site one throws,
+ * stored or not. `registry` goes to the kind's hook, for a commit's `errorRoute`.
  * `item` puts the field in a labelled antd form item and keeps its messages there: the
  * MessageSink (a toast under VultusProvider) does not get them. An unknown kind or widget name
  * throws. A definition of another kind or id, or turning `stored` on or off, remounts the field.
  * With `stored`, the values the store reads (`initialValue`, `choices`, `nodes`, `selection`,
- * `choose`, `optional`, `min`, `max`, `integer`, `permanent`) come from the definition: overriding
- * one throws (a context function in the definition covers data that changes). `hrefFor` goes with
- * `value` / `onChange` / `commit` (the link a requested value amounts to, the render site's to
- * give): with `stored` the ArgStore gives its own, and inside the field nothing gives one, so
- * passing one there throws.
+ * `choose`, `optional`, `min`, `max`, `integer`) come from the definition: overriding one throws
+ * (a context function in the definition covers data that changes). `hrefFor` goes with `value`
+ * / `onChange` / `commit` (the link a requested value amounts to, the render site's to give):
+ * with `stored` the ArgStore gives its own, and inside the field nothing gives one, so passing
+ * one there throws.
  *
  * The props are typed by the definition's kind. In a component generic over
  * `<D extends FieldDefinition>`, they cannot resolve for the generic `D`: render
@@ -177,6 +182,9 @@ export function Field<D extends FieldDefinition>(props: FieldProps<D>) {
     Object.entries({ value, onChange, commit, hrefFor }).filter(([, v]) => v !== undefined),
   );
   const outsideStorage = value !== undefined || onChange !== undefined || commit !== undefined;
+  if (overrides.permanent !== undefined) {
+    throw new Error(`Field '${id}': "permanent" belongs on the definition, the one place it is said; a render site cannot give it`);
+  }
   if (stored && outsideStorage) {
     throw new Error(`Field '${id}': "stored" keeps the value in the ArgStore; it does not go together with "value", "onChange" or "commit"`);
   }
@@ -210,9 +218,9 @@ export function Field<D extends FieldDefinition>(props: FieldProps<D>) {
   );
 }
 
-/** Compile-time checks: DEFINITION_KEYS is every overridable value of every kind, and no widget's display prop shares a name with one. */
+/** Compile-time checks: DEFINITION_KEYS is every such value of every kind, and no widget's display prop shares a name with one. */
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Assert<T extends true> = T;
-type OverridableKeys = Exclude<KeysOf<FieldDefinition>, 'kind' | 'id' | 'widget'>;
-type DefinitionKeysAreComplete = Assert<Same<(typeof DEFINITION_KEYS)[number], OverridableKeys>>;
-type DisplayPropsAreNotDefinitionValues = Assert<Same<Extract<keyof DisplayPropsOf<FieldKind>, OverridableKeys>, never>>;
+type DefinitionValueKeys = Exclude<KeysOf<FieldDefinition>, 'kind' | 'id' | 'widget'>;
+type DefinitionKeysAreComplete = Assert<Same<(typeof DEFINITION_KEYS)[number], DefinitionValueKeys>>;
+type DisplayPropsAreNotDefinitionValues = Assert<Same<Extract<keyof DisplayPropsOf<FieldKind>, DefinitionValueKeys>, never>>;

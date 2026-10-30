@@ -82,10 +82,10 @@ describe('argOf', () => {
     );
   });
 
-  it('carries the definition\'s permanence to the argument', () => {
+  it('carries the definition\'s permanence to the argument, as a boolean', () => {
     expect(argOf({ ...LEVEL, permanent: true }, NO_FIELD_CONTEXT).permanent).toBe(true);
     expect(argOf({ ...LEVEL, permanent: false }, NO_FIELD_CONTEXT).permanent).toBe(false);
-    expect(argOf(LEVEL, NO_FIELD_CONTEXT).permanent).toBeFalsy();
+    expect(argOf(LEVEL, NO_FIELD_CONTEXT).permanent).toBe(false);
   });
 });
 
@@ -112,6 +112,17 @@ describe('useStoredField: declaring to the store', () => {
     expect(store.declared.get('level')).toBe(true);
     rerender({ permanent: false });
     expect(store.declared.get('level')).toBe(false);
+  });
+
+  it('a definition going from no permanent to permanent: false is the same argument: onChange and hrefFor keep their identity', () => {
+    const store = memoryStore();
+    const { result, rerender } = renderHook(({ definition }) => useStoredField(definition), {
+      initialProps: { definition: TAGS as FieldDefinition }, wrapper: providing(store),
+    });
+    const { onChange, hrefFor } = result.current.options;
+    rerender({ definition: { ...TAGS, permanent: false } });
+    expect(result.current.options.onChange).toBe(onChange);
+    expect(result.current.options.hrefFor).toBe(hrefFor);
   });
 
   it('declaring notifies nobody', () => {

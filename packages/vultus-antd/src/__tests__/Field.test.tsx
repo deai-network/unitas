@@ -367,11 +367,25 @@ describe('Field: storage', () => {
     ['min', { kind: 'numeric', id: 'room', min: 1, max: 10 } as FieldDefinition, { min: 2 }],
     ['max', { kind: 'range', id: 'room', min: 1, max: 10 } as FieldDefinition, { max: 5 }],
     ['integer', { kind: 'numeric', id: 'room' } as FieldDefinition, { integer: true }],
-    ['permanent', { kind: 'numeric', id: 'room' } as FieldDefinition, { permanent: true }],
   ])('stored: overriding %s throws', (key, definition, override) => {
     quietRenderErrors();
     expect(() => wrap(<ArgStoreProvider store={memoryStore()}><Field stored definition={definition} {...(override as object)} /></ArgStoreProvider>))
       .toThrow(STORE_READ_MESSAGE(key));
+  });
+
+  it('a render-site permanent throws, stored or not, true or false: it belongs on the definition', () => {
+    quietRenderErrors();
+    const message = 'Field \'duplex\': "permanent" belongs on the definition, the one place it is said; a render site cannot give it';
+    expect(() => wrap(<ArgStoreProvider store={memoryStore()}><Field stored definition={DEFINITIONS.boolean} {...({ permanent: true } as object)} /></ArgStoreProvider>))
+      .toThrow(message);
+    expect(() => wrap(<Field definition={DEFINITIONS.boolean} {...({ permanent: true } as object)} />)).toThrow(message);
+    expect(() => wrap(<Field definition={DEFINITIONS.boolean} {...({ permanent: false } as object)} />)).toThrow(message);
+  });
+
+  it('a permanent on the definition is fine without stored: nothing reads it there', () => {
+    wrap(<Field definition={{ ...DEFINITIONS.boolean, permanent: true }} />);
+    fireEvent.click(screen.getByRole('switch'));
+    expect(screen.getByRole('switch')).toBeChecked();
   });
 
   it('stored: the definition\'s permanence reaches the store, and without stored nothing is declared', () => {

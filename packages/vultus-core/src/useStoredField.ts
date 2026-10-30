@@ -9,19 +9,20 @@ import type { ValueType } from './valueTypes.js';
 /**
  * The argument a field's value is stored as: the definition's `id` as key, its kind's value
  * type, its initial value, resolved with the field context, as default — a value, so the
- * argument layer compares against the same default the field starts at — and its `permanent`. A
+ * argument layer compares against the same default the field starts at — and its `permanent`, a
+ * boolean, so a definition saying `false` and one saying nothing make the same argument. A
  * mixed-boolean field shows an aggregate of other data and cannot be stored: it throws, naming
  * the field.
  */
 export function argOf(definition: FieldDefinition, ctx: FieldCtx): ArgDefinition<any> {
-  const { id, kind } = definition;
+  const { id, kind, permanent = false } = definition;
   let valueType: ValueType<any>;
   try {
     valueType = valueTypeOf(kind);
   } catch (error) {
     throw new Error(`Field '${id}': ${(error as Error).message}`);
   }
-  return { key: id, valueType, default: initialValueOf(definition, ctx), permanent: definition.permanent };
+  return { key: id, valueType, default: initialValueOf(definition, ctx), permanent };
 }
 
 /**

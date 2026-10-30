@@ -97,6 +97,12 @@ function fieldPropsAreTyped(
     <Field definition={wide} onEnter={(typed: number) => typed} />,
     // @ts-expect-error -- `id` is not overridable.
     <Field definition={bool} id="other" />,
+    // @ts-expect-error -- nor is `permanent`: only the definition says it, with stored.
+    <Field definition={bool} stored permanent />,
+    // @ts-expect-error -- and without.
+    <Field definition={bool} permanent />,
+    // @ts-expect-error -- for a definition typed as the union too.
+    <Field definition={wide} permanent />,
     // @ts-expect-error -- vertical is a many-of widget's prop, not a boolean widget's.
     <Field definition={bool} vertical />,
   ];
