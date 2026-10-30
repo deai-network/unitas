@@ -7,7 +7,7 @@ import { createGroupValues, type GroupValues } from './fieldGroupValues.js';
 import { useKindField } from './kindHooks.js';
 import { valueTypeOf, type FieldDefinition } from './kinds.js';
 import { rawFor } from './useArg.js';
-import { sameValue } from './useStoredField.js';
+import { declareFields, sameValue } from './useStoredField.js';
 import type { ValueType } from './valueTypes.js';
 
 /** A field group's fields as one component runs them (see useFieldGroup). */
@@ -165,6 +165,8 @@ interface Link {
  */
 function useStoredValues(definitions: readonly FieldDefinition[], appCtx: FieldCtx): Keeping {
   const store = useArgStore();
+  // The definitions as they are now, not the ids below: their contents may change across renders.
+  declareFields(store, definitions);
   // The first render's ids: the shape check keeps them the same.
   const [ids] = useState(() => definitions.map((definition) => definition.id));
   // Called on the store, not passed detached: a store written as a class uses `this`.
@@ -265,7 +267,8 @@ function useStoredValues(definitions: readonly FieldDefinition[], appCtx: FieldC
  * parse, or falls back, warns once, as useStoredField's does: an unparsable one reads as the
  * current default. A raw value the group itself wrote does not warn (a write chained after
  * another field's in one event may fall back at once). `resetAll(method = 'replace')` removes
- * every field's key in one write.
+ * every field's key in one write. The group tells the store every field's permanence as it renders
+ * (ArgStore.declare), a hidden field's too.
  *
  * Each field runs its kind's hook with the definition in its outside form (the group's value and
  * writer), with the group's context as its field context, so its controls are the kind's own,

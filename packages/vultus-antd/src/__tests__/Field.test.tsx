@@ -367,10 +367,21 @@ describe('Field: storage', () => {
     ['min', { kind: 'numeric', id: 'room', min: 1, max: 10 } as FieldDefinition, { min: 2 }],
     ['max', { kind: 'range', id: 'room', min: 1, max: 10 } as FieldDefinition, { max: 5 }],
     ['integer', { kind: 'numeric', id: 'room' } as FieldDefinition, { integer: true }],
+    ['permanent', { kind: 'numeric', id: 'room' } as FieldDefinition, { permanent: true }],
   ])('stored: overriding %s throws', (key, definition, override) => {
     quietRenderErrors();
     expect(() => wrap(<ArgStoreProvider store={memoryStore()}><Field stored definition={definition} {...(override as object)} /></ArgStoreProvider>))
       .toThrow(STORE_READ_MESSAGE(key));
+  });
+
+  it('stored: the definition\'s permanence reaches the store, and without stored nothing is declared', () => {
+    const declare = vi.fn();
+    const store = { ...memoryStore(), declare };
+    wrap(<ArgStoreProvider store={store}><Field stored definition={{ ...DEFINITIONS.boolean, permanent: true }} /></ArgStoreProvider>);
+    expect(declare).toHaveBeenCalledWith('duplex', { permanent: true });
+    declare.mockClear();
+    wrap(<ArgStoreProvider store={store}><Field definition={{ ...DEFINITIONS.boolean, permanent: true }} /></ArgStoreProvider>);
+    expect(declare).not.toHaveBeenCalled();
   });
 
   it('stored: the definition\'s pending reaches the field (the store does not read it)', () => {

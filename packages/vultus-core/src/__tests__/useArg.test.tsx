@@ -26,6 +26,17 @@ function quietly(render: () => unknown): () => void {
   };
 }
 
+/** A memory store that keeps what the hooks declare to it; `declare` uses `this`, as a class store's would. */
+function declaringStore(initial: Record<string, string> = {}) {
+  return {
+    ...memoryStore(initial),
+    declared: new Map<string, boolean>(),
+    declare(key: string, { permanent }: { permanent: boolean }) {
+      this.declared.set(key, permanent);
+    },
+  };
+}
+
 describe('useArg: reading', () => {
   it('an absent key gives the default, and isDefault is true', () => {
     const store = memoryStore();
@@ -155,6 +166,80 @@ describe('useArg: writing', () => {
     };
     const { result: hrefResult } = renderHook(() => useArg(definition), { wrapper: providing(withHref) });
     expect(hrefResult.current.hrefFor(5)).toBe('/?n=5');
+  });
+});
+
+describe('useArg: declaring to the store', () => {
+  const NAME: ArgDefinition<string> = { key: 'name', valueType: stringType, default: 'Ada' };
+
+  it('declares the key as not permanent by default', () => {
+    const store = declaringStore();
+    renderHook(() => useArg(NAME), { wrapper: providing(store) });
+    expect(Object.fromEntries(store.declared)).toEqual({ name: false });
+  });
+
+  it('declares a permanent definition as permanent', () => {
+    const store = declaringStore();
+    renderHook(() => useArg({ ...NAME, permanent: true }), { wrapper: providing(store) });
+    expect(Object.fromEntries(store.declared)).toEqual({ name: true });
+  });
+
+  it('declares as it renders, not in an effect: a write from a child\'s effect finds the store told', () => {
+    const store = declaringStore();
+    let duringRender: boolean | undefined;
+    renderHook(() => {
+      useArg(NAME);
+      duringRender = store.declared.get('name');
+    }, { wrapper: providing(store) });
+    expect(duringRender).toBe(false);
+  });
+
+  it('declares again on a re-render, so a definition whose permanence changes is followed', () => {
+    const store = declaringStore();
+    const { rerender } = renderHook(({ permanent }) => useArg({ ...NAME, permanent }), {
+      initialProps: { permanent: false }, wrapper: providing(store),
+    });
+    expect(store.declared.get('name')).toBe(false);
+    rerender({ permanent: true });
+    expect(store.declared.get('name')).toBe(true);
+  });
+
+  it('declares to a new store above', () => {
+    const first = declaringStore();
+    const second = declaringStore();
+    let store = first;
+    const wrapper = ({ children }: { children?: ReactNode }) => <ArgStoreProvider store={store}>{children}</ArgStoreProvider>;
+    const { rerender } = renderHook(() => useArg(NAME), { wrapper });
+    store = second;
+    rerender();
+    expect(second.declared.get('name')).toBe(false);
+  });
+
+  it('declaring notifies nobody: no subscriber is called, nothing is written, nothing renders again', () => {
+    const store = declaringStore();
+    const write = vi.spyOn(store, 'write');
+    const listener = vi.fn();
+    store.subscribe(listener);
+    let renders = 0;
+    const { rerender } = renderHook(() => {
+      renders += 1;
+      return useArg(NAME);
+    }, { wrapper: providing(store) });
+    rerender();
+    expect(store.declared.size).toBe(1);
+    expect(listener).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+    expect(renders).toBe(2);
+  });
+
+  it('a store without declare works as before', () => {
+    const store = memoryStore();
+    expect('declare' in store).toBe(false);
+    const { result } = renderHook(() => useArg({ ...NAME, permanent: true }), { wrapper: providing(store) });
+    expect(result.current.value).toBe('Ada');
+    act(() => result.current.set('Bob'));
+    expect(store.read('name')).toBe('Bob');
+    expect(result.current.value).toBe('Bob');
   });
 });
 

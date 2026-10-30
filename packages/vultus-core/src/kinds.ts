@@ -22,7 +22,14 @@ import { booleanType, numberType, rangeType, stringSetType, stringType, type Val
  * field, and a store holds the definition's initial value as its default.
  */
 type Definition<K extends FieldKind, V, Own, Ctx> =
-  { kind: K } & FieldBaseOptions<V, Ctx> & { initialValue?: ValueOrFn<V, Ctx> } & Own;
+  { kind: K } & FieldBaseOptions<V, Ctx> & {
+    initialValue?: ValueOrFn<V, Ctx>;
+    /**
+     * Whether the value, kept in a store, stays when the store goes somewhere else (ArgDefinition's
+     * `permanent`). Default false. No kind's hook reads it.
+     */
+    permanent?: boolean;
+  } & Own;
 
 /**
  * A field as plain data (a module's filters, a dialog's options), tagged by its kind. Narrowed

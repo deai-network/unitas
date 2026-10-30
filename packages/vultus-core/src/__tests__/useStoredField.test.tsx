@@ -53,6 +53,17 @@ function quietly(render: () => unknown): () => void {
   };
 }
 
+/** A memory store that keeps what the hooks declare to it; `declare` uses `this`, as a class store's would. */
+function declaringStore(initial: Record<string, string> = {}) {
+  return {
+    ...memoryStore(initial),
+    declared: new Map<string, boolean>(),
+    declare(key: string, { permanent }: { permanent: boolean }) {
+      this.declared.set(key, permanent);
+    },
+  };
+}
+
 describe('argOf', () => {
   it('derives the argument: the id as key, the kind\'s value type, the resolved initial value as default', () => {
     const definition: DefinitionOf<'manyOf'> = {
@@ -69,6 +80,105 @@ describe('argOf', () => {
     expect(() => argOf(ALL_DONE, NO_FIELD_CONTEXT)).toThrow(
       `Field 'allDone': a mixed-boolean field is an aggregate of other data and cannot be stored`,
     );
+  });
+
+  it('carries the definition\'s permanence to the argument', () => {
+    expect(argOf({ ...LEVEL, permanent: true }, NO_FIELD_CONTEXT).permanent).toBe(true);
+    expect(argOf({ ...LEVEL, permanent: false }, NO_FIELD_CONTEXT).permanent).toBe(false);
+    expect(argOf(LEVEL, NO_FIELD_CONTEXT).permanent).toBeFalsy();
+  });
+});
+
+describe('useStoredField: declaring to the store', () => {
+  it('declares the field\'s id, not permanent by default', () => {
+    const store = declaringStore();
+    renderHook(() => useStoredField(LEVEL), { wrapper: providing(store) });
+    expect(Object.fromEntries(store.declared)).toEqual({ level: false });
+  });
+
+  it('declares a permanent definition as permanent, a hidden one too', () => {
+    const store = declaringStore();
+    renderHook(() => useStoredField({ ...LEVEL, permanent: true, hidden: true }), { wrapper: providing(store) });
+    expect(Object.fromEntries(store.declared)).toEqual({ level: true });
+  });
+
+  it('follows a definition whose permanence changes while its default stays the same', () => {
+    const store = declaringStore();
+    const { rerender } = renderHook(({ permanent }) => useStoredField({ ...LEVEL, permanent }), {
+      initialProps: { permanent: false }, wrapper: providing(store),
+    });
+    expect(store.declared.get('level')).toBe(false);
+    rerender({ permanent: true });
+    expect(store.declared.get('level')).toBe(true);
+    rerender({ permanent: false });
+    expect(store.declared.get('level')).toBe(false);
+  });
+
+  it('declaring notifies nobody', () => {
+    const store = declaringStore();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    const { rerender } = renderHook(() => useStoredField(LEVEL), { wrapper: providing(store) });
+    rerender();
+    expect(store.declared.size).toBe(1);
+    expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+describe('useStoredFields: declaring to the store', () => {
+  it('declares every definition with its permanence, hidden ones too', () => {
+    const store = declaringStore();
+    const definitions = [{ ...LEVEL, permanent: true }, ROUNDS, { ...QUERY, hidden: true }, { ...YEARS, permanent: true, hidden: true }];
+    renderHook(() => useStoredFields(definitions), { wrapper: providing(store) });
+    expect(Object.fromEntries(store.declared)).toEqual({ level: true, rounds: false, q: false, years: true });
+  });
+
+  it('declares as it renders, and a field added to the list on a re-render', () => {
+    const store = declaringStore();
+    let duringRender: boolean | undefined;
+    const { rerender } = renderHook(({ definitions }) => {
+      const fields = useStoredFields(definitions);
+      duringRender = store.declared.get('level');
+      return fields;
+    }, { initialProps: { definitions: [LEVEL] as FieldDefinition[] }, wrapper: providing(store) });
+    expect(duringRender).toBe(false);
+    rerender({ definitions: [LEVEL, { ...QUERY, permanent: true }] });
+    expect(Object.fromEntries(store.declared)).toEqual({ level: false, q: true });
+  });
+
+  it('follows a definition whose permanence changes on a re-render', () => {
+    const store = declaringStore();
+    const { rerender } = renderHook(({ permanent }) => useStoredFields([{ ...LEVEL, permanent }]), {
+      initialProps: { permanent: true }, wrapper: providing(store),
+    });
+    expect(store.declared.get('level')).toBe(true);
+    rerender({ permanent: false });
+    expect(store.declared.get('level')).toBe(false);
+  });
+
+  it('declaring notifies nobody, and nothing renders again', () => {
+    const store = declaringStore();
+    const write = vi.spyOn(store, 'write');
+    const listener = vi.fn();
+    store.subscribe(listener);
+    let renders = 0;
+    const { rerender } = renderHook(() => {
+      renders += 1;
+      return useStoredFields([LEVEL, QUERY]);
+    }, { wrapper: providing(store) });
+    rerender();
+    expect(store.declared.size).toBe(2);
+    expect(listener).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+    expect(renders).toBe(2);
+  });
+
+  it('a store without declare works as before', () => {
+    const store = memoryStore({ level: 'hard' });
+    const { result } = renderHook(() => useStoredFields([{ ...LEVEL, permanent: true }]), { wrapper: providing(store) });
+    expect(result.current.changedCount).toBe(1);
+    act(() => result.current.resetAll());
+    expect(store.snapshot()).toEqual({});
   });
 });
 
@@ -457,9 +567,14 @@ describe('useStoredFields values', () => {
 class ClassStore implements ArgStore {
   private data = new Map<string, string>();
   private listeners = new Set<() => void>();
+  declared = new Set<string>();
 
   read(key: string): string | undefined {
     return this.data.get(key);
+  }
+
+  declare(key: string): void {
+    this.declared.add(key);
   }
 
   write(changes: RawChange[], _method: UpdateMethod): void {
@@ -509,5 +624,15 @@ describe('an ArgStore written as a class', () => {
     expect(result.current.changedCount).toBe(1);
     act(() => result.current.resetAll());
     expect(result.current.changedCount).toBe(0);
+  });
+
+  it('is told what the hooks declare, on the store, not detached', () => {
+    const store = new ClassStore();
+    renderHook(() => {
+      useArg({ key: 'name', valueType: stringType, default: 'Ada' });
+      useStoredField(LEVEL);
+      useStoredFields([QUERY]);
+    }, { wrapper: providing(store) });
+    expect([...store.declared].sort()).toEqual(['level', 'name', 'q']);
   });
 });

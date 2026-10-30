@@ -21,10 +21,11 @@ export type DefinitionOverridesOf<K extends FieldKind> = Merged<K extends FieldK
 
 /**
  * The values the store layer reads from the definition itself (useStoredField and
- * useStoredFields resolve the default and sanitize the stored value against them): with
- * `stored`, they come from the definition only, so a render site cannot override them.
+ * useStoredFields resolve the default and sanitize the stored value against them, and tell the
+ * store `permanent`): with `stored`, they come from the definition only, so a render site cannot
+ * override them.
  */
-const STORE_KEYS = ['initialValue', 'choices', 'nodes', 'selection', 'choose', 'optional', 'min', 'max', 'integer'] as const;
+const STORE_KEYS = ['initialValue', 'choices', 'nodes', 'selection', 'choose', 'optional', 'min', 'max', 'integer', 'permanent'] as const;
 type StoreKey = (typeof STORE_KEYS)[number];
 
 /**
@@ -33,7 +34,7 @@ type StoreKey = (typeof STORE_KEYS)[number];
  * widgets; without `stored`, the value and its setters and the definition's values as
  * overrides; with `stored`, no value or setter of the render site's (the store keeps the value)
  * and the definition's values but the ones the store reads (`initialValue`, `choices`, `nodes`,
- * `selection`, `choose`, `optional`, `min`, `max`, `integer`).
+ * `selection`, `choose`, `optional`, `min`, `max`, `integer`, `permanent`).
  */
 export type FieldProps<D extends FieldDefinition = FieldDefinition> = {
   /** The field as data; its `kind` picks the hook and, with its `widget` hint, the widget. */
@@ -68,7 +69,7 @@ export type FieldProps<D extends FieldDefinition = FieldDefinition> = {
 const DEFINITION_KEYS = [
   'label', 'description', 'placeholder', 'visible', 'hidden', 'enabled', 'disabled', 'pending', 'valueDescriptions', 'initialValue',
   'choices', 'min', 'max', 'step', 'integer', 'unit', 'format', 'nodes', 'selection', 'expand', 'control',
-  'choose', 'optional',
+  'choose', 'optional', 'permanent',
 ] as const;
 const IS_DEFINITION_KEY = new Set<string>(DEFINITION_KEYS);
 
@@ -154,11 +155,11 @@ const SILENT_SINK: MessageSink = () => {};
  * MessageSink (a toast under VultusProvider) does not get them. An unknown kind or widget name
  * throws. A definition of another kind or id, or turning `stored` on or off, remounts the field.
  * With `stored`, the values the store reads (`initialValue`, `choices`, `nodes`, `selection`,
- * `choose`, `optional`, `min`, `max`, `integer`) come from the definition: overriding one throws
- * (a context function in the definition covers data that changes). `hrefFor` goes with `value`
- * / `onChange` / `commit` (the link a requested value amounts to, the render site's to give):
- * with `stored` the ArgStore gives its own, and inside the field nothing gives one, so passing
- * one there throws.
+ * `choose`, `optional`, `min`, `max`, `integer`, `permanent`) come from the definition: overriding
+ * one throws (a context function in the definition covers data that changes). `hrefFor` goes with
+ * `value` / `onChange` / `commit` (the link a requested value amounts to, the render site's to
+ * give): with `stored` the ArgStore gives its own, and inside the field nothing gives one, so
+ * passing one there throws.
  *
  * The props are typed by the definition's kind. In a component generic over
  * `<D extends FieldDefinition>`, they cannot resolve for the generic `D`: render

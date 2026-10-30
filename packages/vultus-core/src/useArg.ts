@@ -6,11 +6,17 @@ import { resolveIn } from './resolve.js';
 import type { ValueOrFn } from './types.js';
 import type { ValueType } from './valueTypes.js';
 
-/** An argument's shape (moxb's url-arg definition, without a `permanent` flag — that is a router concern). */
+/** An argument's shape (moxb's url-arg definition). */
 export interface ArgDefinition<T, Ctx = any> {
   key: string;
   valueType: ValueType<T>;
   default: ValueOrFn<T, Ctx>;
+  /**
+   * Whether the argument stays when its store goes somewhere else (a URL store, when a path token
+   * changes). Default false. Said only here: the hooks tell the store (ArgStore.declare), and a
+   * store that never drops a key does not ask.
+   */
+  permanent?: boolean;
 }
 
 export interface ArgControls<T> {
@@ -33,7 +39,8 @@ export function rawFor<T>(value: T, defaultValue: T, valueType: ValueType<T>): s
 
 /**
  * An argument read from and written to the nearest ArgStore. An absent key reads as the default;
- * writing the default removes the key.
+ * writing the default removes the key. It tells the store the argument's permanence as it renders
+ * (ArgStore.declare).
  *
  * `parse(raw)` is memoized on `[raw, key, valueType]` (not the default, which may be a context
  * function with its own, independently changing inputs): re-rendering with the same raw value
@@ -44,8 +51,9 @@ export function rawFor<T>(value: T, defaultValue: T, valueType: ValueType<T>): s
  * effects keyed on `value` do not re-run just because nothing meaningful changed.
  */
 export function useArg<T>(definition: ArgDefinition<T>): ArgControls<T> {
-  const { key, valueType, default: defaultOrFn } = definition;
+  const { key, valueType, default: defaultOrFn, permanent = false } = definition;
   const store = useArgStore();
+  store.declare?.(key, { permanent });
   const ctx = useFieldContext();
   // Called on the store, not passed detached: a store written as a class uses `this`.
   const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);

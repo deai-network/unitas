@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
-import type { UpdateMethod } from './argStore.js';
+import type { ArgStore, UpdateMethod } from './argStore.js';
 import { useArgStore } from './ArgStoreContext.js';
 import { useFieldContext, type FieldCtx } from './FieldContext.js';
 import { initialValueOf, sanitizeStored, valueTypeOf, type FieldDefinition } from './kinds.js';
@@ -8,9 +8,10 @@ import type { ValueType } from './valueTypes.js';
 
 /**
  * The argument a field's value is stored as: the definition's `id` as key, its kind's value
- * type, and its initial value, resolved with the field context, as default — a value, so the
- * argument layer compares against the same default the field starts at. A mixed-boolean field
- * shows an aggregate of other data and cannot be stored: it throws, naming the field.
+ * type, its initial value, resolved with the field context, as default — a value, so the
+ * argument layer compares against the same default the field starts at — and its `permanent`. A
+ * mixed-boolean field shows an aggregate of other data and cannot be stored: it throws, naming
+ * the field.
  */
 export function argOf(definition: FieldDefinition, ctx: FieldCtx): ArgDefinition<any> {
   const { id, kind } = definition;
@@ -20,7 +21,16 @@ export function argOf(definition: FieldDefinition, ctx: FieldCtx): ArgDefinition
   } catch (error) {
     throw new Error(`Field '${id}': ${(error as Error).message}`);
   }
-  return { key: id, valueType, default: initialValueOf(definition, ctx) };
+  return { key: id, valueType, default: initialValueOf(definition, ctx), permanent: definition.permanent };
+}
+
+/**
+ * Tells the store each definition's permanence as it renders (ArgStore.declare), a hidden field's
+ * too: for the hooks that read the store themselves, not through useArg. Exported for the field
+ * group (useFieldGroup); not part of the package's API.
+ */
+export function declareFields(store: ArgStore, definitions: readonly FieldDefinition[]): void {
+  for (const { id, permanent = false } of definitions) store.declare?.(id, { permanent });
 }
 
 function silently(_message: string): void {}
@@ -95,7 +105,7 @@ export function useStoredField<D extends FieldDefinition>(definition: D): Stored
   const argRef = useRef<ArgDefinition<any> | undefined>(undefined);
   const previousArg = argRef.current;
   const arg = previousArg !== undefined && previousArg.key === fresh.key && previousArg.valueType === fresh.valueType
-    && fresh.valueType.isEqual(previousArg.default, fresh.default)
+    && previousArg.permanent === fresh.permanent && fresh.valueType.isEqual(previousArg.default, fresh.default)
     ? previousArg
     : fresh;
   argRef.current = arg;
@@ -178,10 +188,12 @@ function readField(definition: FieldDefinition, raw: string | null, ctx: FieldCt
  * subscription for all of them: its snapshot is their raw values joined into one string, which
  * changes exactly when one of them does. It is a summary, so it never warns (the fields do).
  * Each field is re-read only when its raw value, its definition or the field context changes,
- * so typing into one field does not re-read its siblings.
+ * so typing into one field does not re-read its siblings. It tells the store every field's
+ * permanence as it renders (ArgStore.declare).
  */
 export function useStoredFields(definitions: readonly FieldDefinition[]): StoredFields {
   const store = useArgStore();
+  declareFields(store, definitions);
   const ctx = useFieldContext();
   // Called on the store, not passed detached: a store written as a class uses `this`.
   const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);

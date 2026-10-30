@@ -317,6 +317,80 @@ function warnings(check: (warn: MockInstance<typeof console.warn>) => void): voi
   }
 }
 
+/** A memory store that keeps what the hooks declare to it; `declare` uses `this`, as a class store's would. */
+function declaringStore(initial: Record<string, string> = {}) {
+  return {
+    ...memoryStore(initial),
+    declared: new Map<string, boolean>(),
+    declare(key: string, { permanent }: { permanent: boolean }) {
+      this.declared.set(key, permanent);
+    },
+  };
+}
+
+describe('useFieldGroup: declaring to the store', () => {
+  const PERMANENT_LAYOUT: FieldDefinition = { ...layout, permanent: true };
+
+  it('stored: declares every definition with its permanence, a hidden field too', () => {
+    const store = declaringStore();
+    const { result } = renderHook(() => useFieldGroup([PERMANENT_LAYOUT, paper, copies], { stored: true }), { wrapper: storing(store) });
+    expect(result.current.byId.copies.visible).toBe(false);
+    expect(Object.fromEntries(store.declared)).toEqual({ layout: true, paper: false, copies: false });
+  });
+
+  it('stored: a hidden permanent field is declared permanent', () => {
+    const store = declaringStore();
+    const hiddenCopies: FieldDefinition = { ...copies, permanent: true };
+    const { result } = renderHook(() => useFieldGroup([layout, hiddenCopies], { stored: true }), { wrapper: storing(store) });
+    expect(result.current.byId.copies.visible).toBe(false);
+    expect(store.declared.get('copies')).toBe(true);
+  });
+
+  it('stored: declares as it renders, and follows the definitions\' contents across renders', () => {
+    const store = declaringStore();
+    let duringRender: boolean | undefined;
+    const { rerender } = renderHook(({ permanent }) => {
+      const group = useFieldGroup([{ ...layout, permanent }, paper], { stored: true });
+      duringRender = store.declared.get('layout');
+      return group;
+    }, { initialProps: { permanent: true }, wrapper: storing(store) });
+    expect(duringRender).toBe(true);
+    rerender({ permanent: false });
+    expect(store.declared.get('layout')).toBe(false);
+  });
+
+  it('stored: declaring notifies nobody, and nothing renders again', () => {
+    const store = declaringStore();
+    const write = vi.spyOn(store, 'write');
+    const listener = vi.fn();
+    store.subscribe(listener);
+    let renders = 0;
+    const { rerender } = renderHook(() => {
+      renders += 1;
+      return useFieldGroup(PRINT, { stored: true });
+    }, { wrapper: storing(store) });
+    rerender();
+    expect(store.declared.size).toBe(3);
+    expect(listener).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+    expect(renders).toBe(2);
+  });
+
+  it('stored: a store without declare works as before', () => {
+    const store = memoryStore();
+    const { result } = renderHook(() => useFieldGroup([PERMANENT_LAYOUT, paper], { stored: true }), { wrapper: storing(store) });
+    act(() => result.current.byId.layout.setValue('original'));
+    expect(store.snapshot()).toEqual({ layout: 'original' });
+    expect(result.current.values.layout).toBe('original');
+  });
+
+  it('the group\'s own state tells a store above nothing: it does not keep its values there', () => {
+    const store = declaringStore();
+    renderHook(() => useFieldGroup([PERMANENT_LAYOUT, paper]), { wrapper: storing(store) });
+    expect(store.declared.size).toBe(0);
+  });
+});
+
 describe('useFieldGroup: stored', () => {
   it('a field pending by the app\'s context (a page still settling it) is pending and refuses requests; the store stays as it is', () => {
     warnings((warn) => {

@@ -20,6 +20,13 @@ export interface ArgStore {
   subscribe(listener: () => void): () => void;
   /** The href a write of `changes` would produce, where the store has one (a URL store); omitted otherwise. */
   hrefFor?(changes: RawChange[]): string;
+  /**
+   * What a hook using an argument knows of it, told as the hook renders, on every render, so
+   * idempotent; it notifies nobody. `permanent`: the key stays when the store goes somewhere else
+   * (a URL store, when a path token changes). A store that never drops a key omits this; a wrapper
+   * store forwards it, or the store it wraps is told nothing.
+   */
+  declare?(key: string, facts: { permanent: boolean }): void;
 }
 
 /** An ArgStore over a plain object, for tests and demos. `snapshot()` is a copy, for assertions. */
