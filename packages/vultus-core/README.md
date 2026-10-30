@@ -376,9 +376,10 @@ initialValueOf(definitions[0], {}); // false
 ## Arguments
 
 Storage outside a field hook — a URL, localStorage — lives in vultus-core as
-its own layer (ported from moxb's `url-arg`, without mobx), independent of
-the field hooks: an argument is `{ key, valueType, default }`, kept in
-whatever `ArgStore` is nearest.
+its own layer (ported from stellar-router's `url-arg`, without mobx),
+independent of the field hooks: an argument is `{ key, valueType, default }`,
+optionally `permanent` (see Permanence, below), kept in whatever `ArgStore` is
+nearest.
 
 **Value types** (`ValueType<T>`: `parse(raw)`, `format(value)`, `isEqual(a,
 b)`) say how a value is kept as a string and compared; equality is the
@@ -399,7 +400,8 @@ the default (or is dropped from a list), with a `console.warn`.
 
 **Stores.** `ArgStore` is `read(key)`, `write(changes, method)` (`method`:
 `'push'` or `'replace'`; a store without history ignores it),
-`subscribe(listener)`, and optionally `hrefFor(changes)`. vultus-core ships
+`subscribe(listener)`, and optionally `hrefFor(changes)` and
+`declare(key, facts)` (see Permanence, below). vultus-core ships
 `memoryStore()` (tests, demos) and `localStorageStore(prefix)` (keys
 namespaced as `${prefix}.${key}`, guarded for SSR so creating one outside a
 browser is a safe no-op; where the browser blocks storage or refuses a
@@ -449,6 +451,31 @@ components; an entry keeps its identity while it stays the same element by
 element, and the object while no entry changed) and `resetAll(method)` (one
 write for every field). Being a summary, it never warns — only `useStoredField` on the
 field itself does.
+
+**Permanence.** `permanent?: boolean` (default false), on an `ArgDefinition` and on a
+`FieldDefinition`, says that the argument stays when its store goes somewhere else: a URL
+store does, when a path token changes (vultus-react-router's README has the rule). It is said
+only there. No kind's hook reads it, `argOf` carries it over, and a render site cannot give it:
+vultus-antd's `<Field permanent>` is a type error and throws, with or without `stored`.
+
+The store learns it from the hooks. `useArg` (so `useStoredField`), `useStoredFields` and
+`useFieldGroup(definitions, { stored: true })` call the store's optional
+`declare(key, { permanent })` as they render, for every definition, hidden ones too. It is
+idempotent and notifies nobody. A store that never drops a key omits it, as `memoryStore` and
+`localStorageStore` do, and the hooks then skip it. `useArgWriter` does not declare, as it sees a
+definition only when it writes one: an argument only ever written that way, with no hook on it,
+stays undeclared.
+
+A wrapper store (one that hands its calls to another: a step's own view of the URL, say) should
+forward it, in one line:
+
+```ts
+declare: (key, facts) => inner.declare?.(key, facts),
+```
+
+If it does not, the store it wraps is told nothing of the keys used through the wrapper, and to a
+URL store a key never declared is one to keep. So nothing is dropped: no value is lost, but a
+filter meant to go with the old place stays in the URL.
 
 **Links.** Every kind's hook gives its controls `hrefFor(value)`: the link that requesting `value`
 amounts to, or `undefined` where nothing gives one. With `value` + `onChange` or `value` +

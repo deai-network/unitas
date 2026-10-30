@@ -47,7 +47,10 @@ kept mounted, and the store's in-flight guarantees unchanged.
     resolved with the store's field context; `ctx.values` is not available there). For a bare
     `ArgDefinition`, which holds no choices: `vanishing(def, { allowedValues })`. There is no default
     in the token: an absent key already reads as the argument's default, and writing the default
-    already removes the key (`useArg`, `rawFor`).
+    already removes the key (`useArg`, `rawFor`). `vanishing(X)` needs a precise one-of type
+    (`OneOfDefinition` or `satisfies FieldDefinition`), not a `FieldDefinition` annotation, which
+    forgets the kind. It throws when `allowedValues` is given for a one-of field: the choices already
+    say them.
   - `rest(def)`: all the remaining segments, slashes included; only as the last token. Stellar-router
     has no such token.
   - Each takes `{ independent: true }`: changing this token is **not** going somewhere else. Later
@@ -63,7 +66,8 @@ is the app's own navigation.
 ## Permanence
 
 - `permanent?: boolean` on `ArgDefinition` and on `FieldDefinition`, default false. It is the only
-  place this is said.
+  place this is said: `<Field permanent>` is a type error and throws, with or without `stored`, as a
+  restatement at a render site would otherwise be silently ignored.
 - The store learns it from the hooks: a hook that uses a definition already knows the definition
   and its store, and tells the store as it renders: a new optional `ArgStore` method,
   `declare?(key, { permanent })`. `useArg` (so `useStoredField`), `useStoredFields` and
@@ -81,10 +85,16 @@ The location's path below the route's base is split on `/` and decoded per segme
 through react-router's params, so a literal `%2F` round-trips), then walked over the tokens: a
 `token` takes the next segment if any; a `vanishing` token takes it if allowed, else reads as absent
 and leaves it; a `rest` takes the remaining segments. An absent key reads `undefined`, so the
-argument's default applies. Segments beyond the tokens are ignored by reads and gone after a path
-write. A malformed escape in a typed address reads raw, with no error.
+argument's default applies. Empty segments in a typed address are dropped on reading (`/a//b/` reads
+`a`, `b`). Segments beyond the tokens are ignored by reads and gone after a real path write (see
+Writing). A malformed escape in a typed address reads raw, with no error.
 
 Read-your-writes stays: a key's own unapplied change wins, as today.
+
+`readRendered(key)`, on the store `useRouterArgStore()` returns, is the key's raw value in the
+location of the latest render, for every kind of key; `read` is that with the store's own writes
+laid over it. So an app comparing the two knows whether its URL has caught up, without restating the
+tokens.
 
 ## Writing
 
@@ -98,9 +108,14 @@ the same URL, as today. Changes in the same tick batch, a push if any asked for 
   order-dependent there), and a write that changes nothing cuts nothing.
 - These removals are decided at write time and join the write's changes, so read-your-writes shows
   them at once and `hrefFor` includes them.
+- Writing the default over a default spelled out in a hand-typed address counts as going somewhere
+  else: the write removes the key, which differs from the value the segment holds. The store would
+  not write such an address itself.
 - The path is rebuilt from the tokens' values: an absent `vanishing` or `rest` token leaves no
   segment; no task gives `/hu/pongracz`. An empty value is removal.
 - Query and fragment changes keep the path, as query changes do today.
+- A same-value path write does not navigate. A stray typed segment goes at the next real path write,
+  one that changes a token's value.
 
 ### Writes that cannot be represented
 
@@ -114,13 +129,22 @@ nothing reaches the router (`..` under a browser router would otherwise navigate
 - a value whose first segment an earlier vanished token would claim (a task named like a variant).
 
 A batch that waits for a navigation from outside re-checks when it applies; path changes that no
-longer fit are dropped with the same warning, the rest of the batch still landing.
+longer fit are dropped with the same warning, the rest of the batch still landing. A batch's implied
+removals go with a path change dropped there, as the store has not gone somewhere else; named changes
+land.
 
 ### On top of a navigation from outside
 
-As today: the batch applies on top of wherever the router settled. If the route was left, the store
-has unmounted and the write goes with it. If the same route settled with another module, a task lands
-there; an app already handles unknown task ids from hand-edited URLs.
+As today: the batch applies on top of wherever the router settled. If the route was left, the batch's
+path changes are dropped as above and its named changes land there (`/start?toc=1&q=y`). If the same
+route settled with another module, a task lands there; an app already handles unknown task ids from
+hand-edited URLs.
+
+Under a non-data router, a write and a navigation away in one tick can land wrong: without
+`matchRoutes` the store cannot tell that a route as deep as its own is another route, so `/about/us`
+plus a task write gives `/about/us/s20`. The same goes for a store inside descendant `<Routes>`,
+where a batch waiting for the navigation is enough. A store directly in a data route knows it left.
+Accepted, and pinned by tests.
 
 ## Encoding
 
