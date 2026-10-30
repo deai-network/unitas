@@ -766,20 +766,79 @@ describe.each(['memory', 'browser'] as const)('the store under a %s router', (ki
       expect(router.state.location.pathname).toBe('/hu/mod/old/s20');
     });
 
-    it('takes the part below its own route inside descendant <Routes>, under a data router', async () => {
-      const element = <ReactRouterArgStore path={PATH} fragment={AT}><Probe /><Page /></ReactRouterArgStore>;
-      function Inner() {
-        return <Routes><Route path=":module/*" element={element} /></Routes>;
+    describe('inside descendant <Routes>, under a data router', () => {
+      /** The data router's matches do not hold the store's route here: it knows only `:lang/*`. */
+      function inDescendantRoutes(entry: string, { loader, routes = [] }: { loader?: LoaderFunction; routes?: RouteObject[] } = {}) {
+        const element = <ReactRouterArgStore path={PATH} fragment={AT}><Probe /><Page /></ReactRouterArgStore>;
+        function Inner() {
+          return <Routes><Route path=":module/*" element={element} /></Routes>;
+        }
+        const router = makeRouter(kind, entry, [
+          { id: 'page', path: ':lang/*', loader, element: <Inner /> },
+          { path: 'start', element: null },
+          ...routes,
+        ], undefined);
+        disposers.push(() => router.dispose());
+        const navigations: string[] = [];
+        let last = router.state.location;
+        const unsubscribe = router.subscribe((state) => {
+          if (state.location === last) return;
+          last = state.location;
+          navigations.push(`${state.historyAction} ${createPath(state.location)}`);
+        });
+        disposers.push(unsubscribe);
+        render(<RouterProvider router={router} />);
+        return { router, navigations };
       }
-      const router = makeRouter(kind, '/hu/egyh%C3%A1z/modern/s19', [{ path: ':lang/*', element: <Inner /> }], undefined);
-      disposers.push(() => router.dispose());
-      render(<RouterProvider router={router} />);
-      expect(seen.values).toMatchObject({ variant: 'modern', task: 's19' });
-      expect(hrefFor({ task: 'a b' })).toBe('/hu/egyh%C3%A1z/modern/a%20b');
-      await act(async () => write({ task: 's20', q: 'x' }));
-      expect(createPath(router.state.location)).toBe('/hu/egyh%C3%A1z/modern/s20?q=x');
-      expect(seen.values).toMatchObject({ variant: 'modern', task: 's20', q: 'x' });
-      expect(mounts).toBe(1);
+
+      it('takes the part below its own route', async () => {
+        const { router } = inDescendantRoutes('/hu/egyh%C3%A1z/modern/s19');
+        expect(seen.values).toMatchObject({ variant: 'modern', task: 's19' });
+        expect(hrefFor({ task: 'a b' })).toBe('/hu/egyh%C3%A1z/modern/a%20b');
+        await act(async () => write({ task: 's20', q: 'x' }));
+        expect(createPath(router.state.location)).toBe('/hu/egyh%C3%A1z/modern/s20?q=x');
+        expect(seen.values).toMatchObject({ variant: 'modern', task: 's20', q: 'x' });
+        expect(mounts).toBe(1);
+      });
+
+      it('a batch that waited lands below where the router settled, by the depth the store rendered with', async () => {
+        const { loader, open } = gate();
+        const { router, navigations } = inDescendantRoutes('/hu/mod/s19', { loader });
+        await act(async () => {
+          write({ task: 's20' });
+          void router.navigate('/en/masik/x?k=1');
+        });
+        await act(async () => open());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /en/masik/x?k=1', 'REPLACE /en/masik/s20?k=1']);
+        expect(warn).not.toHaveBeenCalled();
+      });
+
+      it('a batch that waited, and the router went somewhere too short to hold the route: the path change is dropped with a warning', async () => {
+        const { loader, open } = gate();
+        const { router, navigations } = inDescendantRoutes('/hu/mod/s19?toc=a', { loader });
+        await act(async () => {
+          write({ task: 's20', q: 'y' });
+          void router.navigate('/start?toc=1');
+        });
+        await act(async () => open());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /start?toc=1', 'REPLACE /start?toc=1&q=y']);
+        expectWarningAbout('task');
+      });
+
+      it('the known limit: it cannot tell that a route as deep as its own is another route, so the path change lands below it', async () => {
+        const { loader, open } = gate();
+        const { router, navigations } = inDescendantRoutes('/hu/mod/s19', { loader, routes: [{ path: 'about/us', element: null }] });
+        await act(async () => {
+          write({ task: 's20' });
+          void router.navigate('/about/us');
+        });
+        await act(async () => open());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /about/us', 'REPLACE /about/us/s20']);
+        expect(warn).not.toHaveBeenCalled();
+      });
     });
 
     it('a route that is only a splat owns the whole path', async () => {
@@ -1018,6 +1077,146 @@ describe.each(['memory', 'browser'] as const)('the store under a %s router', (ki
       expect(seen.values.task).toBe('s21');
     });
 
+    describe('a batch whose path changes are dropped did not go somewhere else', () => {
+      /** A route at `/old` whose loader redirects to `target` once released. */
+      function redirectingTo(target: string) {
+        let release = () => {};
+        const route: RouteObject = {
+          path: 'old',
+          loader: () => new Promise((resolve) => {
+            release = () => resolve(redirect(target));
+          }),
+          element: null,
+        };
+        return { route, release: () => release() };
+      }
+
+      it('it left the route: a key the write would have removed stays, a named change lands, the warning still fires', async () => {
+        const { route, release } = redirectingTo('/start?toc=1');
+        const { router, navigations } = setup('/hu/mod/s19?toc=a', { kind, routes: [route] });
+        await act(async () => {
+          void router.navigate('/old');
+          write({ task: 's20', q: 'y' });
+          // Until the router settles, the write shows what it implies.
+          expect(seen.store.read('toc')).toBeUndefined();
+        });
+        await act(async () => release());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /start?toc=1', 'REPLACE /start?toc=1&q=y']);
+        expectWarningAbout('task');
+      });
+
+      it('with nothing else in the batch: no navigation of its own, the key stays, the warning still fires', async () => {
+        const { route, release } = redirectingTo('/start?toc=1');
+        const { router, navigations } = setup('/hu/mod/s19?toc=a', { kind, routes: [route] });
+        await act(async () => {
+          void router.navigate('/old');
+          write({ task: 's20' });
+        });
+        await act(async () => release());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /start?toc=1']);
+        expectWarningAbout('task');
+      });
+
+      it('the same key named in the same write lands', async () => {
+        const { route, release } = redirectingTo('/start?toc=1');
+        const { router, navigations } = setup('/hu/mod/s19?toc=a', { kind, routes: [route] });
+        await act(async () => {
+          void router.navigate('/old');
+          write({ task: 's20', toc: 'named' });
+        });
+        await act(async () => release());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /start?toc=1', 'REPLACE /start?toc=named']);
+      });
+
+      it.each([
+        ['before', [{ toc: 'named' }, { task: 's20' }]],
+        ['after', [{ task: 's20' }, { toc: 'named' }]],
+      ])('a key named in another write of the batch, %s the one that implied its removal, lands', async (_order, writes) => {
+        const { route, release } = redirectingTo('/start?toc=1');
+        const { router, navigations } = setup('/hu/mod/s19?toc=a', { kind, routes: [route] });
+        await act(async () => {
+          void router.navigate('/old');
+          for (const changes of writes) write(changes);
+        });
+        await act(async () => release());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /start?toc=1', 'REPLACE /start?toc=named']);
+      });
+
+      it('the fragment the write would have removed stays', async () => {
+        const { route, release } = redirectingTo('/start#2');
+        const { router, navigations } = setup('/hu/mod/s19#1', { kind, routes: [route], beside: <DeclaresAt /> });
+        await act(async () => {
+          void router.navigate('/old');
+          write({ task: 's20' });
+          expect(seen.store.read('at')).toBeUndefined();
+        });
+        await act(async () => release());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /start#2']);
+      });
+
+      it('a fragment named in the same write lands', async () => {
+        const { route, release } = redirectingTo('/start#2');
+        const { router, navigations } = setup('/hu/mod/s19#1', { kind, routes: [route], beside: <DeclaresAt /> });
+        await act(async () => {
+          void router.navigate('/old');
+          write({ task: 's20', at: 'named' });
+        });
+        await act(async () => release());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /start#2', 'REPLACE /start#named']);
+      });
+
+      it('on the route, where the change no longer fits: read-your-writes lets the removals go, while the rest of the batch loads', async () => {
+        const { loader, open } = gate((target) => target.search.includes('q=y'));
+        const { router, url } = setup('/hu/mod/old/s19?toc=a#1', { kind, loader, beside: <DeclaresAt /> });
+        await act(async () => {
+          write({ task: 'modern', q: 'y' });
+          expect(seen.store.read('toc')).toBeUndefined();
+          expect(seen.store.read('at')).toBeUndefined();
+          void router.navigate('/en/masik/s21?toc=1#2');
+        });
+        await act(() => vi.waitFor(() => expect(router.state.navigation.location?.search).toBe('?toc=1&q=y')));
+        expect(url()).toBe('/en/masik/s21?toc=1#2');
+        expect(seen.values).toMatchObject({ task: 's21', toc: '1', at: '2', q: 'y' });
+        expect(seen.store.read('toc')).toBe('1');
+        expectWarningAbout('task', /would read as/);
+        await act(async () => open());
+        await idle(router);
+        expect(url()).toBe('/en/masik/s21?toc=1&q=y#2');
+      });
+
+      it('it left the route, and the write only removed a token that has no value there: nothing to warn of, and still nothing else goes', async () => {
+        const { route, release } = redirectingTo('/start?toc=1');
+        const { router, navigations } = setup('/hu/mod/s19?toc=a', { kind, routes: [route] });
+        await act(async () => {
+          void router.navigate('/old');
+          write({ task: undefined });
+        });
+        await act(async () => release());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /start?toc=1']);
+        expect(warn).not.toHaveBeenCalled();
+      });
+
+      it('path changes that do fit where it settled still take their removals along', async () => {
+        const { loader, open } = gate();
+        const { router, navigations } = setup('/hu/mod/s19?toc=a', { kind, loader });
+        await act(async () => {
+          write({ task: 's20' });
+          void router.navigate('/en/masik/x?toc=1&q=2');
+        });
+        await act(async () => open());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /en/masik/x?toc=1&q=2', 'REPLACE /en/masik/s20?q=2']);
+        expect(warn).not.toHaveBeenCalled();
+      });
+    });
+
     it('the store\'s own navigation that its loader redirects: its value goes, it reads where the redirect went', async () => {
       let release = () => {};
       const loader: LoaderFunction = ({ params }) => {
@@ -1162,6 +1361,7 @@ describe('the store under a plain <BrowserRouter> + <Routes>', () => {
         <Routes>
           <Route path=":lang/:module/*" element={element} />
           <Route path="start" element={null} />
+          <Route path="about/us" element={null} />
         </Routes>
       </BrowserRouter>,
     );
@@ -1217,6 +1417,26 @@ describe('the store under a plain <BrowserRouter> + <Routes>', () => {
     });
     expect(url()).toBe('/start?q=y');
     expectWarningAbout('task');
+  });
+
+  it('there too, a key the dropped path change would have removed stays', async () => {
+    const url = setupPlain('/hu/mod/s19?toc=a');
+    await act(async () => {
+      seen.navigate('/start?toc=1');
+      write({ task: 's20', q: 'y' });
+    });
+    expect(url()).toBe('/start?toc=1&q=y');
+    expectWarningAbout('task');
+  });
+
+  it('the known limit: without a data router it cannot tell that a route as deep as its own is another route, so the path change lands below it', async () => {
+    const url = setupPlain('/hu/mod/s19');
+    await act(async () => {
+      seen.navigate('/about/us');
+      write({ task: 's20' });
+    });
+    expect(url()).toBe('/about/us/s20');
+    expect(warn).not.toHaveBeenCalled();
   });
 });
 

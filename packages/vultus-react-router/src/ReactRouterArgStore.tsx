@@ -17,6 +17,9 @@ import { applyChanges, readQuery, writeQuery } from './query.js';
 /** A location in `useLocation`'s terms (the basename stripped), with its history state. */
 type Place = Path & { state: unknown };
 
+/** A change as the store keeps it. `implied`: no write named it, it is a removal that follows from going somewhere else. */
+type OwnChange = RawChange & { implied?: true };
+
 /**
  * Where the router is now: the location object it reports (`at`), and that location as a Place.
  * A data router's `state.location` and a memory history's `location` are the same object while
@@ -132,8 +135,8 @@ class RouterArgStoreImpl implements RouterArgStore {
    * does not show (its batch's, after those of the store's navigations before it that had not
    * rendered either).
    */
-  private navigated: { from: object; to: Place; changes: RawChange[] } | undefined;
-  private batch: { changes: RawChange[]; push: boolean } | undefined;
+  private navigated: { from: object; to: Place; changes: OwnChange[] } | undefined;
+  private batch: { changes: OwnChange[]; push: boolean } | undefined;
   private readonly listeners = new Set<() => void>();
   private parsed = { search: '', query: new Map<string, string>() };
   private parsedPath: { pathname: string; tokens: readonly ResolvedPathToken[]; values: Map<string, string> } | undefined;
@@ -256,7 +259,7 @@ class RouterArgStoreImpl implements RouterArgStore {
    * not be mounted), except what `changes` name. What is removed is what the store reads now, so a
    * pending change of its own goes too.
    */
-  private expanded(changes: readonly RawChange[]): RawChange[] | undefined {
+  private expanded(changes: readonly RawChange[]): OwnChange[] | undefined {
     const normalized = changes.map((change) => (
       change.raw === '' && (this.isToken(change.key) || change.key === this.fragmentKey) ? { key: change.key, raw: undefined } : change
     ));
@@ -274,18 +277,22 @@ class RouterArgStoreImpl implements RouterArgStore {
     const named = new Set(normalized.map((change) => change.key));
     const dropped = [...this.permanence]
       .filter(([key, permanent]) => !permanent && !named.has(key) && !this.isToken(key) && this.read(key) !== undefined)
-      .map(([key]) => ({ key, raw: undefined }));
+      .map(([key]) => ({ key, raw: undefined, implied: true as const }));
     return [...normalized, ...removals, ...dropped];
   }
 
   /**
-   * `pathname` with the tokens' values in `changes` applied. It stays as it is, with any stray
-   * segment and however it was typed, if no token's value changes in it. What cannot be built
-   * there is refused: the write was checked against what the store read, but `pathname` may be
-   * where a navigation from outside went since.
+   * `pathname` with the tokens' values in `changes` applied, `route` being where it is cut at the
+   * store's route, if it holds that. It stays as it is, with any stray segment and however it was
+   * typed, if no token's value changes in it. What cannot be built there is refused: the write was
+   * checked against what the store read, but `pathname` may be where a navigation from outside
+   * went since.
    */
-  private rebuilt(pathname: string, changes: readonly RawChange[], depth: number | undefined): { pathname: string } | { refused: PathRefusal } {
-    const route = depth === undefined ? undefined : cutAtRoute(pathname, depth);
+  private rebuilt(
+    pathname: string,
+    route: ReturnType<typeof cutAtRoute>,
+    changes: readonly RawChange[],
+  ): { pathname: string } | { refused: PathRefusal } {
     const here = route === undefined ? new Map<string, string>() : readPath(this.tokens, route.below);
     const next = withChanges(here, changes);
     const changed = this.tokens.find((t) => here.get(t.key) !== next.get(t.key));
@@ -297,21 +304,20 @@ class RouterArgStoreImpl implements RouterArgStore {
 
   /**
    * `base` with `changes` applied: a token's to the pathname, the fragment's to the hash, every
-   * other key's to the query. `kept` is `changes` without the tokens' if those no longer fit `base`:
-   * they are dropped with a warning, and the rest still applies.
+   * other key's to the query; `kept` is the changes that did apply. If the tokens' no longer fit
+   * `base` (they are dropped with a warning), or `base` lies outside the store's route, the store
+   * has not gone somewhere else: the removals that implied go with them, and what the writes named
+   * still applies.
    */
-  private applied(base: Path, changes: readonly RawChange[], depth: number | undefined): { to: Path; kept: readonly RawChange[] } {
-    const built = this.rebuilt(base.pathname, changes, depth);
-    let pathname = base.pathname;
-    let kept = changes;
-    if ('refused' in built) {
-      warnRefused(built.refused);
-      kept = changes.filter(({ key }) => !this.isToken(key));
-    } else {
-      pathname = built.pathname;
-    }
-    const query = changes.filter(({ key }) => !this.isToken(key) && key !== this.fragmentKey);
-    const fragment = this.fragmentKey === undefined ? undefined : lastChangeOf(changes, this.fragmentKey);
+  private applied(base: Path, changes: readonly OwnChange[], depth: number | undefined): { to: Path; kept: readonly OwnChange[] } {
+    const route = depth === undefined ? undefined : cutAtRoute(base.pathname, depth);
+    const built = this.rebuilt(base.pathname, route, changes);
+    if ('refused' in built) warnRefused(built.refused);
+    const stayed = route === undefined || 'refused' in built;
+    const kept = stayed ? changes.filter(({ key, implied }) => !this.isToken(key) && implied !== true) : changes;
+    const pathname = 'refused' in built ? base.pathname : built.pathname;
+    const query = kept.filter(({ key }) => !this.isToken(key) && key !== this.fragmentKey);
+    const fragment = this.fragmentKey === undefined ? undefined : lastChangeOf(kept, this.fragmentKey);
     let { hash } = base;
     if (fragment !== undefined && fragment.raw !== fragmentOf(hash)) hash = fragment.raw === undefined ? '' : `#${encodeSegment(fragment.raw)}`;
     return { to: { pathname, search: applyChanges(base.search, query), hash }, kept };
@@ -359,7 +365,8 @@ class RouterArgStoreImpl implements RouterArgStore {
    * is then applied where the router settled: that navigation's target, wherever a redirect took
    * it, or where the router stayed if it was cancelled. The flush after it goes in a microtask,
    * not inside the router's notification, which is still completing the navigation. Path changes
-   * that no longer fit where it settled are dropped there (see `applied`).
+   * that no longer fit where it settled are dropped there, with the removals they implied (see
+   * `applied`).
    */
   private flush(): void {
     const now = this.now();
