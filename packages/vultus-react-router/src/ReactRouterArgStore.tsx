@@ -17,7 +17,10 @@ import { applyChanges, readQuery, writeQuery } from './query.js';
 /** A location in `useLocation`'s terms (the basename stripped), with its history state. */
 type Place = Path & { state: unknown };
 
-/** A change as the store keeps it. `implied`: no write named it, it is a removal that follows from going somewhere else. */
+/**
+ * A change in the batch. `implied`: no write named it, it is a removal that follows from going
+ * somewhere else, so it lands only if the batch really does that where it applies (see `applied`).
+ */
 type OwnChange = RawChange & { implied?: true };
 
 /**
@@ -35,8 +38,9 @@ type OwnChange = RawChange & { implied?: true };
  *
  * `depth` is how many of `path`'s segments the route the store sits in holds (the tokens' are those
  * below them): a data router's own match of that route, as it can have moved since the store
- * rendered, and `undefined` when it has left the route. Other routers cannot say, so there it is
- * the depth the store rendered with (see `cutAtRoute`).
+ * rendered, and `undefined` when it has left the route (a 404 under a router with one route is
+ * that route with no base at all). Other routers cannot say, so there it is the depth the store
+ * rendered with (see `cutAtRoute`).
  *
  * `loading` is a data router's navigation in flight (loading or submitting; the router's location
  * stays where it was until it completes): where it goes (`to`, `undefined` outside the basename),
@@ -135,7 +139,7 @@ class RouterArgStoreImpl implements RouterArgStore {
    * does not show (its batch's, after those of the store's navigations before it that had not
    * rendered either).
    */
-  private navigated: { from: object; to: Place; changes: OwnChange[] } | undefined;
+  private navigated: { from: object; to: Place; changes: RawChange[] } | undefined;
   private batch: { changes: OwnChange[]; push: boolean } | undefined;
   private readonly listeners = new Set<() => void>();
   private parsed = { search: '', query: new Map<string, string>() };
@@ -257,7 +261,8 @@ class RouterArgStoreImpl implements RouterArgStore {
    * `independent` is going somewhere else, which also removes the tokens after it, and the query
    * keys and the fragment declared non-permanent (a key never declared stays: its hook may just
    * not be mounted), except what `changes` name. What is removed is what the store reads now, so a
-   * pending change of its own goes too.
+   * pending change of its own goes too. Those removals are marked `implied`, a later token's too:
+   * `permanent` does not keep one of those, as it is obsolete once an earlier token changes.
    */
   private expanded(changes: readonly RawChange[]): OwnChange[] | undefined {
     const normalized = changes.map((change) => (
@@ -277,23 +282,23 @@ class RouterArgStoreImpl implements RouterArgStore {
     const named = new Set(normalized.map((change) => change.key));
     const dropped = [...this.permanence]
       .filter(([key, permanent]) => !permanent && !named.has(key) && !this.isToken(key) && this.read(key) !== undefined)
-      .map(([key]) => ({ key, raw: undefined, implied: true as const }));
-    return [...normalized, ...removals, ...dropped];
+      .map(([key]) => ({ key, raw: undefined }));
+    return [...normalized, ...[...removals, ...dropped].map((removal) => ({ ...removal, implied: true as const }))];
   }
 
   /**
    * `pathname` with the tokens' values in `changes` applied, `route` being where it is cut at the
-   * store's route, if it holds that. It stays as it is, with any stray segment and however it was
-   * typed, if no token's value changes in it. What cannot be built there is refused: the write was
-   * checked against what the store read, but `pathname` may be where a navigation from outside
-   * went since.
+   * store's route, if it holds that, and `here` the tokens' values there. It stays as it is, with
+   * any stray segment and however it was typed, if no token's value changes in it. What cannot be
+   * built there is refused: the write was checked against what the store read, but `pathname` may
+   * be where a navigation from outside went since.
    */
   private rebuilt(
     pathname: string,
     route: ReturnType<typeof cutAtRoute>,
+    here: ReadonlyMap<string, string>,
     changes: readonly RawChange[],
   ): { pathname: string } | { refused: PathRefusal } {
-    const here = route === undefined ? new Map<string, string>() : readPath(this.tokens, route.below);
     const next = withChanges(here, changes);
     const changed = this.tokens.find((t) => here.get(t.key) !== next.get(t.key));
     if (changed === undefined) return { pathname };
@@ -304,23 +309,35 @@ class RouterArgStoreImpl implements RouterArgStore {
 
   /**
    * `base` with `changes` applied: a token's to the pathname, the fragment's to the hash, every
-   * other key's to the query; `kept` is the changes that did apply. If the tokens' no longer fit
-   * `base` (they are dropped with a warning), or `base` lies outside the store's route, the store
-   * has not gone somewhere else: the removals that implied go with them, and what the writes named
-   * still applies.
+   * other key's to the query; `kept` is the changes that did apply. What the writes named always
+   * applies, unless it is a token's that no longer fits `base` or `base` lies outside the store's
+   * route: those are dropped, with a warning if they would have changed a value. Implied removals
+   * apply only if what was named gives a token that is not `independent` a different value here:
+   * otherwise the store has not gone somewhere else, whatever each write meant on its own, so a
+   * write that changes nothing cuts nothing for the batch as a whole.
+   *
+   * With a `fragment`, a batch that names no query key leaves the query as it was typed, so a
+   * fragment-only write stays a hash-only navigation, which runs no loaders. A store without one
+   * spells the query its own way on every write.
    */
   private applied(base: Path, changes: readonly OwnChange[], depth: number | undefined): { to: Path; kept: readonly OwnChange[] } {
     const route = depth === undefined ? undefined : cutAtRoute(base.pathname, depth);
-    const built = this.rebuilt(base.pathname, route, changes);
+    const here = route === undefined ? new Map<string, string>() : readPath(this.tokens, route.below);
+    const named = changes.filter(({ implied }) => implied !== true);
+    const wanted = withChanges(here, named);
+    const elsewhere = this.tokens.some((t) => !t.independent && here.get(t.key) !== wanted.get(t.key));
+    const applying = elsewhere ? changes : named;
+    const built = this.rebuilt(base.pathname, route, here, applying);
     if ('refused' in built) warnRefused(built.refused);
-    const stayed = route === undefined || 'refused' in built;
-    const kept = stayed ? changes.filter(({ key, implied }) => !this.isToken(key) && implied !== true) : changes;
+    const dropped = route === undefined || 'refused' in built;
+    const kept = dropped ? named.filter(({ key }) => !this.isToken(key)) : applying;
     const pathname = 'refused' in built ? base.pathname : built.pathname;
     const query = kept.filter(({ key }) => !this.isToken(key) && key !== this.fragmentKey);
+    const search = this.fragmentKey !== undefined && query.length === 0 ? base.search : applyChanges(base.search, query);
     const fragment = this.fragmentKey === undefined ? undefined : lastChangeOf(kept, this.fragmentKey);
     let { hash } = base;
     if (fragment !== undefined && fragment.raw !== fragmentOf(hash)) hash = fragment.raw === undefined ? '' : `#${encodeSegment(fragment.raw)}`;
-    return { to: { pathname, search: applyChanges(base.search, query), hash }, kept };
+    return { to: { pathname, search, hash }, kept };
   }
 
   /** Whether the router is at `to` (its location there, not rendered yet) or loading a navigation there. */
@@ -381,9 +398,10 @@ class RouterArgStoreImpl implements RouterArgStore {
     const onOwn = this.navigated !== undefined && this.navigated.from === now.at;
     const base = onOwn ? this.navigated!.to : now.path;
     const { to, kept } = this.applied(base, changes, now.depth);
-    if (to.pathname === base.pathname && to.search === writeQuery(new URLSearchParams(base.search)) && to.hash === base.hash) {
-      // Nothing to navigate: the batch's values are the base's already. Whatever still stood in
-      // for them goes (the rendered location may not show the base yet, so subscribers re-read).
+    const sameSearch = to.search === base.search || to.search === writeQuery(new URLSearchParams(base.search));
+    if (to.pathname === base.pathname && sameSearch && to.hash === base.hash) {
+      // Nothing to navigate: what is left of the batch is in the base already. Whatever still stood
+      // in for it goes (the rendered location may not show the base yet, so subscribers re-read).
       this.notify();
       return;
     }
@@ -391,7 +409,8 @@ class RouterArgStoreImpl implements RouterArgStore {
     const state = push ? undefined : base.state;
     // The store's earlier navigation that has not rendered stays shown only if this one builds on it.
     const carried = this.navigated !== undefined && samePath(base, this.navigated.to) ? this.navigated.changes : [];
-    this.navigated = { from: now.at, to: { ...to, state }, changes: [...carried, ...kept] };
+    // What landed in the target is no longer implied: `hrefFor` must build on it as a later batch will.
+    this.navigated = { from: now.at, to: { ...to, state }, changes: [...carried, ...kept.map(({ key, raw }) => ({ key, raw }))] };
     this.followRouter();
     // The app owns scrolling, so on top of the rendered location the page stays where it was
     // scrolled (<ScrollRestoration> would scroll to the top otherwise). On top of a location that
@@ -464,7 +483,7 @@ export function ReactRouterArgStore({ path, fragment, children }: { path?: reado
     const preventScrollReset = dataRouter?.router.state.preventScrollReset ?? true;
     const router = dataRouter?.router;
     const routeNow = isDataRoute ? router?.state.matches.find((match) => match.route.id === route?.route.id) : route;
-    const depth = routeNow === undefined ? undefined : splitPath(routeNow.pathnameBase).length;
+    const depth = routeNow?.pathnameBase ? splitPath(routeNow.pathnameBase).length : undefined;
     const now: RouterNow = at !== undefined && pathname !== undefined
       ? { at, path: { pathname, search: at.search, hash: at.hash, state: at.state }, rendered: at.key === location.key, preventScrollReset, depth }
       : { at: location, path: location, rendered: true, preventScrollReset, depth };

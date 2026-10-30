@@ -364,8 +364,10 @@ find the route left, are dropped with the same warning, the rest of the batch st
 landing. The removals those changes implied go with them, as the store has not gone
 somewhere else; what the writes named lands. So `write({ task: 's20', q: 'y' })` on
 top of a navigation redirected to `/start?toc=1` gives `/start?toc=1&q=y`. Path
-changes that do fit take their removals along, as decided at write time: a key that
-was absent then is not removed where the router settled.
+changes that fit and do change a token there take their removals along, as decided
+at write time: a key that was absent then is not removed where the router settled.
+Where they change no token, nothing is cut: `write({ task: 's20' })` on top of a
+navigation to `/hu/history/s20?toc=b` leaves it as it is.
 
 **A known limit.** Only a store directly in a data route knows when the router has
 left its route. Under a non-data router, or inside descendant `<Routes>`, it cannot

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach, type MockInstance } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { StrictMode, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import {
   BrowserRouter, createBrowserRouter, createHashRouter, createMemoryRouter, createPath, MemoryRouter, Outlet, redirect, Route,
   RouterProvider, Routes, useBlocker, useNavigate, useRouteError,
@@ -123,6 +123,7 @@ interface Options {
   beside?: ReactNode;
   basename?: string;
   pattern?: string;
+  strict?: boolean;
 }
 
 function makeRouter(kind: RouterKind, entry: string, tree: RouteObject[], basename: string | undefined) {
@@ -132,18 +133,8 @@ function makeRouter(kind: RouterKind, entry: string, tree: RouteObject[], basena
   return createBrowserRouter(tree, options);
 }
 
-/**
- * The store with its route (`:lang/:module/*`) around the probe and the page, beside a `/start`
- * route. `navigations` lists every location the router moved to, as `'PUSH /…'` / `'REPLACE /…'`.
- */
-function setup(entry: string, { kind = 'memory', path = PATH, fragment = AT, loader, routes = [], beside, basename, pattern = ':lang/:module/*' }: Options = {}) {
-  const element = <ReactRouterArgStore path={path} fragment={fragment}><Probe /><Page />{beside}</ReactRouterArgStore>;
-  const tree: RouteObject[] = [
-    { id: 'page', path: pattern, loader, element },
-    { path: 'start', element: null },
-    ...routes,
-  ];
-  const router = makeRouter(kind, entry, tree, basename);
+/** Every location `router` moves to from now on, as `'PUSH /…'` / `'REPLACE /…'`; it goes with the test. */
+function navigationsOf(router: ReturnType<typeof makeRouter>): string[] {
   const navigations: string[] = [];
   let last = router.state.location;
   const unsubscribe = router.subscribe((state) => {
@@ -155,7 +146,24 @@ function setup(entry: string, { kind = 'memory', path = PATH, fragment = AT, loa
     unsubscribe();
     router.dispose();
   });
-  render(<RouterProvider router={router} />);
+  return navigations;
+}
+
+/**
+ * The store with its route (`:lang/:module/*`) around the probe and the page, beside a `/start`
+ * route. `navigations` lists every location the router moved to.
+ */
+function setup(entry: string, { kind = 'memory', path = PATH, fragment = AT, loader, routes = [], beside, basename, pattern = ':lang/:module/*', strict = false }: Options = {}) {
+  const element = <ReactRouterArgStore path={path} fragment={fragment}><Probe /><Page />{beside}</ReactRouterArgStore>;
+  const tree: RouteObject[] = [
+    { id: 'page', path: pattern, loader, element },
+    { path: 'start', element: null },
+    ...routes,
+  ];
+  const router = makeRouter(kind, entry, tree, basename);
+  const navigations = navigationsOf(router);
+  const provider = <RouterProvider router={router} />;
+  render(strict ? <StrictMode>{provider}</StrictMode> : provider);
   return { router, navigations, url: () => createPath(router.state.location) };
 }
 
@@ -485,6 +493,54 @@ describe.each(['memory', 'browser'] as const)('the store under a %s router', (ki
       expect(url()).toBe('/hu/mod/s21?toc=set');
     });
 
+    it('a later token goes even when its definition says permanent: permanence is about query and fragment arguments', async () => {
+      const PERMANENT_TASK = arg('task', true);
+      function DeclaresTask() {
+        useArg(PERMANENT_TASK);
+        return null;
+      }
+      const { url } = setup('/hu/mod/a/s19', { kind, path: [token(SECTION), rest(PERMANENT_TASK)], beside: <DeclaresTask /> });
+      act(() => {
+        write({ section: 'b' });
+        expect(seen.store.read('task')).toBeUndefined();
+      });
+      await act(async () => {});
+      expect(url()).toBe('/hu/mod/b');
+      expect(seen.values.task).toBeUndefined();
+    });
+
+    it('under <StrictMode>: the hooks declare, a token change goes somewhere else in one navigation, and the store stays one', async () => {
+      const { navigations } = setup('/hu/mod/modern/s19?toc=a&lens=b&q=c#12.4', { kind, strict: true, beside: <DeclaresAt /> });
+      const { store } = seen;
+      expect(seen.values).toMatchObject({ variant: 'modern', task: 's19', toc: 'a', at: '12.4' });
+      act(() => {
+        write({ variant: 'old' });
+        expect(seen.store.read('toc')).toBeUndefined();
+      });
+      await act(async () => {});
+      expect(navigations).toEqual(['REPLACE /hu/mod/old?lens=b&q=c']);
+      expect(seen.store).toBe(store);
+      expect(seen.values).toMatchObject({ variant: 'old', task: undefined, toc: undefined, at: undefined, lens: 'b', q: 'c' });
+    });
+
+    it('under <StrictMode>: a navigation on its way, and a batch that changes nothing', async () => {
+      const { loader, open } = gate();
+      const { router, navigations } = setup('/hu/mod/s19?toc=a', { kind, strict: true, loader });
+      await act(async () => {
+        write({ task: 's20' });
+        write({ task: 's19' });
+      });
+      expect(navigations).toEqual([]);
+      expect(seen.values).toMatchObject({ task: 's19', toc: 'a' });
+      await act(async () => write({ task: 's20' }));
+      expect(router.state.navigation.state).toBe('loading');
+      expect(seen.values).toMatchObject({ task: 's20', toc: undefined });
+      await act(async () => open());
+      await idle(router);
+      expect(navigations).toEqual(['REPLACE /hu/mod/s20']);
+      expect(seen.values).toMatchObject({ task: 's20', toc: undefined });
+    });
+
     it('a stored field\'s permanence reaches the store through its hook, and a field group\'s, hidden fields too', async () => {
       const definitions: FieldDefinition[] = [
         { kind: 'text', id: 'groupGoes' },
@@ -738,7 +794,75 @@ describe.each(['memory', 'browser'] as const)('the store under a %s router', (ki
     });
   });
 
+  describe('a query as it was typed', () => {
+    it('a fragment-only write keeps it: a hash-only navigation, which runs no loader', async () => {
+      const loader = vi.fn(() => null);
+      const { navigations } = setup('/hu/mod/s19?a=b+c', { kind, loader });
+      expect(hrefFor({ at: '1' })).toBe('/hu/mod/s19?a=b+c#1');
+      await act(async () => write({ at: '1' }));
+      expect(navigations).toEqual(['REPLACE /hu/mod/s19?a=b+c#1']);
+      expect(loader).not.toHaveBeenCalled();
+      expect(seen.store.read('a')).toBe('b c');
+      expect(seen.values.at).toBe('1');
+      await act(async () => write({ at: '2' }));
+      expect(navigations).toEqual(['REPLACE /hu/mod/s19?a=b+c#1', 'REPLACE /hu/mod/s19?a=b+c#2']);
+      expect(loader).not.toHaveBeenCalled();
+    });
+
+    it('a write of the fragment\'s own value over it does not navigate', async () => {
+      const { navigations } = setup('/hu/mod/s19?a=b+c#1', { kind });
+      await act(async () => write({ at: '1' }));
+      expect(navigations).toEqual([]);
+    });
+
+    it('a write that names no query key keeps it, a token\'s too', async () => {
+      const { url } = setup('/hu/mod/s19?a=b+c', { kind });
+      await act(async () => write({ task: 's20' }));
+      expect(url()).toBe('/hu/mod/s20?a=b+c');
+    });
+
+    it('a write of a query key respells it, as every query write does', async () => {
+      const { navigations } = setup('/hu/mod/s19?a=b+c', { kind });
+      await act(async () => write({ q: 'x', at: '1' }));
+      expect(navigations).toEqual(['REPLACE /hu/mod/s19?a=b%20c&q=x#1']);
+    });
+
+    it('with neither prop, hrefFor and every write respell it, as they did before these props', async () => {
+      const router = makeRouter(kind, '/m/1?a=b+c', [{ path: '/m/:id', element: <ReactRouterArgStore><Probe /></ReactRouterArgStore> }], undefined);
+      const navigations = navigationsOf(router);
+      render(<RouterProvider router={router} />);
+      expect(seen.store.hrefFor!([])).toBe('/m/1?a=b%20c');
+      await act(async () => write({ a: 'b c' }));
+      expect(navigations).toEqual([]);
+      await act(async () => write({ q: 'x' }));
+      expect(navigations).toEqual(['REPLACE /m/1?a=b%20c&q=x']);
+    });
+  });
+
   describe('a basename', () => {
+    it('the root below it: hrefFor gives the basename, and a write goes there', async () => {
+      const { router } = setup('/app/modern/s19', { kind, pattern: '*', basename: '/app' });
+      expect(seen.values).toMatchObject({ variant: 'modern', task: 's19' });
+      expect(hrefFor({ variant: undefined, task: undefined })).toBe('/app');
+      await act(async () => write({ variant: undefined, task: undefined }));
+      expect(router.state.location.pathname).toBe('/app');
+      expect(seen.values).toMatchObject({ variant: undefined, task: undefined });
+      if (kind === 'browser') expect(window.location.pathname).toBe('/app');
+    });
+
+    it('with an accent in the route\'s base and in a value', async () => {
+      const { router } = setup('/app/hu/egyh%C3%A1z/s19', { kind, basename: '/app' });
+      expect(seen.values.task).toBe('s19');
+      expect(hrefFor({ task: 'tört' })).toBe('/app/hu/egyh%C3%A1z/t%C3%B6rt');
+      await act(async () => write({ task: 'tört' }));
+      expect(router.state.location.pathname).toBe('/app/hu/egyh%C3%A1z/t%C3%B6rt');
+      expect(seen.values.task).toBe('tört');
+      if (kind === 'browser') expect(window.location.pathname).toBe('/app/hu/egyh%C3%A1z/t%C3%B6rt');
+      await act(async () => write({ task: 's20', variant: 'modern' }));
+      expect(router.state.location.pathname).toBe('/app/hu/egyh%C3%A1z/modern/s20');
+      expect(seen.values).toMatchObject({ variant: 'modern', task: 's20' });
+    });
+
     it('reads, writes and links within it', async () => {
       const { router } = setup('/app/hu/mod/s19?keep=1', { kind, basename: '/app' });
       expect(seen.values.task).toBe('s19');
@@ -778,15 +902,7 @@ describe.each(['memory', 'browser'] as const)('the store under a %s router', (ki
           { path: 'start', element: null },
           ...routes,
         ], undefined);
-        disposers.push(() => router.dispose());
-        const navigations: string[] = [];
-        let last = router.state.location;
-        const unsubscribe = router.subscribe((state) => {
-          if (state.location === last) return;
-          last = state.location;
-          navigations.push(`${state.historyAction} ${createPath(state.location)}`);
-        });
-        disposers.push(unsubscribe);
+        const navigations = navigationsOf(router);
         render(<RouterProvider router={router} />);
         return { router, navigations };
       }
@@ -1217,6 +1333,133 @@ describe.each(['memory', 'browser'] as const)('the store under a %s router', (ki
       });
     });
 
+    describe('a batch that changes no token where it applies cuts nothing', () => {
+      it('a navigation from outside went to that very task: its query stays, nothing of the store\'s to navigate', async () => {
+        const { loader, open } = gate();
+        const { router, navigations } = setup('/hu/mod/s19?toc=a', { kind, loader });
+        await act(async () => {
+          write({ task: 's20' });
+          void router.navigate('/hu/mod/s20?toc=b');
+        });
+        await act(async () => open());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /hu/mod/s20?toc=b']);
+        expect(seen.values).toMatchObject({ task: 's20', toc: 'b' });
+        expect(warn).not.toHaveBeenCalled();
+      });
+
+      it('the same with a named change in the batch: it lands, and the query stays', async () => {
+        const { loader, open } = gate();
+        const { router, navigations } = setup('/hu/mod/s19?toc=a', { kind, loader });
+        await act(async () => {
+          write({ task: 's20', q: 'y' });
+          void router.navigate('/hu/mod/s20?toc=b');
+        });
+        await act(async () => open());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /hu/mod/s20?toc=b', 'REPLACE /hu/mod/s20?toc=b&q=y']);
+      });
+
+      it('a navigation from outside already went to that variant: the later token it chose stays', async () => {
+        const { loader, open } = gate();
+        const { router, navigations } = setup('/hu/mod/modern/s19', { kind, loader });
+        await act(async () => {
+          write({ variant: 'old' });
+          // Until the router settles, the write shows what it implies, a later token's removal too.
+          expect(seen.store.read('task')).toBeUndefined();
+          void router.navigate('/hu/mod/old/s30');
+        });
+        await act(async () => open());
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /hu/mod/old/s30']);
+        expect(seen.values).toMatchObject({ variant: 'old', task: 's30' });
+      });
+
+      it('a round trip in one tick: nothing goes, no navigation, and everything reads as it was', async () => {
+        const { navigations } = setup('/hu/mod/s19?toc=a#1', { kind, beside: <DeclaresAt /> });
+        const listener = vi.fn();
+        const unsubscribe = seen.store.subscribe(listener);
+        await act(async () => {
+          write({ task: 's20' });
+          expect(seen.store.read('toc')).toBeUndefined();
+          write({ task: 's19' });
+        });
+        unsubscribe();
+        expect(navigations).toEqual([]);
+        expect(seen.values).toMatchObject({ task: 's19', toc: 'a', at: '1' });
+        expect(seen.store.read('toc')).toBe('a');
+        expect(listener).toHaveBeenCalled();
+      });
+
+      it('a round trip through an earlier token: the later token and the query stay', async () => {
+        const { navigations } = setup('/hu/mod/modern/s19?toc=a', { kind });
+        await act(async () => {
+          write({ variant: 'old' });
+          write({ variant: 'modern' });
+        });
+        expect(navigations).toEqual([]);
+        expect(seen.values).toMatchObject({ variant: 'modern', task: 's19', toc: 'a' });
+      });
+
+      it('a round trip with a named change: it lands alone', async () => {
+        const { navigations } = setup('/hu/mod/s19?toc=a', { kind });
+        await act(async () => {
+          write({ task: 's20' });
+          write({ task: 's19', q: 'x' });
+        });
+        expect(navigations).toEqual(['REPLACE /hu/mod/s19?toc=a&q=x']);
+      });
+
+      it('a round trip, and an independent token that does change: that alone goes nowhere, so nothing is cut', async () => {
+        const { navigations } = setup('/hu/mod/s19?toc=a', { kind, path: INDEPENDENT_VARIANT });
+        await act(async () => {
+          write({ task: 's20' });
+          write({ task: 's19' });
+          write({ variant: 'old' });
+        });
+        expect(navigations).toEqual(['REPLACE /hu/mod/old/s19?toc=a']);
+      });
+
+      it('hrefFor of a round trip on a pending write gives what the batch would: nothing is cut', async () => {
+        setup('/hu/mod/s19?toc=a', { kind });
+        await act(async () => {
+          write({ task: 's20' });
+          expect(hrefFor({ task: 's19' })).toBe('/hu/mod/s19?toc=a');
+        });
+      });
+
+      it('a navigation of the store\'s on its way has gone somewhere else: going back in a later tick does not bring the key back, and hrefFor says so', async () => {
+        const { loader, open } = gate();
+        const { router, url } = setup('/hu/mod/s19?toc=a', { kind, loader });
+        await act(async () => write({ task: 's20' }));
+        expect(router.state.navigation.state).toBe('loading');
+        expect(hrefFor({ task: 's19' })).toBe('/hu/mod/s19');
+        await act(async () => write({ task: 's19' }));
+        await act(async () => open());
+        await idle(router);
+        expect(url()).toBe('/hu/mod/s19');
+      });
+    });
+
+    it('a 404 under a router with only this route: it has left the route, so the path change is dropped with a warning and the rest lands', async () => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        const element = <ReactRouterArgStore path={PATH} fragment={AT}><Probe /></ReactRouterArgStore>;
+        const router = makeRouter(kind, '/hu/mod/s19?toc=a', [{ id: 'page', path: ':lang/:module/*', errorElement: <span />, element }], undefined);
+        const navigations = navigationsOf(router);
+        render(<RouterProvider router={router} />);
+        await act(async () => {
+          void router.navigate('/nope?toc=1');
+          write({ task: 's20', q: 'y' });
+        });
+        await idle(router);
+        expect(navigations).toEqual(['PUSH /nope?toc=1', 'REPLACE /nope?toc=1&q=y']);
+        expectWarningAbout('task');
+      } finally {
+        error.mockRestore();
+      }
+    });
+
     it('the store\'s own navigation that its loader redirects: its value goes, it reads where the redirect went', async () => {
       let release = () => {};
       const loader: LoaderFunction = ({ params }) => {
@@ -1331,6 +1574,15 @@ describe.each(['memory', 'browser'] as const)('the store under a %s router', (ki
 });
 
 describe('the store under a memory router only', () => {
+  it('a bare # is no fragment: it reads absent, removing it changes nothing, and a write replaces it', async () => {
+    const { navigations, url } = setup('/hu/mod/s19#');
+    expect(seen.values.at).toBeUndefined();
+    await act(async () => write({ at: undefined }));
+    expect(navigations).toEqual([]);
+    await act(async () => write({ at: '1' }));
+    expect(url()).toBe('/hu/mod/s19#1');
+  });
+
   it('an address typed raw reads decoded, and keeps its base as it was typed', async () => {
     const { url } = setup('/hu/egyház/a@b');
     expect(seen.values.task).toBe('a@b');
