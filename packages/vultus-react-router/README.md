@@ -160,7 +160,11 @@ const { hrefFor } = useArg(roundsArg);
 A link computed at render is as fresh as that render: another key or the path
 can change without re-rendering a component that reads only its own key. Put
 such links in a component that re-renders on location changes, or compute the
-href when the link is used (vultus-antd's OneOfTreeList does the latter).
+href when the link is used (vultus-antd's OneOfTreeList does the latter). The
+first render is the same: a hook mounted later has not declared its key yet (see
+[Permanence](#permanence)), so a link computed above it still holds a query key
+the write would drop. Such a link computes its href when used, or lives below the
+filters.
 
 ## Arguments in the path and the fragment
 
@@ -206,7 +210,12 @@ const router = createBrowserRouter([
 ### The props
 
 - **`path`**: the tokens below the route the store sits in, in order:
-  - `token(def)`: one segment, required by the tokens after it.
+  - `token(def)`: one segment, required by the tokens after it. A `token` followed
+    by other tokens should have no default but the empty one: while it reads a
+    default of its own its segment is absent, so a write of a later token is
+    refused, even one naming both (see [Writes that cannot be
+    represented](#writes-that-cannot-be-represented)). With a default of its own,
+    use `vanishing`.
   - `vanishing(def)`: one segment, or none: absent from the path while the
     argument is at its default. A segment belongs to it only if it is among
     its allowed values; otherwise the token has vanished and the same segment
@@ -269,9 +278,12 @@ const urlIsBehind = store.read('task') !== store.readRendered('task');
 One `write` is one navigation across path, query and fragment, and `hrefFor`
 builds the same URL. Changes in the same tick batch, a push if any asked for one.
 The path is rebuilt from the tokens' values: an absent `vanishing` or `rest` token
-leaves no segment (no task gives `/hu/history`), and an empty value is removal.
-Query and fragment changes keep the path. A token write stays on the store's
-route, so the page stays mounted.
+leaves no segment (no task gives `/hu/history`), and an empty value is removal,
+in the fragment too. So in either place an emptied value reads as the default: a
+field with a non-empty default that must be emptied (a text cleared, a many-of with
+nothing checked) belongs in the query, which keeps it as `?key=`. Query and
+fragment changes keep the path. A token write stays on the store's route, so the
+page stays mounted.
 
 The store encodes each segment with `encodeURIComponent`, leaving `@ : ,` readable
 (`~ . _` already are): a `/` in a `token`'s value is `%2F`, and a `rest`'s slashes
@@ -286,7 +298,8 @@ different value. Then these are removed:
 
 - the tokens after the first such token (an `independent` one too, and whatever
   its definition says about `permanent`);
-- the query keys and the fragment declared non-permanent (see Permanence);
+- the query keys declared non-permanent, and the fragment unless it is permanent
+  (see Permanence);
 
 **except keys named in the same write, which are never cut.** So "open this task
 with these filters" is one write, in any order:
@@ -311,15 +324,21 @@ going somewhere else: on `/hu/history/first/s19`, writing `first` removes the ke
 which is a different value from the one the segment holds, so the task goes. The
 store would not write such an address itself.
 
+A stored field's `onChange` replaces, so `<Field stored>` on a token goes somewhere
+else by a replace: what the old place held is gone, and Back does not bring it
+back. For a token whose old place should stay reachable, write with
+`useArg(...).set(value, 'push')`, or through a wrapper store that decides the method.
+
 ### Permanence
 
 `permanent: true` on the definition (an `ArgDefinition` or a `FieldDefinition`,
 default false) keeps a query key or the fragment when the store goes somewhere
 else. It is said nowhere else: `<Field permanent>` is a type error and throws,
-with or without `stored`. The store learns it from the hooks that use the
-definition, as they render (`ArgStore.declare`, see vultus-core's README):
+with or without `stored`. The store holds the fragment's definition, in its prop,
+and goes by that. A query key's it learns from the hooks that use the definition,
+as they render (`ArgStore.declare`, see vultus-core's README):
 
-| The key is | When the store goes somewhere else |
+| The query key is | When the store goes somewhere else |
 | --- | --- |
 | declared non-permanent | dropped |
 | declared permanent | kept |
@@ -327,9 +346,10 @@ definition, as they render (`ArgStore.declare`, see vultus-core's README):
 
 A permanent argument whose hook is not mounted is unknown to the store, and a
 stale key nothing reads is a better failure than a user's filter silently lost. A
-key stays declared after its hook unmounts, for as long as the store lives. A
-wrapper store that does not forward `declare` declares nothing, so nothing is
-dropped from the query or the fragment.
+key stays declared after its hook unmounts, for as long as the store lives. Only
+query keys need a hook to declare them: a wrapper store that does not forward
+`declare` declares nothing, so no query key is dropped, while the fragment goes or
+stays by its definition all the same.
 
 ### Writes that cannot be represented
 
@@ -340,10 +360,16 @@ browser router would otherwise navigate to a 404):
 - `.`, `..` or an empty segment in a token's value (for `rest`: in any segment, so
   also a leading, trailing or doubled `/`), or a lone surrogate;
 - removing a `token` while a later token keeps a value, as the path would shift:
-  the token is `independent`, or the same write names the later one;
+  the token is `independent`, or the same write names the later one. `resetAll` is
+  one write, so a group holding such a token refuses as a whole, its query keys
+  too;
 - a `vanishing` value outside its allowed values;
 - a value whose first segment an earlier vanished token would claim (a task named
   like a variant, while the variant is at its default).
+
+A text widget keeps its draft after a refusal, so a refused value stays visible in
+the input with no error shown; an app with a free-text field in the path validates
+it itself.
 
 `hrefFor` of such a change gives the current href, with the same warning on each
 call, so a link rendered with it warns once per render.

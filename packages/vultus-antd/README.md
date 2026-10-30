@@ -490,9 +490,10 @@ requested value amounts to) goes with `value` and `onChange` or `commit`: with `
 **Precedence**, for both the widget's display options (`iconOnly`, `vertical`, `showValue`,
 `panel`, ...) and the definition's own values (`label`, `description`, `enabled` / `disabled`,
 `visible` / `hidden`, `placeholder`, ...): render-site props win, then the definition's own value,
-then the kind's default. A render site may override any of the definition's values but `kind` and
-`id`; overriding either half of a pair (`enabled`/`disabled`, or `visible`/`hidden`) replaces
-both, rather than leaving the other half's meaning from the definition in force.
+then the kind's default. A render site may override any of the definition's values but `kind`, `id`
+and `permanent` (only the definition says it; a render-site one throws); overriding either half of
+a pair (`enabled`/`disabled`, or `visible`/`hidden`) replaces both, rather than leaving the other
+half's meaning from the definition in force.
 
 **The widget** is picked the same way: the render-site `widget` prop, else the definition's
 `widget` hint, else the kind's default (boolean and mixed-boolean `switch`, oneOf `select`, manyOf

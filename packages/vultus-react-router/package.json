@@ -2,7 +2,7 @@
   "name": "vultus-react-router",
   "version": "0.1.1",
   "license": "Apache-2.0",
-  "description": "A vultus ArgStore over react-router's location (7 and 8): argument values live in the URL query (antd-free)",
+  "description": "A vultus ArgStore over react-router's location (7 and 8): argument values live in the URL's query, path and fragment (antd-free)",
   "repository": { "type": "git", "url": "git+https://github.com/deai-network/unitas.git", "directory": "packages/vultus-react-router" },
   "author": "Kristof Csillag <kristof.csillag@deai-labs.com>",
   "type": "module",

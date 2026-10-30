@@ -144,7 +144,7 @@ class RouterArgStoreImpl implements RouterArgStore {
   private readonly listeners = new Set<() => void>();
   private parsed = { search: '', query: new Map<string, string>() };
   private parsedPath: { pathname: string; tokens: readonly ResolvedPathToken[]; values: Map<string, string> } | undefined;
-  /** What the hooks told of the keys: whether each is permanent. */
+  /** What the hooks told of the keys, and the store itself of the fragment: whether each is permanent. */
   private readonly permanence = new Map<string, boolean>();
   /** Stops following a data router for the store's navigation (see `follow`). */
   private unfollow: (() => void) | undefined;
@@ -259,10 +259,11 @@ class RouterArgStoreImpl implements RouterArgStore {
    * Only a change of a token's value looks at the path at all: other writes keep it whatever it
    * holds, a typed address that no write could make too. A change of a token that is not
    * `independent` is going somewhere else, which also removes the tokens after it, and the query
-   * keys and the fragment declared non-permanent (a key never declared stays: its hook may just
-   * not be mounted), except what `changes` name. What is removed is what the store reads now, so a
-   * pending change of its own goes too. Those removals are marked `implied`, a later token's too:
-   * `permanent` does not keep one of those, as it is obsolete once an earlier token changes.
+   * keys and the fragment declared non-permanent (the store declares the fragment itself; a query
+   * key never declared stays: its hook may just not be mounted), except what `changes` name. What
+   * is removed is what the store reads now, so a pending change of its own goes too. Those removals
+   * are marked `implied`, a later token's too: `permanent` does not keep one of those, as it is
+   * obsolete once an earlier token changes.
    */
   private expanded(changes: readonly RawChange[]): OwnChange[] | undefined {
     const normalized = changes.map((change) => (
@@ -317,8 +318,9 @@ class RouterArgStoreImpl implements RouterArgStore {
    * write that changes nothing cuts nothing for the batch as a whole.
    *
    * With a `fragment`, a batch that names no query key leaves the query as it was typed, so a
-   * fragment-only write stays a hash-only navigation, which runs no loaders. A store without one
-   * spells the query its own way on every write.
+   * fragment-only write that keeps a fragment stays a hash-only navigation, which runs no loaders;
+   * one that removes the fragment does run them, as react-router does not count a navigation to no
+   * hash as hash-only. A store without one spells the query its own way on every write.
    */
   private applied(base: Path, changes: readonly OwnChange[], depth: number | undefined): { to: Path; kept: readonly OwnChange[] } {
     const route = depth === undefined ? undefined : cutAtRoute(base.pathname, depth);
@@ -463,6 +465,8 @@ export function ReactRouterArgStore({ path, fragment, children }: { path?: reado
   const tokens = resolveTokens(path ?? [], fieldContext);
   const fragmentKey = fragment === undefined ? undefined : keyOf(fragment);
   if (tokens.some((t) => t.key === fragmentKey)) throw new Error(`ReactRouterArgStore: '${fragmentKey}' is both a path token and the fragment`);
+  // The store holds the fragment's definition, so no hook has to restate its permanence.
+  if (fragment !== undefined) store.declare(keyOf(fragment), { permanent: fragment.permanent ?? false });
   // What reads differently with the location unchanged, when the context changes a token's allowed values.
   const layout = JSON.stringify([fragmentKey, tokens.map((t) => [t.key, t.kind, ...(t.kind === 'vanishing' ? t.allowed : [])])]);
 

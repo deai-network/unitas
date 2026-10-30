@@ -1,6 +1,6 @@
 # vultus: arguments in the URL path and fragment
 
-Date: 2026-10-30. Status: designed with the owner, being built; to main after he clears it.
+Date: 2026-10-30. Status: built and reviewed; to main after the owner clears it.
 
 ## Need
 

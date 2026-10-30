@@ -399,16 +399,32 @@ describe.each(['memory', 'browser'] as const)('the store under a %s router', (ki
       expect(url()).toBe('/hu/mod/modern/s20');
     });
 
-    it('the fragment declared permanent stays', async () => {
-      const { url } = setup('/hu/mod/s19#12.4', { kind, beside: <DeclaresAtPermanent /> });
+    it('a permanent fragment stays, with no hook on it', async () => {
+      const { url } = setup('/hu/mod/s19#12.4', { kind, fragment: PERMANENT_AT });
       await act(async () => write({ task: 's20' }));
       expect(url()).toBe('/hu/mod/s20#12.4');
     });
 
-    it('the fragment never declared stays', async () => {
-      const { url } = setup('/hu/mod/s19#12.4', { kind });
+    it('a permanent fragment stays, its hook saying the same', async () => {
+      const { url } = setup('/hu/mod/s19#12.4', { kind, fragment: PERMANENT_AT, beside: <DeclaresAtPermanent /> });
       await act(async () => write({ task: 's20' }));
       expect(url()).toBe('/hu/mod/s20#12.4');
+    });
+
+    it('a non-permanent fragment goes, with no hook on it', async () => {
+      const { url } = setup('/hu/mod/s19#12.4', { kind });
+      await act(async () => write({ task: 's20' }));
+      expect(url()).toBe('/hu/mod/s20');
+    });
+
+    it('a link computed in the first render already leaves a non-permanent fragment out', () => {
+      let link: string | undefined;
+      function Link() {
+        link ??= useRouterArgStore().hrefFor!([{ key: 'task', raw: 's20' }]);
+        return null;
+      }
+      setup('/hu/mod/s19#12.4', { kind, beside: <Link /> });
+      expect(link).toBe('/hu/mod/s20');
     });
 
     it.each([
@@ -571,10 +587,10 @@ describe.each(['memory', 'browser'] as const)('the store under a %s router', (ki
         };
       }
 
-      function Wrapped({ forward }: { forward: boolean }) {
+      function Wrapped({ forward, children = <Filter /> }: { forward: boolean; children?: ReactNode }) {
         const store = useRouterArgStore();
         const [wrapper] = useState(() => wrap(store, forward));
-        return <ArgStoreProvider store={wrapper}><Filter /></ArgStoreProvider>;
+        return <ArgStoreProvider store={wrapper}>{children}</ArgStoreProvider>;
       }
 
       function Filter() {
@@ -592,6 +608,25 @@ describe.each(['memory', 'browser'] as const)('the store under a %s router', (ki
         const { url } = setup('/hu/mod/s19?filter=a', { kind, beside: <Wrapped forward /> });
         await act(async () => write({ task: 's20' }));
         expect(url()).toBe('/hu/mod/s20');
+      });
+
+      it('that does not forward declare: the query key stays, a non-permanent fragment still goes', async () => {
+        const { url } = setup('/hu/mod/s19?filter=a#12.4', {
+          kind,
+          beside: <Wrapped forward={false}><Filter /><DeclaresAt /></Wrapped>,
+        });
+        await act(async () => write({ task: 's20' }));
+        expect(url()).toBe('/hu/mod/s20?filter=a');
+      });
+
+      it('that does not forward declare: a permanent fragment stays', async () => {
+        const { url } = setup('/hu/mod/s19#12.4', {
+          kind,
+          fragment: PERMANENT_AT,
+          beside: <Wrapped forward={false}><DeclaresAtPermanent /></Wrapped>,
+        });
+        await act(async () => write({ task: 's20' }));
+        expect(url()).toBe('/hu/mod/s20#12.4');
       });
     });
   });
@@ -1600,7 +1635,7 @@ describe('the store under a memory router only', () => {
     expect(url()).toBe('/hu/mod/%2E%2E?q=x#1');
     expect(warn).not.toHaveBeenCalled();
     await act(async () => write({ task: 's20' }));
-    expect(url()).toBe('/hu/mod/s20?q=x#1');
+    expect(url()).toBe('/hu/mod/s20?q=x');
   });
 });
 
