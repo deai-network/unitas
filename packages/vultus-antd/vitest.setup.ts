@@ -1,6 +1,12 @@
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/react';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+
+// What `waitFor` and `findBy*` wait for takes real time here: rc-dropdown's autoFocus alone is three
+// animation frames, measured past 1300 ms on a loaded machine, past the library's default of 1000.
+// Below the config's testTimeout, so a real failure still reports its assertion.
+configure({ asyncUtilTimeout: 10000 });
 
 if (!i18n.isInitialized) {
   void i18n.use(initReactI18next).init({
