@@ -34,8 +34,9 @@ two, the store's `useLocation` finds no router and throws.
 ## Entry points
 
 - `.` — `ReactRouterArgStore` and `useRouterArgStore` (with its `RouterArgStore`
-  type); the path tokens `token`, `vanishing` and `rest` (with the types
-  `PathToken`, `PathTokenOptions` and `OneOfDefinition`).
+  type: `readRendered` and `belowRoute`, see [Below the route](#below-the-route));
+  the path tokens `token`, `vanishing` and `rest` (with the types `PathToken`,
+  `PathTokenOptions` and `OneOfDefinition`).
 
 ## Placement
 
@@ -430,6 +431,64 @@ An app with `<ScrollRestoration>` must not give elements an id equal to the frag
 value: its hash branch runs before `preventScrollReset`, so every store write would
 scroll back to that element. Under a hash router, plain `<a href="#12.4">` links
 replace the route.
+
+## Below the route
+
+`belowRoute(location?, changes?)`, on the store `useRouterArgStore()` returns, is
+the part below the store's route of the URL `hrefFor(changes)` would give if the
+store stood on `location`: `{ pathname, search, hash }`, with `pathname` relative
+to the route's base (no leading `/`, `''` when nothing is below it) and `search`
+and `hash` with their `?` and `#`, or `''`. It is for an app that keeps where a
+reader was inside a route and reopens it later, perhaps under other params,
+without parsing the URL itself.
+
+- **Without `location`** it is the store's own view, where `hrefFor` starts: the
+  rendered location with the store's own writes laid over it.
+  `belowRoute(undefined, changes)` is the part below the route of
+  `hrefFor(changes)`.
+- **With `location`**, a location as the router holds it, basename included
+  (`router.state.location`, rendered or not; `useLocation()` gives it without the
+  basename), the store's own pending writes do not count. Without changes it is
+  that location's part below the route exactly as it holds it, nothing
+  re-encoded. Changes apply on top of it as `hrefFor` applies them: going
+  somewhere else reads that location's tokens and query, the declared permanence
+  applies, and a change the path cannot represent is left out with a warning, so
+  the location's part comes back unchanged.
+- It is cut by the depth of the store's route: `undefined` for a location too
+  short to hold the route, or outside the basename. Whether a location belongs to
+  the route at all is the app's to know (react-router's `matchRoutes`).
+- A store without `path` gives the same: what is below its route, which for a
+  route without `*` is `''`, and for a store outside any route is the whole path.
+
+Praeceptor keeps a reading position per module, without the language, on every
+location the router reaches, the one it is leaving on `pagehide` too, before it
+renders. The keys that must not come back are left out through `changes`:
+
+```ts
+// In the module page, whose store sits in the route ':lang/:module/*':
+const store = useRouterArgStore();
+const omit = [{ key: 'link', raw: undefined }, { key: 'selector', raw: undefined }];
+
+// For each location the router reaches that is still this module's (the app's
+// matchRoutes says so), and on pagehide:
+const below = store.belowRoute(router.state.location, omit);
+// { pathname: 'c', search: '?variant=modern', hash: '#2' }, saved under the module
+```
+
+The gallery reopens it with react-router's own builders, under any language:
+
+```ts
+const saved = positions.get(module);
+navigate({
+  pathname: generatePath('/:lang/:module/*', { lang, module, '*': saved.pathname }),
+  search: saved.search,
+  hash: saved.hash,
+});
+```
+
+`generatePath` leaves a splat as it is given, and `pathname` comes encoded as the
+location held it, so the path round-trips: a task `a b@c/d` is saved as
+`a%20b@c/d` and reads back as `a b@c/d`.
 
 ## Distribution
 

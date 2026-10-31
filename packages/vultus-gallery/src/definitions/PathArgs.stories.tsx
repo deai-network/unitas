@@ -103,6 +103,28 @@ function ReadAndRendered() {
   );
 }
 
+/**
+ * The page's place below the route (`:lang/:module/*`): as the store sees it, its own writes laid
+ * over the URL, and as the rendered location holds it. This router has no basename, so
+ * `useLocation()` gives the location as the router holds it.
+ */
+function BelowRoute() {
+  const store = useRouterArgStore();
+  const location = useLocation();
+  const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
+  const own = useSyncExternalStore(subscribe, () => JSON.stringify(store.belowRoute()));
+  return (
+    <Example label="store.belowRoute() and store.belowRoute(location)">
+      <div data-testid="below-route">
+        <Space orientation="vertical" size={4}>
+          <Typography.Text code style={{ wordBreak: 'break-all' }}>{own}</Typography.Text>
+          <Typography.Text code style={{ wordBreak: 'break-all' }}>{JSON.stringify(store.belowRoute(location))}</Typography.Text>
+        </Space>
+      </div>
+    </Example>
+  );
+}
+
 /** The page in the route's element. What is below it is plain hooks: nothing here says where a key lives. */
 function ModulePage() {
   const task = useArg(TASK);
@@ -162,6 +184,7 @@ function ModulePage() {
         </Example>
         <Example label="this page was mounted at"><Tag data-testid="mounted-at">{mountedAt}</Tag></Example>
         <ReadAndRendered />
+        <BelowRoute />
       </Space>
     </>
   );
@@ -194,7 +217,7 @@ export const GoingSomewhereElse: StoryObj<{ loaderMs: number }> = {
       path={ONE_PLACE_AFTER_ANOTHER}
       loaderMs={loaderMs}
       title="Going somewhere else"
-      note="The route is :lang/:module/* and its element is <ReactRouterArgStore path={[vanishing(VARIANT), rest(TASK)]} fragment={AT}>, in a memory router whose loader takes loaderMs. The page opened on the task s19~modern, at the place 12.4, with the section and the text size set. Click the task a/b: the path gets both its segments, the section and the reading place go with the old place, and the permanent text size stays (a push, so Back brings it all back). Choose the Revised edition: its segment appears before the task, and the task goes too, as it came after it; choose First and the segment vanishes, as First is the default. Change the section, the text size or the reading place: only the query or the fragment changes, nothing else goes. The one-write button names the task, the section and the place together, the task last: going somewhere else never cuts what its own write names, so all three land in one navigation. Each of these leaves the time this page was mounted as it was. Try the task .. : refused, a note says so beside the buttons, the console has the warning, the URL stays. Try the task revised while the edition is First: refused as well, as that segment would read as the edition; under Revised it is an ordinary task. After a write of the path or the query, for loaderMs, read shows the new values at once, also what the write removed, while the URL and readRendered still show the old ones and the tag says the store is ahead. A fragment-only write that keeps a fragment loads nothing, so there the gap is too short to see. Changing loaderMs restarts the page."
+      note="The route is :lang/:module/* and its element is <ReactRouterArgStore path={[vanishing(VARIANT), rest(TASK)]} fragment={AT}>, in a memory router whose loader takes loaderMs. The page opened on the task s19~modern, at the place 12.4, with the section and the text size set. Click the task a/b: the path gets both its segments, the section and the reading place go with the old place, and the permanent text size stays (a push, so Back brings it all back). Choose the Revised edition: its segment appears before the task, and the task goes too, as it came after it; choose First and the segment vanishes, as First is the default. Change the section, the text size or the reading place: only the query or the fragment changes, nothing else goes. The one-write button names the task, the section and the place together, the task last: going somewhere else never cuts what its own write names, so all three land in one navigation. Each of these leaves the time this page was mounted as it was. Try the task .. : refused, a note says so beside the buttons, the console has the warning, the URL stays. Try the task revised while the edition is First: refused as well, as that segment would read as the edition; under Revised it is an ordinary task. After a write of the path or the query, for loaderMs, read shows the new values at once, also what the write removed, while the URL and readRendered still show the old ones and the tag says the store is ahead. A fragment-only write that keeps a fragment loads nothing, so there the gap is too short to see. Below the table, belowRoute gives the part of the URL below the route, what an app saves to reopen the place later under another language: the first line as the store sees it, the second as the rendered location holds it, so the two differ for loaderMs too. Changing loaderMs restarts the page."
     />
   ),
 };

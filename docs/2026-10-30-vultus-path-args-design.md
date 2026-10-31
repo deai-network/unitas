@@ -148,6 +148,35 @@ plus a task write gives `/about/us/s20`. The same goes for a store inside descen
 where a batch waiting for the navigation is enough. A store directly in a data route knows it left.
 Accepted, and pinned by tests.
 
+## Below the route
+
+Added 2026-10-31, at Praeceptor's request. `belowRoute(location?, changes?)`, on the store
+`useRouterArgStore()` returns, is the part below the store's route of the URL `hrefFor(changes)` would
+give if the store stood on `location`: `pathname` relative to the route's base, without a leading `/`
+(`''` when nothing is below it), and `search` and `hash` with their `?` and `#`, or `''`.
+
+- Without `location`, the store's own view, where `hrefFor` starts (the rendered location with the
+  store's own unrendered writes laid over it), through the same code: `belowRoute(undefined, changes)`
+  is the part below the route of `hrefFor(changes)`.
+- With `location`, as the router holds it (`router.state.location`, rendered or not, the basename
+  included), the store's own pending writes do not count. Without changes it is that location's part
+  below the route exactly as it holds it, nothing re-encoded. Changes apply on top of it as `hrefFor`
+  applies them on top of the store's view: the going-somewhere-else expansion reads the tokens and the
+  query in that location, the declared permanence applies, and a refusal warns and gives the location's
+  part unchanged, as `hrefFor` gives the current href.
+- It is cut by the depth of the store's route, so it is `undefined` for a location too short to hold
+  that route (or outside the basename). Whether a location belongs to the route at all is the caller's
+  to know, through react-router's `matchRoutes`: the store does not match routes (see Placement).
+- A store without `path` gives the same: what is below its route, plus the query and the fragment.
+
+**Why.** Praeceptor keeps a reading position per module, language-free (`c?variant=modern#2`), on
+every router location, including the one it saves on `pagehide` before it renders, and leaves keys out
+(`link`, `selector`, an old `toc`) through `changes`. The gallery reopens it with react-router's own
+builders, `{ pathname: generatePath('/:lang/:module/*', { lang, module, '*': saved.pathname }), search,
+hash }`. The store already knows its route's depth and how a write changes the URL, so nothing in the
+app parses the URL or restates the tokens. `pathname` stays encoded as the location held it because
+`generatePath` leaves a splat as given.
+
 ## Encoding
 
 The store's own per-segment encoder, not `generatePath` (which encodes `@` and leaves a splat raw):

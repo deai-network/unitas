@@ -93,6 +93,31 @@ function cutAtRoute(pathname: string, depth: number): { stem: string; below: str
   return { stem: `/${parts.slice(0, depth).join('/')}`, below: parts.slice(depth).map(decodeSegment) };
 }
 
+/**
+ * `pathname` past its first `depth` segments, as it holds them (nothing decoded, a trailing `/`
+ * kept), without the leading `/`: `''` when nothing is below them; `undefined` if it is too short
+ * to hold them. It counts the segments as `cutAtRoute` does.
+ */
+function pathBelow(pathname: string, depth: number): string | undefined {
+  let at = 0;
+  for (let i = 0; i < depth; i += 1) {
+    while (pathname.charAt(at) === '/') at += 1;
+    if (at >= pathname.length) return undefined;
+    const end = pathname.indexOf('/', at);
+    at = end === -1 ? pathname.length : end;
+  }
+  return pathname.slice(at).replace(/^\/+/, '');
+}
+
+/** What `belowRoute` gives: a path relative to the store's route, and its query and fragment. */
+type BelowRoute = { pathname: string; search: string; hash: string };
+
+/** `place` below the store's route, `depth` segments deep (see `RouterArgStore.belowRoute`). */
+function belowOf(place: Path, depth: number): BelowRoute | undefined {
+  const pathname = pathBelow(place.pathname, depth);
+  return pathname === undefined ? undefined : { pathname, search: place.search, hash: place.hash };
+}
+
 function warnRefused({ key, reason }: PathRefusal): void {
   console.warn(`Argument '${key}': ${reason}`);
 }
@@ -105,6 +130,26 @@ export interface RouterArgStore extends ArgStore {
    * it. So a page can tell that the store is ahead of what the router has rendered.
    */
   readRendered(key: string): string | undefined;
+  /**
+   * The part below the store's route of the URL `hrefFor(changes)` would give if the store stood
+   * on `location`: `pathname` relative to the route's base, without a leading `/` (`''` when nothing
+   * is below it), and `search` and `hash` with their `?` and `#`, or `''`. It is cut by the depth of
+   * the store's route, so it is `undefined` for a location too short to hold that route; whether a
+   * location belongs to the route at all is the caller's to know (react-router's `matchRoutes`). A
+   * store without `path` gives the same: what is below its route (all of it, outside any route).
+   *
+   * Without `location` it starts from the store's own view, as `hrefFor` does: the rendered location
+   * with the store's own writes laid over it. So `belowRoute(undefined, changes)` is the part below
+   * the route of `hrefFor(changes)`.
+   *
+   * `location` is as the router holds it, the basename included (`router.state.location`, rendered
+   * or not; `undefined` outside the basename), and the store's own pending writes do not count
+   * there. Without changes, it is that location's part below the route exactly as it holds it,
+   * nothing re-encoded. Changes apply on top of it as `hrefFor` applies them on top of the store's
+   * view: going somewhere else reads the tokens' values and the query in `location`, the declared
+   * permanence applies, and changes the path cannot represent are left out whole, with a warning.
+   */
+  belowRoute(location?: Path, changes?: RawChange[]): BelowRoute | undefined;
 }
 
 /**
@@ -119,6 +164,8 @@ class RouterArgStoreImpl implements RouterArgStore {
   pathHref!: string;
   /** The same for another path, which a hook cannot be asked for in a store's method. */
   pathHrefOf!: (pathname: string) => string;
+  /** The router's basename, which a location as the router holds it starts with. */
+  basename = '/';
   /** The `path` prop's tokens, their allowed values resolved in this render; none without the prop. */
   tokens: readonly ResolvedPathToken[] = [];
   /** The key the `fragment` prop keeps in the hash. */
@@ -202,15 +249,23 @@ class RouterArgStoreImpl implements RouterArgStore {
   }
 
   /**
-   * The rendered location with the store's own writes it does not show yet (as `read` has them),
-   * then `changes` with what they imply, as a write has them. Changes the path cannot represent
-   * leave them out, with the warning a write gives: the current href, not a broken link.
+   * The link to the store's view with `changes` (see `viewWith`). Changes the path cannot represent
+   * are left out, with the warning a write gives: the current href, not a broken link.
    */
   hrefFor(changes: RawChange[]): string {
-    const own = [...(this.navigated?.changes ?? []), ...(this.batch?.changes ?? [])];
-    const { to } = this.applied(this.location, [...own, ...(this.expanded(changes) ?? [])], this.depth);
+    const to = this.viewWith(changes);
     const start = to.pathname === this.location.pathname ? this.pathHref : this.pathHrefOf(to.pathname);
     return start + to.search + to.hash;
+  }
+
+  belowRoute(location?: Path, changes: RawChange[] = []): BelowRoute | undefined {
+    if (location === undefined) return belowOf(this.viewWith(changes), this.depth);
+    const pathname = stripBasename(location.pathname, this.basename);
+    if (pathname === undefined) return undefined;
+    const place: Path = { pathname, search: location.search, hash: location.hash };
+    if (changes.length === 0 || pathBelow(pathname, this.depth) === undefined) return belowOf(place, this.depth);
+    const expanded = this.expanded(changes, this.readerAt(place));
+    return belowOf(expanded === undefined ? place : this.applied(place, expanded, this.depth).to, this.depth);
   }
 
   /**
@@ -241,6 +296,26 @@ class RouterArgStoreImpl implements RouterArgStore {
     return this.tokens.some((t) => t.key === key);
   }
 
+  /**
+   * Where `hrefFor(changes)` links to, in `useLocation`'s terms: the rendered location with the
+   * store's own writes it does not show yet (as `read` has them), then `changes` with what they
+   * imply, as a write has them; changes the path cannot represent are left out, with a warning.
+   */
+  private viewWith(changes: readonly RawChange[]): Path {
+    const own = [...(this.navigated?.changes ?? []), ...(this.batch?.changes ?? [])];
+    return this.applied(this.location, [...own, ...(this.expanded(changes) ?? [])], this.depth).to;
+  }
+
+  /** A key's raw value in `place` (in `useLocation`'s terms), read as `readRendered` reads the rendered location. */
+  private readerAt(place: Path): (key: string) => string | undefined {
+    const tokens = readPath(this.tokens, cutAtRoute(place.pathname, this.depth)?.below ?? []);
+    const query = readQuery(place.search);
+    return (key) => {
+      if (key === this.fragmentKey) return fragmentOf(place.hash);
+      return this.isToken(key) ? tokens.get(key) : query.get(key);
+    };
+  }
+
   /** The tokens' values in the rendered location; parsed anew with a new location or a new render's tokens. */
   private renderedTokens(): Map<string, string> {
     const { pathname } = this.location;
@@ -261,16 +336,20 @@ class RouterArgStoreImpl implements RouterArgStore {
    * `independent` is going somewhere else, which also removes the tokens after it, and the query
    * keys and the fragment declared non-permanent (the store declares the fragment itself; a query
    * key never declared stays: its hook may just not be mounted), except what `changes` name. What
-   * is removed is what the store reads now, so a pending change of its own goes too. Those removals
-   * are marked `implied`, a later token's too: `permanent` does not keep one of those, as it is
-   * obsolete once an earlier token changes.
+   * is removed is what `read` reads now: by default the store's own view, so a pending change of its
+   * own goes too (`belowRoute` reads another location). Those removals are marked `implied`, a later
+   * token's too: `permanent` does not keep one of those, as it is obsolete once an earlier token
+   * changes.
    */
-  private expanded(changes: readonly RawChange[]): OwnChange[] | undefined {
+  private expanded(
+    changes: readonly RawChange[],
+    read: (key: string) => string | undefined = (key) => this.read(key),
+  ): OwnChange[] | undefined {
     const normalized = changes.map((change) => (
       change.raw === '' && (this.isToken(change.key) || change.key === this.fragmentKey) ? { key: change.key, raw: undefined } : change
     ));
     const { tokens } = this;
-    const current = new Map(tokens.map((t) => [t.key, this.read(t.key)]));
+    const current = new Map(tokens.map((t) => [t.key, read(t.key)]));
     const next = withChanges(current, normalized);
     if (tokens.every((t) => current.get(t.key) === next.get(t.key))) return normalized;
     const { elsewhere, removals } = goingElsewhere(tokens, current, normalized);
@@ -282,7 +361,7 @@ class RouterArgStoreImpl implements RouterArgStore {
     if (!elsewhere) return normalized;
     const named = new Set(normalized.map((change) => change.key));
     const dropped = [...this.permanence]
-      .filter(([key, permanent]) => !permanent && !named.has(key) && !this.isToken(key) && this.read(key) !== undefined)
+      .filter(([key, permanent]) => !permanent && !named.has(key) && !this.isToken(key) && read(key) !== undefined)
       .map(([key]) => ({ key, raw: undefined }));
     return [...normalized, ...[...removals, ...dropped].map((removal) => ({ ...removal, implied: true as const }))];
   }
@@ -477,6 +556,7 @@ export function ReactRouterArgStore({ path, fragment, children }: { path?: reado
   store.pathHrefOf = (pathname) => navigator.createHref({
     pathname: basename === '/' ? pathname : pathname === '/' ? basename : `${basename}/${pathname}`.replace(/\/{2,}/g, '/'),
   });
+  store.basename = basename;
   store.tokens = tokens;
   store.fragmentKey = fragmentKey;
   store.depth = route === undefined ? 0 : splitPath(route.pathnameBase).length;
