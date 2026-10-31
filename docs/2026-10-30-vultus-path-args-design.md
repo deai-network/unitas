@@ -157,7 +157,9 @@ give if the store stood on `location`: `pathname` relative to the route's base, 
 
 - Without `location`, the store's own view, where `hrefFor` starts (the rendered location with the
   store's own unrendered writes laid over it), through the same code: `belowRoute(undefined, changes)`
-  is the part below the route of `hrefFor(changes)`.
+  is the part below the route of `hrefFor(changes)`. One exception: for an address typed with `//`,
+  `.` or `..`, `hrefFor`'s href is react-router's normalization of it (`useHref` resolves the path),
+  while `belowRoute` gives it raw, as it gives every typed form, until a token change rebuilds it.
 - With `location`, as the router holds it (`router.state.location`, rendered or not, the basename
   included), the store's own pending writes do not count. Without changes it is that location's part
   below the route exactly as it holds it, nothing re-encoded. Changes apply on top of it as `hrefFor`
@@ -175,7 +177,14 @@ every router location, including the one it saves on `pagehide` before it render
 builders, `{ pathname: generatePath('/:lang/:module/*', { lang, module, '*': saved.pathname }), search,
 hash }`. The store already knows its route's depth and how a write changes the URL, so nothing in the
 app parses the URL or restates the tokens. `pathname` stays encoded as the location held it because
-`generatePath` leaves a splat as given.
+`generatePath` leaves a splat as given. The result type is exported as `BelowRoute`, react-router's
+`Path` shape.
+
+An address typed by hand with `//`, `.` or `..` (or `%2E` under a browser or hash router, whose
+`encodeLocation` goes through `new URL`) does not round-trip exactly: it is saved raw, and `navigate`
+lands where react-router normalizes it. A `//` reads back the same values; a dot segment does not
+(`./c` reopens as `c`). The store never writes such an address itself, so only a hand-typed one is
+affected. Pinned by tests.
 
 ## Encoding
 

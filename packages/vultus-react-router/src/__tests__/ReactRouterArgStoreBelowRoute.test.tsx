@@ -2,11 +2,14 @@ import { describe, it, expect, vi, afterEach, beforeEach, type MockInstance } fr
 import { act, render } from '@testing-library/react';
 import { useSyncExternalStore } from 'react';
 import {
-  createBrowserRouter, createMemoryRouter, generatePath, MemoryRouter, parsePath, RouterProvider,
+  createBrowserRouter, createHashRouter, createMemoryRouter, generatePath, MemoryRouter, parsePath, RouterProvider,
   type LoaderFunction, type Path, type RouteObject,
 } from 'react-router';
 import { stringType, useArg, type ArgDefinition, type ArgStore, type RawChange } from 'vultus-core';
-import { ReactRouterArgStore, rest, useRouterArgStore, vanishing, type OneOfDefinition, type RouterArgStore } from '../index.js';
+import {
+  ReactRouterArgStore, rest, useRouterArgStore, vanishing,
+  type BelowRoute, type OneOfDefinition, type RouterArgStore,
+} from '../index.js';
 
 function arg(key: string, permanent?: boolean): ArgDefinition<string> {
   return { key, valueType: stringType, default: '', permanent };
@@ -71,19 +74,21 @@ function write(changes: Record<string, string | undefined>) {
   seen.store.write(changesOf(changes), 'replace');
 }
 
-type RouterKind = 'memory' | 'browser';
+type RouterKind = 'memory' | 'browser' | 'hash';
 
 function makeRouter(kind: RouterKind, entry: string, tree: RouteObject[], basename?: string) {
   const options = { basename, hydrationData: { loaderData: { page: null } } };
   const router = kind === 'memory'
     ? createMemoryRouter(tree, { ...options, initialEntries: [entry] })
-    : (window.history.replaceState(null, '', entry), createBrowserRouter(tree, options));
+    : kind === 'browser'
+      ? (window.history.replaceState(null, '', entry), createBrowserRouter(tree, options))
+      : (window.history.replaceState(null, '', `/#${entry}`), createHashRouter(tree, options));
   disposers.push(() => router.dispose());
   return router;
 }
 
 /** The store in its route (`:lang/:module/*`) around the probe, beside a `/start` route. */
-function setup(entry: string, { kind = 'memory', basename, loader }: { kind?: RouterKind; basename?: string; loader?: LoaderFunction } = {}) {
+function setup(entry: string, { kind = 'memory' as RouterKind, basename, loader }: { kind?: RouterKind; basename?: string; loader?: LoaderFunction } = {}) {
   const router = makeRouter(kind, entry, [
     { id: 'page', path: PATTERN, loader, element: <ReactRouterArgStore path={PATH} fragment={AT}><Probe /></ReactRouterArgStore> },
     { path: 'start', element: null },
@@ -92,10 +97,27 @@ function setup(entry: string, { kind = 'memory', basename, loader }: { kind?: Ro
   return router;
 }
 
-/** What `belowRoute` should give for `href`: past the basename's `skip` segments and the route's two, its path as it holds it, its query and hash. */
-function cutOf(href: string, skip = 0): { pathname: string; search: string; hash: string } {
+/**
+ * What `belowRoute` should give for `href`: past the basename's `skip` segments and the route's two,
+ * its path as it holds it (a doubled or trailing `/` kept), its query and hash.
+ */
+function cutOf(href: string, skip = 0): BelowRoute {
   const { pathname = '', search = '', hash = '' } = parsePath(href);
-  return { pathname: pathname.split('/').filter((segment) => segment !== '').slice(skip + 2).join('/'), search, hash };
+  let rest = pathname;
+  for (let i = 0; i < skip + 2; i += 1) rest = rest.replace(/^\/*[^/]+/, '');
+  return { pathname: rest.replace(/^\/+/, ''), search, hash };
+}
+
+/** Leaves the route, then opens `saved` again with react-router's `generatePath`, as an app's gallery would. */
+async function reopen(router: ReturnType<typeof makeRouter>, module: string, saved: BelowRoute) {
+  await act(async () => {
+    await router.navigate('/start');
+  });
+  const pathname = generatePath(`/${PATTERN}`, { lang: 'hu', module, '*': saved.pathname });
+  await act(async () => {
+    await router.navigate({ pathname, search: saved.search, hash: saved.hash });
+  });
+  return pathname;
 }
 
 /** `belowRoute(undefined, changes)` and the cut of `hrefFor(changes)`, which must be one. */
@@ -149,6 +171,16 @@ describe.each(['memory', 'browser'] as const)('belowRoute under a %s router', (k
       ['a token and a filter named with it', { task: 's20', toc: 'z' }, { pathname: 'modern/s20', search: '?toc=z&lens=b', hash: '' }],
     ])('%s', (_name, changes, expected) => {
       setup(OPENED, { kind });
+      const { below, href } = bothViews(changes);
+      expect(below).toEqual(expected);
+      expect(below).toEqual(href);
+    });
+
+    it.each([
+      ['no changes', {}, { pathname: 'modern/s19/', search: '', hash: '' }],
+      ['a query key', { q: 'x' }, { pathname: 'modern/s19/', search: '?q=x', hash: '' }],
+    ])('a typed trailing slash: kept by both, %s', (_name, changes, expected) => {
+      setup('/hu/mod/modern/s19/', { kind });
       const { below, href } = bothViews(changes);
       expect(below).toEqual(expected);
       expect(below).toEqual(href);
@@ -295,34 +327,23 @@ describe.each(['memory', 'browser'] as const)('belowRoute under a %s router', (k
     const OPENED = '/hu/egyh%C3%A1z/modern/a%20b@c/d?toc=s19&lens=big&link=x#12.4';
     const READ = { variant: 'modern', task: 'a b@c/d', toc: 's19', lens: 'big', at: '12.4' };
 
-    async function reopen(router: ReturnType<typeof setup>, saved: { pathname: string; search: string; hash: string }) {
-      await act(async () => {
-        await router.navigate('/start');
-      });
-      const pathname = generatePath(`/${PATTERN}`, { lang: 'hu', module: 'egyház', '*': saved.pathname });
-      expect(pathname).toBe('/hu/egyh%C3%A1z/modern/a%20b@c/d');
-      await act(async () => {
-        await router.navigate({ pathname, search: saved.search, hash: saved.hash });
-      });
-    }
-
     it('from the router\'s location, leaving a key out', async () => {
       const router = setup(OPENED, { kind });
       expect(seen.values).toMatchObject({ ...READ, link: 'x' });
       const saved = seen.store.belowRoute(router.state.location, changesOf({ link: undefined }))!;
       expect(saved).toEqual({ pathname: 'modern/a%20b@c/d', search: '?toc=s19&lens=big', hash: '#12.4' });
-      await reopen(router, saved);
+      expect(await reopen(router, 'egyház', saved)).toBe('/hu/egyh%C3%A1z/modern/a%20b@c/d');
       expect(seen.values).toMatchObject({ ...READ, link: undefined });
     });
 
     it('from the store\'s view, with a write of its own not yet shown', async () => {
       const router = setup('/hu/egyh%C3%A1z/s19?link=x', { kind });
-      let saved!: { pathname: string; search: string; hash: string };
+      let saved!: BelowRoute;
       await act(async () => {
         seen.store.write(changesOf({ variant: 'modern', task: 'a b@c/d', toc: 's19', lens: 'big', at: '12.4' }), 'replace');
         saved = seen.store.belowRoute(undefined, changesOf({ link: undefined }))!;
       });
-      await reopen(router, saved);
+      expect(await reopen(router, 'egyház', saved)).toBe('/hu/egyh%C3%A1z/modern/a%20b@c/d');
       expect(seen.values).toMatchObject({ ...READ, link: undefined });
     });
   });
@@ -333,6 +354,57 @@ describe('belowRoute under a memory router only', () => {
     const router = setup('/hu/egyház/tört a@b?q=á');
     expect(seen.values.task).toBe('tört a@b');
     expect(seen.store.belowRoute(router.state.location)).toEqual({ pathname: 'tört a@b', search: '?q=á', hash: '' });
+  });
+});
+
+describe('an address typed with // or a dot segment: belowRoute gives it raw, react-router normalizes it', () => {
+  it('a doubled /: hrefFor collapses it, belowRoute keeps it, and reopened it lands collapsed, reading the same', async () => {
+    const router = setup('/hu/mod/c//d');
+    expect(seen.values.task).toBe('c/d');
+    expect(seen.store.hrefFor!([])).toBe('/hu/mod/c/d');
+    expect(seen.store.belowRoute()).toEqual({ pathname: 'c//d', search: '', hash: '' });
+    const saved = seen.store.belowRoute(router.state.location)!;
+    expect(saved).toEqual({ pathname: 'c//d', search: '', hash: '' });
+    expect(await reopen(router, 'mod', saved)).toBe('/hu/mod/c//d');
+    expect(router.state.location.pathname).toBe('/hu/mod/c/d');
+    expect(seen.values.task).toBe('c/d');
+  });
+
+  it('a . segment: hrefFor resolves it, belowRoute keeps it, and reopened it lands resolved, reading another value', async () => {
+    const router = setup('/hu/mod/./c');
+    expect(seen.values.task).toBe('./c');
+    expect(seen.store.hrefFor!([])).toBe('/hu/mod/c');
+    expect(seen.store.belowRoute()).toEqual({ pathname: './c', search: '', hash: '' });
+    const saved = seen.store.belowRoute(router.state.location)!;
+    expect(saved.pathname).toBe('./c');
+    await reopen(router, 'mod', saved);
+    expect(router.state.location.pathname).toBe('/hu/mod/c');
+    expect(seen.values.task).toBe('c');
+  });
+
+  it('a .. segment: the same, one segment up', () => {
+    setup('/hu/mod/a/../c');
+    expect(seen.values.task).toBe('a/../c');
+    expect(seen.store.hrefFor!([])).toBe('/hu/mod/c');
+    expect(seen.store.belowRoute()).toEqual({ pathname: 'a/../c', search: '', hash: '' });
+  });
+
+  it('a token change rebuilds the path below the route, and the two agree again', () => {
+    setup('/hu/mod/./c');
+    const { below, href } = bothViews({ task: 's20' });
+    expect(below).toEqual({ pathname: 's20', search: '', hash: '' });
+    expect(below).toEqual(href);
+  });
+
+  it('under a hash router, a typed %2E reads as a dot segment and is saved as typed; reopened, the URL parser resolves it', async () => {
+    const router = setup('/hu/mod/%2E/c', { kind: 'hash' });
+    expect(seen.values.task).toBe('./c');
+    expect(seen.store.hrefFor!([])).toBe('#/hu/mod/%2E/c');
+    const saved = seen.store.belowRoute(router.state.location)!;
+    expect(saved.pathname).toBe('%2E/c');
+    expect(await reopen(router, 'mod', saved)).toBe('/hu/mod/%2E/c');
+    expect(router.state.location.pathname).toBe('/hu/mod/c');
+    expect(seen.values.task).toBe('c');
   });
 });
 

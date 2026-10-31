@@ -34,9 +34,10 @@ two, the store's `useLocation` finds no router and throws.
 ## Entry points
 
 - `.` — `ReactRouterArgStore` and `useRouterArgStore` (with its `RouterArgStore`
-  type: `readRendered` and `belowRoute`, see [Below the route](#below-the-route));
-  the path tokens `token`, `vanishing` and `rest` (with the types `PathToken`,
-  `PathTokenOptions` and `OneOfDefinition`).
+  type: `readRendered`, see [Reading](#reading), and `belowRoute`, with its
+  `BelowRoute` type, see [Below the route](#below-the-route)); the path tokens
+  `token`, `vanishing` and `rest` (with the types `PathToken`, `PathTokenOptions`
+  and `OneOfDefinition`).
 
 ## Placement
 
@@ -436,29 +437,36 @@ replace the route.
 
 `belowRoute(location?, changes?)`, on the store `useRouterArgStore()` returns, is
 the part below the store's route of the URL `hrefFor(changes)` would give if the
-store stood on `location`: `{ pathname, search, hash }`, with `pathname` relative
-to the route's base (no leading `/`, `''` when nothing is below it) and `search`
-and `hash` with their `?` and `#`, or `''`. It is for an app that keeps where a
-reader was inside a route and reopens it later, perhaps under other params,
-without parsing the URL itself.
+store stood on `location`: a `BelowRoute`, react-router's `Path` shape
+`{ pathname, search, hash }`, with `pathname` relative to the route's base (no
+leading `/`, `''` when nothing is below it) and `search` and `hash` with their
+`?` and `#`, or `''`. It is for an app that keeps where a reader was inside a
+route and reopens it later, perhaps under other params, without parsing the URL
+itself.
 
 - **Without `location`** it is the store's own view, where `hrefFor` starts: the
   rendered location with the store's own writes laid over it.
   `belowRoute(undefined, changes)` is the part below the route of
-  `hrefFor(changes)`.
+  `hrefFor(changes)`, except for an address typed by hand with `//`, `.` or `..`:
+  `hrefFor` gives react-router's normalization of it (`/hu/history/c//d` links to
+  `/hu/history/c/d`), while `belowRoute` gives it raw (`c//d`), as it gives every
+  typed form. Once a write changes a token, the path below the route is rebuilt
+  and the two agree again.
 - **With `location`**, a location as the router holds it, basename included
   (`router.state.location`, rendered or not; `useLocation()` gives it without the
   basename), the store's own pending writes do not count. Without changes it is
   that location's part below the route exactly as it holds it, nothing
   re-encoded. Changes apply on top of it as `hrefFor` applies them: going
   somewhere else reads that location's tokens and query, the declared permanence
-  applies, and a change the path cannot represent is left out with a warning, so
-  the location's part comes back unchanged.
+  applies, and changes the path cannot represent are left out whole, with a
+  warning, so the location's part comes back unchanged.
 - It is cut by the depth of the store's route: `undefined` for a location too
   short to hold the route, or outside the basename. Whether a location belongs to
   the route at all is the app's to know (react-router's `matchRoutes`).
-- A store without `path` gives the same: what is below its route, which for a
-  route without `*` is `''`, and for a store outside any route is the whole path.
+- A store without `path` gives the same: what is below its route. That is `''`
+  in a leaf route without `*`, the child routes' part in a layout route (the
+  Placement example's `'/'` route gives `modules/7`), and the whole path in a
+  `'/'` route or outside any route.
 
 Praeceptor keeps a reading position per module, without the language, on every
 location the router reaches, the one it is leaving on `pagehide` too, before it
@@ -489,6 +497,12 @@ navigate({
 `generatePath` leaves a splat as it is given, and `pathname` comes encoded as the
 location held it, so the path round-trips: a task `a b@c/d` is saved as
 `a%20b@c/d` and reads back as `a b@c/d`.
+
+An address typed by hand with `//`, `.` or `..` (or `%2E` under a browser or
+hash router) does not come back exactly: it is saved raw, and `navigate` lands
+where react-router normalizes it. A `//` reads back the same values (`c//d`
+reopens as `c/d`); a dot segment does not (`./c` reopens as `c`). The store
+itself never writes such an address.
 
 ## Distribution
 

@@ -109,8 +109,12 @@ function pathBelow(pathname: string, depth: number): string | undefined {
   return pathname.slice(at).replace(/^\/+/, '');
 }
 
-/** What `belowRoute` gives: a path relative to the store's route, and its query and fragment. */
-type BelowRoute = { pathname: string; search: string; hash: string };
+/**
+ * What `belowRoute` gives, in react-router's `Path` shape: `pathname` relative to the store's route
+ * (no leading `/`, `''` when nothing is below it), and `search` and `hash` with their `?` and `#`, or
+ * `''`. An app saves it, and opens it again with react-router's `generatePath` (see the README).
+ */
+export type BelowRoute = Path;
 
 /** `place` below the store's route, `depth` segments deep (see `RouterArgStore.belowRoute`). */
 function belowOf(place: Path, depth: number): BelowRoute | undefined {
@@ -140,7 +144,9 @@ export interface RouterArgStore extends ArgStore {
    *
    * Without `location` it starts from the store's own view, as `hrefFor` does: the rendered location
    * with the store's own writes laid over it. So `belowRoute(undefined, changes)` is the part below
-   * the route of `hrefFor(changes)`.
+   * the route of `hrefFor(changes)`, except for an address typed with `//`, `.` or `..`: `hrefFor`
+   * gives react-router's normalization of it, and this gives it raw, as it gives every typed form.
+   * Such an address, saved and opened again, lands where react-router normalizes it too.
    *
    * `location` is as the router holds it, the basename included (`router.state.location`, rendered
    * or not; `undefined` outside the basename), and the store's own pending writes do not count
