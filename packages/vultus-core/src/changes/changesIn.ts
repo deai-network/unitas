@@ -34,8 +34,7 @@ const DIFF_TIMEOUT_S = 0.2;
  * this share of the new run's letters were put in or of the old run's letters removed, both ways
  * alike ("t. i." to "tudniillik": `[-t. i.][+tudniillik]`; back: `[-tudniillik][+t. i.]`). In a
  * change that is not, a word more than this share of whose letters were put in is marked whole.
- * Half is harma-style's maintainer's suggestion (2026-10-28), which the owner kept (2026-10-29: "it's
- * fine as it is now"); this is the one place to change it.
+ * This is the one place to change it.
  */
 const WHOLE_WORD_SHARE = 0.5;
 
@@ -82,26 +81,26 @@ export function lineEnds(text: string): (at: number) => boolean {
  * spans, the changed letters. Compared word by word (each distinct token one character of an
  * alphabet, so diff-match-patch's line-of-characters speed carries over to words), then, per
  * change, letter by letter. A change that only inserts marks its words at both levels; one that
- * replaces words is compared letter by letter, only the letters that differ marked (the owner, via
- * harma-style's maintainer, 2026-10-28: "Ferencz" to "Ferenc", the "z" removed and nothing lit).
+ * replaces words is compared letter by letter, only the letters that differ marked ("Ferencz" to
+ * "Ferenc": the "z" removed and nothing lit).
  * A change replaced whole (`WHOLE_WORD_SHARE` of the new run's letters put in, or of the old
  * run's removed: "t. i." to "tudniillik" and back) is one span, its new run lit whole and the old
  * one removed whole before it, when short (`WHOLE_RUN_LENGTH`); otherwise a word more than
  * `WHOLE_WORD_SHARE` of whose letters are new is marked whole at the letter level, the old text it
  * stands for removed before it. A split, one old word become several ("jóhirű" to "jó
  * hírű": a space put in between two old letters), is one `word` span over the new run, the space
- * among its letters, growing in as they do (the owner, the same day). Punctuation alone is never
+ * among its letters, growing in as they do. Punctuation alone is never
  * marked: a change of punctuation alone marks nothing ("napról-napra" to "napról napra").
  *
- * A changed word's `word` span runs from white space to white space (harma-style's maintainer's
- * ruling, 2026-10-28, for every switch): the punctuation touching it (a comma, an opening quote)
+ * A changed word's `word` span runs from white space to white space, on every switch: the
+ * punctuation touching it (a comma, an opening quote)
  * is inside its mark, lit lightly with it ("hivei," to "hívei,": "hívei,"), never at the letter
  * level; a line may break around the lent mark's removal pieces, so a comma outside the mark could
  * start the next line. The changed words of one run of non-space characters share one span. A new
  * word in place of nothing (put in, or marked whole with no old text before it) holds one space
  * beside it in both its spans, the one between it and the next token (at the end, the one between
  * the token before and it: "a b" to "a b új", " új"), so that growing in from no width it leaves
- * one space between its neighbours, not two (the maintainer, 2026-10-28).
+ * one space between its neighbours, not two.
  *
  * A line feed in `to` is a hard boundary (`lineEnds`: every character of a white-space run holding
  * '\n' or '\r'). The reading (`readText`) puts one exactly where a line really ends: between

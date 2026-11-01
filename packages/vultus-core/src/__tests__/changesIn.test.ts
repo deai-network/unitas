@@ -107,8 +107,7 @@ function written(from: string, to: string): string[] {
   });
 }
 
-// Only the letters that differ are marked (the owner, via harma-style's maintainer, 2026-10-28):
-// Pongrácz's spellings to the modern ones, and back.
+// Only the letters that differ are marked: Pongrácz's spellings to the modern ones, and back.
 const MARKS: [string, string, string[]][] = [
   ['a szent b', 'a Szent b', ['[-s][+S]zent']],
   ['a Ferencz b', 'a Ferenc b', ['Ferenc[-z]']],
