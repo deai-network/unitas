@@ -144,8 +144,8 @@ const OLD_CATEGORIES = inOldTerms(CATEGORIES);
 const NEW_THIS_TERM = new Set(['egyenlotlensegek', 'lnko']);
 
 /**
- * A label that lights up when its text changes (as harma-style's ChangingText does in
- * Praeceptor): it keeps the text it showed in its state, so it lights up only while the tree
+ * A label that lights up when its text changes (as `ChangingText` from `vultus-core/changes`
+ * does): it keeps the text it showed in its state, so it lights up only while the tree
  * keeps it mounted across the change.
  */
 function LightingLabel({ text }: { text: string }) {

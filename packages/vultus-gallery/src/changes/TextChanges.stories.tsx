@@ -30,7 +30,7 @@ const DEMO_KEYFRAMES = '@keyframes vultus-demo-change-lit { from { background-co
   + ' @keyframes vultus-demo-change-out { to { opacity: 0; } }';
 
 /**
- * A stand-in for a style library's change mark (e.g. harma-style's change highlight): an amber
+ * A stand-in for a style library's change mark: an amber
  * light fading out over 2 s (a word's and its letters' stack, so the letters read stronger), the
  * removed letters struck through and fading away, with keyframes of its own in a `<style>` element
  * (vultus has no stylesheet for the marks), put in the head once. Removed letters are kept from assistive technology,

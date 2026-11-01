@@ -651,9 +651,7 @@ app's own keys.
 What changed between two versions of a text, found and lit up: when a text switches to a related
 version (another spelling, an edit), its changed words and letters are marked for a moment, then
 the marks go. It lives at `vultus-core/changes`, so the main entry stays light: only an app that
-shows text changes loads `diff-match-patch`. (It moved here from harma-style's `/changes`,
-unchanged but for two DOM names: `data-harma-block` and `data-harma-change-skip` are now
-`data-vultus-block` and `data-vultus-change-skip`.)
+shows text changes loads `diff-match-patch`.
 
 vultus decides what changed and which mark goes where; the look comes from whoever lends the
 `ChangeMark` (a style library's provider, say). vultus has no stylesheet for the marks: without a
