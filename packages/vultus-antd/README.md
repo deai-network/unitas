@@ -253,13 +253,14 @@ it is in progress. A slider never jumps back to the old value while a request is
 moved-to value — both ends `[from, to]` for `RangeSlider` — stays shown while its confirmation is
 open or its commit is pending; once neither is true the field's own value shows again: the new
 one on success, the old one after a Cancel or a failure. `NumericSlider` needs both `min` and `max`
-on the field (there is no way to size a track otherwise); without them it throws, naming the field. Each handle keeps antd's own tooltip (hover, focus, drag), formatting its value
-with `field.format`; the rest of the slider (the track) carries the field's own tooltip instead,
-with no "Current state:" lead (a handle's tooltip already shows it), held back while hovering a
-handle (its own tooltip would double up) or while a confirmation is open. `showValue` puts the
-field's formatted value (`field.valueText`) before the slider (moxb's `showNumber`). `RangeSlider`
-names its two handles to assistive tech after the field's label, with `VultusProvider texts`'
-`from` and `to`: "School years, from" / "School years, to".
+on the field (there is no way to size a track otherwise); without them it throws, naming the field.
+Each handle keeps antd's own tooltip (hover, focus, drag), formatting its value with `field.format`;
+the rest of the slider (the track) carries the field's own tooltip instead, with no "Current state:"
+lead (a handle's tooltip already shows it), held back while hovering a handle (its own tooltip would
+double up) or while a confirmation is open. `showValue` puts the field's formatted value
+(`field.valueText`) before the slider (moxb's `showNumber`). `RangeSlider` names its two handles to
+assistive tech after the field's label, with `VultusProvider texts`' `from` and `to`:
+"School years, from" / "School years, to".
 
 `useNumericRequest` (exported, for a custom numeric widget) is `useFieldRequest` with `===`
 equality: a request naming the field's current number is a no-op (e.g. a second Enter before the
