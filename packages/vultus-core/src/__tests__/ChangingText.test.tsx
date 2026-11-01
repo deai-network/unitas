@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChangingText } from '../changes/ChangingText.js';
 import { lent } from './helpers/changeMarks.js';
 
-// A plain string whose changes light up (spec 7), with the hook's key semantics.
+// A plain string whose changes light up, with the hook's key semantics.
 
 /** `node`'s text as the new version has it: without the old letters shown going inside it. */
 function shown(node: Element): string {

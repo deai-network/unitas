@@ -62,7 +62,7 @@ interface Gone {
 }
 
 /**
- * A rehype plugin (spec 3) marking in a hast tree what changed from its part's previous reading,
+ * A rehype plugin marking in a hast tree what changed from its part's previous reading,
  * `from`. Each run of its transformer:
  * - numbers the blocks (`NUMBERED_BLOCKS`, pre-order from 1, as `data-vultus-block`), a skipped
  *   element and all it holds left out, unless `blockAttribute` names an existing numbering;

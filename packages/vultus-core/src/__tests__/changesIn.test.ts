@@ -52,7 +52,7 @@ const CASES: [string, string, string[], string[]][] = [
   ['a kegyelem b', 'a kegyelemmel b', ['kegyelemmel'], ['mel']],
 ];
 
-// The old letters each change removed, at their place in the new text (praeceptor's spec 11): inside
+// The old letters each change removed, at their place in the new text: inside
 // the changed word, before the letters that replaced them; before a word lit whole, the old text it
 // replaced; a word removed altogether with the space that separated it, after it, or before it
 // where it went at the end or right before punctuation. Never a line feed: white space collapsed.

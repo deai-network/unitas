@@ -11,9 +11,9 @@ import { useTextChanges, type TextChanges, type TextChangesOptions, type TextCha
 import { lent, SpeedMark, TestMark, timedMark } from './helpers/changeMarks.js';
 import { FakeIntersectionObserver, installFakeIntersectionObserver } from './helpers/intersection.js';
 
-// A switch's lifecycle through the hook (spec 5): the key deciding what animates, the parts sharing
-// one switch, the identities an app's Markdown memoises on, the near set frozen per switch, the
-// timer from the lent mark's timings, else vultus's defaults. Praeceptor's task panel change cases,
+// A switch's lifecycle through the hook: the key deciding what animates, the parts sharing one
+// switch, the identities an app's Markdown memoises on, the near set frozen per switch, the timer
+// from the lent mark's timings, else vultus's defaults. Praeceptor's task panel change cases,
 // through the hook. The marks are drawn by a lent test mark, which shows the props it received.
 
 const REMARK = [remarkGfm];
@@ -583,7 +583,7 @@ describe('useTextChanges: the speed', () => {
     expect(speeds.length).toBeGreaterThan(0);
     expect(new Set(speeds), speed).toEqual(new Set([speed]));
   };
-  /** `doc` with the speeds' timings lent: harma-style's stylesheet's, through its mark's `durations`. */
+  /** `doc` with the speeds' timings lent: a style library's, through its mark's `durations`. */
   const speedDoc = (props: DocProps) => doc(props, undefined, SpeedMark);
 
   it("every mark of a switch receives the switch's speed: slow, normal or fast; normal by default", () => {

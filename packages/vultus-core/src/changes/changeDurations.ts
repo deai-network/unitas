@@ -11,15 +11,16 @@ export interface ChangeDurations {
   removals: number;
 }
 
-/** vultus's timings, in ms, for a page whose mark gives none: harma-style's change highlight's at
- *  normal speed, the end of its timeline plus 0.5 s. `plain`: hold 0.3 s and fade 0.75 s;
- *  `removals`: remove-hold 0.15 s, squeeze 0.3 s and grow 0.3 s before them. */
+/** vultus's timings, in ms, for a page whose mark gives none: a change highlight's at normal
+ *  speed, as a style library's lent mark runs it, the end of its timeline plus 0.5 s. `plain`:
+ *  hold 0.3 s and fade 0.75 s; `removals`: remove-hold 0.15 s, squeeze 0.3 s and grow 0.3 s before
+ *  them. */
 const DEFAULTS: Readonly<ChangeDurations> = { plain: 1550, removals: 2300 };
 
 /**
- * When a switch's marks may go (spec 6): the lent mark's (`mark`, the `ChangeMark` an app lends
- * through `VultusComponents`) `durations(element, speed)`, the timings of its look, read at
- * `element` (the near container, else none) at `speed` (`normal` by default).
+ * When a switch's marks may go: the lent mark's (`mark`, the `ChangeMark` an app lends through
+ * `VultusComponents`) `durations(element, speed)`, the timings of its look, read at `element` (the
+ * near container, else none) at `speed` (`normal` by default).
  *
  * Without a mark, or one that gives no `durations`, vultus's defaults: 1.55 s on the plain timeline
  * and 2.3 s on removals, at every speed, so a page without a look still ends a switch and its marks

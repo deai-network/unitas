@@ -48,7 +48,7 @@ describe('ChangeMark', () => {
     }
   });
 
-  it("gives the lent mark exactly harma-style's Highlight props: the variant, the word's timeline, the speed, data-change and the children", () => {
+  it("gives the lent mark exactly its props: the variant, the word's timeline, the speed, data-change and the children", () => {
     const props = (level: ChangeLevel, timeline: ChangeTimeline | undefined, speed: ChangeSpeed | undefined) => {
       received.splice(0);
       const { unmount } = render(lent(<ChangeMark level={level} number={1} timeline={timeline} speed={speed}>x</ChangeMark>));

@@ -94,7 +94,7 @@ interface Kept {
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 /**
- * What changed between two versions of a text, lit up (spec 5). `text` is the whole content, all
+ * What changed between two versions of a text, lit up. `text` is the whole content, all
  * its parts; `key` its identity, the app's decision of which changes are related:
  * - same key, new text: a switch. Each part diffs its previous reading against this one, and the
  *   switch animates;

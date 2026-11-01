@@ -64,14 +64,14 @@ export function changeStore(initial: ChangeState = { number: 0, timeline: undefi
  * each carrying `data-change`, its level. The one place the look is drawn.
  *
  * The look is the lent mark's: the `ChangeMark` an app lends through `VultusComponents`; without
- * one, vultus's fallback (`FallbackMark`), static marks. `variant="change"` on the word, lightly. On the `plain` timeline (and until it is
- * decided), `variant="change-strong"` on its letters inside it, more strongly: lit at once, then
- * faded, each mark timed from its own insertion. On the `removals` timeline, the old letters in
- * `variant="change-removed"` (cut away first) and the new ones in `variant="change-added"`
- * (uncovered after); every word takes `timeline="removals"`, so that one holding neither removed
- * nor added letters (the `vei` of `*hí*vei`, a piece of a word split by markup) waits with the rest
- * rather than lighting at once. `removed` is drawn so on either timeline: a switch that shows any is
- * on `removals`.
+ * one, vultus's fallback (`FallbackMark`), static marks. `variant="change"` on the word, lightly.
+ * On the `plain` timeline (and until it is decided), `variant="change-strong"` on its letters
+ * inside it, more strongly: lit at once, then faded, each mark timed from its own insertion. On the
+ * `removals` timeline, the old letters in `variant="change-removed"` (cut away first) and the new
+ * ones in `variant="change-added"` (uncovered after); every word takes `timeline="removals"`, so
+ * that one holding neither removed nor added letters (the `vei` of `*hí*vei`, a piece of a word
+ * split by markup) waits with the rest rather than lighting at once. `removed` is drawn so on
+ * either timeline: a switch that shows any is on `removals`.
  *
  * A replacement (`replaced`), on the `removals` timeline, is `variant="change-replaced"` around its
  * two, which morph from the old letters to the new. A lent mark may measure both letters once, as
@@ -82,9 +82,8 @@ export function changeStore(initial: ChangeState = { number: 0, timeline: undefi
  *
  * Keyed by `number`, the switch's: a lent mark's fade may belong to the element, timed from its
  * insertion, and react-markdown keys an element by its tag's count among its siblings, so the next
- * switch's mark on the same word has the same key. A new number draws new
- * marks, lit from the start, never the switch before's, half faded or gone; a render within one
- * keeps them, fading on.
+ * switch's mark on the same word has the same key. A new number draws new marks, lit from the
+ * start, never the switch before's, half faded or gone; a render within one keeps them, fading on.
  *
  * Every mark takes the switch's `speed` (the lent mark's; none: normal), so its words and letters
  * run one timeline.
@@ -122,10 +121,10 @@ const LEVELS: ReadonlySet<string> = new Set<ChangeLevel>(['word', 'letters', 're
 const made = new WeakMap<ChangeSource, ChangeComponents>();
 
 /**
- * The `ins` entry drawing the change marks with `source`'s state (spec 4): an `ins` whose
- * `data-change` is a change level is a `ChangeMark` with the switch's number, timeline and speed; any
- * other `ins` is drawn as itself (react-markdown's `node` dropped). One frozen object per source,
- * so its identity never changes: an app's Markdown memoises on its `components`.
+ * The `ins` entry drawing the change marks with `source`'s state: an `ins` whose `data-change` is a
+ * change level is a `ChangeMark` with the switch's number, timeline and speed; any other `ins` is
+ * drawn as itself (react-markdown's `node` dropped). One frozen object per source, so its identity
+ * never changes: an app's Markdown memoises on its `components`.
  */
 export function changeComponents(source: ChangeSource): ChangeComponents {
   let components = made.get(source);
@@ -148,10 +147,10 @@ const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffec
 /**
  * A `ChangeMark` drawn with `source`'s state as it reads it in render, re-drawn on its
  * notifications alone (its parents are not re-rendered). It subscribes in a layout effect, not
- * through `useSyncExternalStore`, which subscribes in the passive phase (Ruling 4): the hook
- * decides the timeline in its own layout effect, which runs after its children's, so the marks
- * have subscribed by then and take it before the paint. At subscription it re-draws if the state
- * changed since its render.
+ * through `useSyncExternalStore`, which subscribes in the passive phase: the hook decides the
+ * timeline in its own layout effect, which runs after its children's, so the marks have subscribed
+ * by then and take it before the paint. At subscription it re-draws if the state changed since its
+ * render.
  */
 function LiveMark({ source, level, children }: { source: ChangeSource; level: ChangeLevel; children?: ReactNode }): ReactElement {
   const [, redraw] = useReducer((count: number) => count + 1, 0);

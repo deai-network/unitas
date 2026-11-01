@@ -3,8 +3,7 @@ import { VultusComponentsContext, type ChangeMarkComponent, type ChangeMarkProps
 import type { ChangeDurations, ChangeSpeed } from '../../changes/changeDurations.js';
 
 // A change mark lent to vultus for a test, as an app lends its look (`VultusComponents`'
-// `ChangeMark`): where harma-style's tests read `Highlight`'s classes, these read the props the lent
-// mark received.
+// `ChangeMark`): the tests read the props the lent mark received, not a look's classes.
 
 /** The props of every `TestMark` render, in order; a test empties it (`received.splice(0)`). */
 export const received: ChangeMarkProps[] = [];
@@ -29,16 +28,16 @@ export function timedMark(durations: (element: Element | undefined, speed: Chang
   return Mark;
 }
 
-/** harma-style's change highlight's durations at each speed, from its stylesheet: what its lent
- *  mark's `durations` gives on a page with no override and no reduced motion. */
-export const HARMA_DURATIONS: Readonly<Record<ChangeSpeed, ChangeDurations>> = {
+/** A style library's change highlight's durations at each speed, from its stylesheet: what its
+ *  lent mark's `durations` gives on a page with no override and no reduced motion. */
+export const STYLE_DURATIONS: Readonly<Record<ChangeSpeed, ChangeDurations>> = {
   slow: { plain: 2250, removals: 3500 },
   normal: { plain: 1550, removals: 2300 },
   fast: { plain: 1200, removals: 1700 },
 };
 
-/** A lent mark timed by `HARMA_DURATIONS`, at the speed it is asked for. */
-export const SpeedMark = timedMark((_element, speed) => ({ ...HARMA_DURATIONS[speed] }));
+/** A lent mark timed by `STYLE_DURATIONS`, at the speed it is asked for. */
+export const SpeedMark = timedMark((_element, speed) => ({ ...STYLE_DURATIONS[speed] }));
 
 /** The context value lending each mark: one per mark, so a re-render lends the same value. */
 const values = new WeakMap<ChangeMarkComponent, VultusComponents>();

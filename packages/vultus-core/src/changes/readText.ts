@@ -1,7 +1,9 @@
 import type { Element, Root, Text } from 'hast';
 import { BLOCK_ELEMENTS } from './blocks.js';
 
-/** What the reading leaves out besides `data-vultus-change-skip`: the app's (spec 2). */
+/** What the reading leaves out besides `data-vultus-change-skip`: the app's choice, since only it
+ *  knows which elements hold no text of its own (a footnote's mark and back link, a notes heading
+ *  for screen readers, rendered math). */
 export interface ReadTextOptions {
   /** Whether an element is left out of the reading, with all it holds. */
   skip?: (element: Element) => boolean;
@@ -29,7 +31,7 @@ export interface Reading {
 }
 
 /**
- * The reading of a hast tree (spec 2), which both sides of a diff use: its text nodes' values in
+ * The reading of a hast tree, which both sides of a diff use: its text nodes' values in
  * document order, prose white space collapsed to one space (soft line breaks too, so a source line
  * end inside "t. i." does not split it), and a line feed, a hard boundary for `changesIn`, exactly
  * where a line really ends: before and after every block element (`BLOCK_ELEMENTS`), at a `br`, and

@@ -19,8 +19,8 @@ function numberOf(element: Element, attribute: string): number | undefined {
 /**
  * The range of the innermost of `elements` (numbered blocks crossing the band, in any order): each
  * one containing another of them is dropped, so a quote or an outer list item spanning the band
- * pulls nothing back (praeceptor's F1b: a quote of 200 paragraphs, 150 to 153 in the band, gives 150
- * to 153, not 1 to 153); the first and last of the rest's numbers. A block holding blocks only
+ * pulls nothing back (a quote of 200 paragraphs, 150 to 153 in the band, gives 150 to 153, not 1
+ * to 153); the first and last of the rest's numbers. A block holding blocks only
  * outside the band counts: a tight list item whose first line is in it, its nested items below.
  * None numbered (by `attribute`), none. Praeceptor's `visibleBlocks`, on a set of elements instead
  * of laid-out boxes.
@@ -54,9 +54,9 @@ interface Seen {
 /**
  * The numbered blocks (`attribute`) crossing `container`, tracked with an IntersectionObserver
  * whose root is the container (`rootMargin`: a sticky bar over its top, say), for the near set a
- * switch takes (spec 5, `near`). Every numbered block inside the container is observed, those
- * rendered later too (a MutationObserver sees them come and go). Set up in a passive effect, when
- * an ancestor's ref is attached; again when the container (the ref object or the element), the
+ * switch takes (`useTextChanges`' `near`). Every numbered block inside the container is observed,
+ * those rendered later too (a MutationObserver sees them come and go). Set up in a passive effect,
+ * when an ancestor's ref is attached; again when the container (the ref object or the element), the
  * attribute or the margin change. One object for the hook's life: read `range()` when it is needed.
  * Without an IntersectionObserver (an old browser, jsdom) or a container, no range.
  *

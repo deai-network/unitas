@@ -1,6 +1,6 @@
 /**
- * The block elements: a hard feed before and after each in the reading (`readText`, spec 2), so
- * that no change runs across one's edge.
+ * The block elements: a hard feed before and after each in the reading (`readText`), so that no
+ * change runs across one's edge.
  */
 export const BLOCK_ELEMENTS: ReadonlySet<string> = new Set([
   'address', 'article', 'aside', 'blockquote', 'caption', 'dd', 'details', 'div', 'dl', 'dt', 'fieldset',

@@ -118,7 +118,7 @@ describe('changesPlugin', () => {
     }
   });
 
-  it('a letter removed (spec 11): the old one inside the word, at its place', () => {
+  it('a letter removed: the old one inside the word, at its place', () => {
     for (const container of both('a katholikus b', 'a katolikus b')) {
       expect(marks(container, 'letters')).toEqual([]);
       expect(children(container.querySelector('[data-change="word"]')!))
@@ -276,8 +276,8 @@ describe('changesPlugin', () => {
   });
 
   it("each switch's marks are new elements (the number); a render within one keeps them, a hit put in before them too", () => {
-    // A lent mark may fade from the element's own insertion (harma-style's does): a mark kept from
-    // the switch before would show faded, and one drawn anew, or moved in the DOM, starts over.
+    // A lent mark may fade from the element's own insertion: a mark kept from the switch before
+    // would show faded, and one drawn anew, or moved in the DOM, starts over.
     // A search after the changes: the paragraph's first 'a' in a `mark`.
     const hit: Plugin = () => (tree) => {
       const paragraph = Array.from(elements(tree)).find((element) => element.tagName === 'p')!;
@@ -482,8 +482,8 @@ describe('changesPlugin', () => {
 
 describe('text directly in a block holder', () => {
   // Raw HTML or an app's own tree can put text straight into a div (or the root); it is read and
-  // diffed, so it is marked too. Only white space between blocks is left alone (final review,
-  // 2026-10-29: it used to be read but never marked).
+  // diffed, so it is marked too. Only white space between blocks is left alone (until 2026-10-29,
+  // such text was read but never marked).
   it('is marked like text in a paragraph', () => {
     const tree: Root = { type: 'root', children: [el('div', null, 'a hívei b'), el('p', null, 'c hívei d')] };
     changesPlugin({ from: 'a hivei b\nc hivei d', onRead: () => {} })()(tree);

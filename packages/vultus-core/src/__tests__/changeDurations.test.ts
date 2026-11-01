@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ChangeMarkComponent } from '../Components.js';
 import { changeDurations, type ChangeDurations, type ChangeSpeed } from '../changes/changeDurations.js';
 
-// When a switch's marks may go (spec 6): the timings belong to the look, so they come from the lent
-// mark's `durations`; without a mark, or one that gives none, vultus's defaults (harma-style's
+// When a switch's marks may go: the timings belong to the look, so they come from the lent mark's
+// `durations`; without a mark, or one that gives none, vultus's defaults (a change highlight's
 // normal timings, at every speed), so a page without a look still ends a switch.
 
 const SPEEDS = ['slow', 'normal', 'fast'] as const;

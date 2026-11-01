@@ -23,7 +23,9 @@ export interface Token {
   word: boolean;
 }
 
-/** diff-match-patch's time budget for one diff, in seconds (praeceptor's spec 6). Past it the diff is coarser, not wrong. */
+/** diff-match-patch's time budget for one call, in seconds: the diff runs in the render that shows
+ *  the new text, so a long text must not hold that render up. Past it the diff is coarser, not
+ *  wrong. */
 const DIFF_TIMEOUT_S = 0.2;
 
 /**
@@ -108,14 +110,14 @@ export function lineEnds(text: string): (at: number) => boolean {
  * is one span across one (the run is lit word by word, as a long one is). Only hard boundaries
  * moved (a paragraph split or joined) is no change: white space is no token.
  *
- * And what went (praeceptor's spec 11, "Removed letters"): the old letters each change removed, as
- * `removed` changes of no width at their place in the new text, carrying them (`text`, its white
- * space collapsed: never a line feed, which the lent mark's pieces may keep as a break). Inside a
- * changed word, before the letters that replaced them ("hivei" to "hívei": the "i" before the "í";
- * "katholikus" to "katolikus": the "h" between "t" and "o"), white space and punctuation too (a
- * space joined away: "szent áldozásban" to "szentáldozásban"), never between a letter and its
- * combining mark; at a word marked whole, the old text it replaced, whole, before it ("t. i."
- * before "tudniillik"). What went outside every word's span is not shown. A change that removed
+ * And what went: the old letters each change removed, as `removed` changes of no width at their
+ * place in the new text, carrying them (`text`, its white space collapsed: never a line feed,
+ * which the lent mark's pieces may keep as a break). Inside a changed word, before the letters
+ * that replaced them ("hivei" to "hívei": the "i" before the "í"; "katholikus" to "katolikus": the
+ * "h" between "t" and "o"), white space and punctuation too (a space joined away: "szent
+ * áldozásban" to "szentáldozásban"), never between a letter and its combining mark; at a word
+ * marked whole, the old text it replaced, whole, before it ("t. i." before "tudniillik"). What
+ * went outside every word's span is not shown. A change that removed
  * words and put in none (a word removed altogether) gets a `word` span of no width at the start
  * of the token after it (past the last one, at the end of the text), holding the run with the
  * space that separated it: after it ("a b c" to "a c": "b "), or before it where nothing separates
@@ -400,7 +402,8 @@ function addRemoval(
   // A run that touched the token before it in the old text (punctuation: "Péter, a halász,
   // mondta" to "Péter mondta") goes at that token's end, the space after it left where it is.
   const touching = before !== undefined && !first.word && first.start > 0 && !/\s/.test(from.charAt(first.start - 1));
-  // Ruling 2: a run that ended its line stays on it where the new text keeps the line end.
+  // A run that ended its line stays on it where the new text keeps the line end: a word removed at
+  // a paragraph's end shows in that paragraph, not at the next one's start.
   const endedLine = !touching && before !== undefined && after !== undefined
     && toLineEnd(before.end) && fromLineEnd(last.end);
   const place = touching || endedLine ? before!.end : after?.start ?? before?.end ?? 0;

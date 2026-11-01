@@ -15,7 +15,7 @@ export interface ChangingTextProps {
 }
 
 /**
- * A plain string whose changes light up (spec 7): `useTextChanges` for one string, with its key
+ * A plain string whose changes light up: `useTextChanges` for one string, with its key
  * semantics (`changeKey`, `animate`) and `speed`. Rendered as it is, with no wrapper (a Fragment):
  * the string's text as strings, its change marks through the hook's `ins` entry. The string is read
  * inside a private `span`, never rendered: a text right under the root counts as between blocks,
