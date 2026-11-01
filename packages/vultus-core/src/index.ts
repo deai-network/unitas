@@ -80,3 +80,6 @@ export {
   type VultusComponents, type SpinnerProps, type SpinnerComponent,
   type ChangeMarkVariant, type ChangeMarkProps, type ChangeMarkComponent,
 } from './Components.js';
+// Types only, so a lender can name its mark's props here; the code stays behind `vultus-core/changes`.
+export type { ChangeDurations, ChangeSpeed } from './changes/changeDurations.js';
+export type { ChangeLevel } from './changes/changesIn.js';

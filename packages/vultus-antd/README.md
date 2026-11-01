@@ -252,9 +252,8 @@ keyup), not at each step of a drag, as `OneOfSlider` does; the shown value follo
 it is in progress. A slider never jumps back to the old value while a request is in flight: the
 moved-to value — both ends `[from, to]` for `RangeSlider` — stays shown while its confirmation is
 open or its commit is pending; once neither is true the field's own value shows again: the new
-one on success, the old one after a Cancel or a failure. `NumericSlider` needs both
-`min` and `max` on the field (there is no way to size a track otherwise); without them it throws,
-naming the field. Each handle keeps antd's own tooltip (hover, focus, drag), formatting its value
+one on success, the old one after a Cancel or a failure. `NumericSlider` needs both `min` and `max`
+on the field (there is no way to size a track otherwise); without them it throws, naming the field. Each handle keeps antd's own tooltip (hover, focus, drag), formatting its value
 with `field.format`; the rest of the slider (the track) carries the field's own tooltip instead,
 with no "Current state:" lead (a handle's tooltip already shows it), held back while hovering a
 handle (its own tooltip would double up) or while a confirmation is open. `showValue` puts the

@@ -734,7 +734,12 @@ keeps them away from assistive technology, the tab order and a selection (`aria-
 Its timings travel with it, as they belong to its look (its CSS): a static
 **`durations(element, speed)`** gives `{ plain, removals }`, when its marks may go on each
 timeline, in ms from the commit that shows the new text, at `speed`, read at `element` (`near`'s
-container, else `undefined`). A lent mark without `durations` gets vultus's defaults.
+container, else `undefined`). A lent mark without `durations` gets vultus's defaults. The types its
+props and timings name (`ChangeLevel`, `ChangeSpeed`, `ChangeDurations`) come from `vultus-core`
+too, as types only.
+
+The hook times a switch by the mark lent where the hook is called, and the marks are drawn by the
+one lent where they render: keep both under one provider, so that the look and its timings agree.
 
 ```tsx
 import { version } from 'react';
