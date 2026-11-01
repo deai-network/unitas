@@ -21,12 +21,13 @@ import { defaultVultusTexts, VultusTextsContext, type VultusTexts } from './text
  * `message.*` functions), so the toast renders inside the app's tree and follows the
  * app's ConfigProvider (theme, prefix).
  *
- * `components` lends the app's own widgets (today: `Spinner`) to vultus/optio in place of
- * their antd defaults, e.g. `<VultusProvider components={{ Spinner: DaeoSpinner }}>`. It
- * merges over whatever an outer `VultusProvider` (or `VultusComponentsContext.Provider`,
- * for apps without vultus-antd) already provided, so a nested provider can override one
- * slot (`{ ...outer, ...components }`) without losing the others; omit it and the outer
- * value (or core's `{}` default) applies unchanged.
+ * `components` lends the app's own widgets to vultus/optio in place of their defaults (today:
+ * `Spinner`, for antd's spinner, and `ChangeMark`, for the static marks of vultus-core's text
+ * changes), e.g. `<VultusProvider components={{ Spinner: DaeoSpinner }}>`. It merges over
+ * whatever an outer `VultusProvider` (or `VultusComponentsContext.Provider`, for apps
+ * without vultus-antd) already provided, so a nested provider can override one slot
+ * (`{ ...outer, ...components }`) without losing the others; omit it and the outer value
+ * (or core's `{}` default) applies unchanged.
  */
 export function VultusProvider({
   children, linkComponent, messageSink, texts, components,
@@ -38,18 +39,22 @@ export function VultusProvider({
   components?: VultusComponents;
 }) {
   // `{ ...outerComponents, ...components }`, kept on purpose: `components={{ Spinner:
-  // undefined }}` explicitly clears an inherited slot (a subtree wants antd's own spinner
-  // back), which a `??` fallback would not do. But keyed on each slot's own value and
-  // whether `components` itself sets that key — not on the `outerComponents`/`components`
-  // object references — so the natural inline call site (`components={{ Spinner: X }}`, a
-  // new object literal every render) doesn't change the merged value's identity (and so
-  // re-render every consumer below) unless a slot actually changed. Add one triplet here
-  // per slot as VultusComponents grows.
+  // undefined }}` explicitly clears an inherited slot (a subtree wants antd's own spinner, or
+  // vultus's fallback change marks, back), which a `??` fallback would not do. But keyed on
+  // each slot's own value and whether `components` itself sets that key — not on the
+  // `outerComponents`/`components` object references — so the natural inline call site
+  // (`components={{ Spinner: X }}`, a new object literal every render) doesn't change the
+  // merged value's identity (and so re-render every consumer below) unless a slot actually
+  // changed. Add one triplet here per slot as VultusComponents grows.
   const outerComponents = useVultusComponents();
   const hasOwnSpinner = components ? 'Spinner' in components : false;
+  const hasOwnChangeMark = components ? 'ChangeMark' in components : false;
   const mergedComponents = useMemo<VultusComponents>(
     () => ({ ...outerComponents, ...components }),
-    [outerComponents.Spinner, hasOwnSpinner, components?.Spinner],
+    [
+      outerComponents.Spinner, hasOwnSpinner, components?.Spinner,
+      outerComponents.ChangeMark, hasOwnChangeMark, components?.ChangeMark,
+    ],
   );
   const [messageApi, messageHolder] = antdMessage.useMessage();
   const sink = useMemo<MessageSink>(

@@ -97,6 +97,29 @@ stable keys — e.g. an app wrapping each open process's view in
 `<SpinnerScope name={"process:" + id}>` turns the library-local key `vultus:action:send`
 into `process:123/vultus:action:send`. Scopes nest (outer/inner).
 
+## ChangeMark slot
+
+`<VultusProvider components={{ ChangeMark }}>` lends the look of vultus-core's text changes
+(`vultus-core/changes`; its README, "Text changes"), next to `Spinner`:
+
+```tsx
+<VultusProvider components={{ Spinner: DaeoSpinner, ChangeMark: AppChangeMark }}>
+  <App />
+</VultusProvider>
+```
+
+The mark is a component drawing one change mark (`ChangeMarkProps` from `vultus-core`: `variant`,
+`timeline?`, `speed?`, `data-change`, `children`), with its timings as a static
+`durations(element, speed)` (`ChangeMarkComponent`). Without one, vultus-core draws static marks
+in inline styles and ends a switch at its default timings. vultus has no stylesheet for the marks:
+the look comes from whoever lends the mark, such as a style library's provider.
+
+It merges exactly as `Spinner` does: a nested `VultusProvider` can set `ChangeMark` alone and keep
+an outer `Spinner`, `components={{ ChangeMark: undefined }}` clears an inherited one (back to the
+static marks), and an inline `components={{ ... }}` changes the value below only when a slot
+changes. `Markdown` takes the text changes' `rehypePlugin` and `components` through its
+`rehypePlugins` and `components` props.
+
 ## Pending lock
 
 While a field is enabled and pending (its commit runs, or its `pending` option says the app is

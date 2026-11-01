@@ -36,10 +36,14 @@ npm install vultus-core
   `useInternalLink` / `InternalLinkComponent`, `MessageSinkContext` /
   `useMessageSink` / `MessageSink`, and `VultusComponentsContext` /
   `useVultusComponents` / `SpinnerScope` / `useSpinnerKey` /
-  `VultusComponents` / `SpinnerProps` / `SpinnerComponent`.
+  `VultusComponents` / `SpinnerProps` / `SpinnerComponent` /
+  `ChangeMarkVariant` / `ChangeMarkProps` / `ChangeMarkComponent`.
 - `./link` — `InternalLinkContext`, `useInternalLink`, and the
   `InternalLinkComponent` type on their own, for consumers that only need the
   link-injection seam.
+- `./changes` — text changes (see Text changes, below): `useTextChanges`,
+  `ChangingText`, `changesIn`, `readText`, `changeDurations` and their types.
+  Only this entry loads `diff-match-patch`.
 
 ## Actions report messages
 
@@ -628,8 +632,10 @@ it). The group then keeps the value and re-renders, so every option is computed 
 ## Components
 
 `VultusComponentsContext` (default `{}`) / `useVultusComponents()` is how an app lends its own
-UI to vultus/optio in place of their native indicators — today just `Spinner` (`SpinnerProps`:
-`spinnerKey`, `size?`, `label?`; `VultusComponents.Spinner?: SpinnerComponent`). vultus-antd's
+UI to vultus/optio in place of their native indicators — today `Spinner` (`SpinnerProps`:
+`spinnerKey`, `size?`, `label?`; `VultusComponents.Spinner?: SpinnerComponent`) and
+`ChangeMark`, the marks of text changes (`VultusComponents.ChangeMark?: ChangeMarkComponent`;
+see Text changes, below). vultus-antd's
 `VultusProvider` merges a `components` prop into the outer context value; without one, the
 outer value (or this default) applies, as `linkComponent` does today.
 
@@ -639,6 +645,176 @@ rather than hardcoding it, so an app can scope a whole subtree's keys to one ins
 `'optio:process:p1/' + localKey`; scopes nest by joining names with `/`, outermost first.
 Library-local keys are namespaced (`vultus:...`, `optio:...`) so they never collide with an
 app's own keys.
+
+## Text changes
+
+What changed between two versions of a text, found and lit up: when a text switches to a related
+version (another spelling, an edit), its changed words and letters are marked for a moment, then
+the marks go. It lives at `vultus-core/changes`, so the main entry stays light: only an app that
+shows text changes loads `diff-match-patch`. (It moved here from harma-style's `/changes`,
+unchanged but for two DOM names: `data-harma-block` and `data-harma-change-skip` are now
+`data-vultus-block` and `data-vultus-change-skip`.)
+
+vultus decides what changed and which mark goes where; the look comes from whoever lends the
+`ChangeMark` (a style library's provider, say). vultus has no stylesheet for the marks: without a
+lent mark, it draws static ones in inline styles (the fallback, below).
+
+### The API
+
+- **`useTextChanges(text, options)`** returns `{ rehypePlugin, components, part(name), active }`
+  for a Markdown renderer (react-markdown, vultus-antd's `Markdown`): `rehypePlugin` goes into its
+  `rehypePlugins`, and `components` (one `ins` entry, drawing the marks) is merged into its
+  `components`. `text` is the whole content, all its parts.
+  - **`key`** (required) is the content's identity: the app decides which changes are related,
+    and the hook never guesses. Same key, new text: a switch, which animates. A new key: the text
+    appears plainly, and a running switch stops at once. Same key, same text (a reload, a
+    refetch): nothing. The key carries everything that makes content unrelated (the UI language,
+    a data generation), or a language change lights the whole text. The first render has nothing
+    before it, so nothing animates.
+  - **`animate: false`** swaps plainly once, under the same key too (a live edit), and replaces
+    the reading, so the next related change starts from this text.
+  - **`near`** limits the marks to the blocks near the screen: a function of the block number, or
+    `{ container, blocks, rootMargin? }`, the innermost blocks crossing `container` (the scrolling
+    pane, through an IntersectionObserver) as a switch starts, `blocks` more each way. It is frozen
+    for the switch. Without `near`, or with no range yet, everything is marked. A ref object as
+    `container` is read once, after mount: a pane that mounts later or is replaced is given as the
+    element (a callback ref kept in state).
+  - **`skip(element)`** names what the reading leaves out (footnote marks, KaTeX's output), besides
+    elements carrying `data-vultus-change-skip`; it gets the hast `Element` the plugin visits.
+  - **`blockAttribute`** names an existing block numbering (`'data-block'`) for `near`; without it
+    the plugin numbers the blocks itself, as `data-vultus-block`.
+  - **`speed`**: `'slow'`, `'normal'` (the default) or `'fast'`, the lent mark's `speed`. It is
+    taken as a switch starts and held for it, marks and timer alike; a new speed counts from the
+    next switch and parses nothing.
+  - **`part(name)`** gives one tree's `{ rehypePlugin, components }`, for a text drawn as several
+    trees (a heading in a title slot, the body below); the result's own are the default part's.
+    Each part diffs its own previous reading, and the parts share one switch: one number, one
+    timer, one timeline.
+  - **`active`** is true while a switch's marks are shown.
+  - **Identities.** `components` never changes; `rehypePlugin` and each part keep theirs while
+    nothing changes (they change as a switch starts and ends, and with a plain swap), so a
+    memoised Markdown parses again only then: keep the plugin list memoised on `rehypePlugin`.
+    Inline `skip` and `near` change nothing.
+  - **Plugin order.** `rehypePlugin` goes after the plugins that shape the text it reads (with
+    `blockAttribute`, the one that numbers the blocks), and before those that add search marks,
+    which must skip `[data-change=removed]`.
+- **`<ChangingText changeKey>{string}</ChangingText>`** does the same for a plain string, with the
+  same key rules, `animate` and `speed`, rendered as it is, with no wrapper.
+- **`changesIn(from, to)`**, the diff of two plain texts (`Change[]`: `word` and `letters` spans of
+  `to`, and `removed` ones of no width at their place, carrying the old letters as `text`), and
+  **`readText(tree, options?)`**, the
+  reading of a hast tree that both sides use, are exported for an app's own use.
+- **`changeDurations(element?, speed?, mark?)`** gives `{ plain, removals }`, in ms, when a
+  switch's marks may go: `mark.durations(element, speed)`, else vultus's defaults (below). The hook
+  times each switch with it, with the lent mark, at `near`'s container (else none) and the
+  switch's speed.
+
+### The lent mark
+
+The marks are drawn by the `ChangeMark` in `VultusComponents` (with vultus-antd,
+`<VultusProvider components={{ ChangeMark }}>`; without it, a `VultusComponentsContext.Provider`).
+It is a component drawing one mark, nested as the changes are (letters inside their word), with
+these props (`ChangeMarkProps`):
+
+- `variant` (`ChangeMarkVariant`): `change`, a changed word, lightly; `change-strong`, its changed
+  letters inside it, more strongly (a switch with no removed letters); on a switch with removed
+  letters, `change-removed`, the old letters that went, at their place, and `change-added`, the
+  new ones; `change-replaced`, a replacement, around exactly one `change-removed` and one
+  `change-added` (old and new letters at one place);
+- `timeline`: `'removals'` on a word while the switch is on the removals timeline, so that it
+  waits with the removed and added letters;
+- `speed`: the switch's (none: normal);
+- `data-change`: the change's level (`word`, `letters`, `removed`, `replaced`), for the element
+  the mark draws;
+- `children`.
+
+Each switch's marks are new elements (vultus keys them by the switch), so a look timed from its
+element's insertion starts again with each switch. Removed letters are not the page's text: a mark
+keeps them away from assistive technology, the tab order and a selection (`aria-hidden`, `inert`,
+`user-select: none`).
+
+Its timings travel with it, as they belong to its look (its CSS): a static
+**`durations(element, speed)`** gives `{ plain, removals }`, when its marks may go on each
+timeline, in ms from the commit that shows the new text, at `speed`, read at `element` (`near`'s
+container, else `undefined`). A lent mark without `durations` gets vultus's defaults.
+
+```tsx
+const FadeMark: ChangeMarkComponent = Object.assign(
+  ({ variant, 'data-change': change, children }: ChangeMarkProps) => {
+    const removed = variant === 'change-removed' || undefined;
+    return <mark className={`fade-${variant}`} data-change={change} aria-hidden={removed} inert={removed}>{children}</mark>;
+  },
+  { durations: () => ({ plain: 1500, removals: 2500 }) }, // when fade.css's animations end
+);
+
+<VultusProvider components={{ ChangeMark: FadeMark }}>{app}</VultusProvider>
+```
+
+### Without a lent mark
+
+vultus's fallback is static marks in inline styles, with no stylesheet and no animation, each a
+`mark` carrying `data-change`: `change`, `change-strong` and `change-added` a translucent green
+background; `change-removed` a translucent red one, struck through (and `aria-hidden`, `inert`,
+`user-select: none`); `change-replaced` drawn as its new letters (the old ones in it not
+displayed). The colours are fixed and translucent, so they read on a light and a dark background
+alike. Its timings are vultus's defaults: the marks go 1.55 s after the switch on the plain
+timeline and 2.3 s after it on removals, at every speed, so a switch still ends.
+
+### Example
+
+A task page shaped like Praeceptor's: one Markdown content drawn as two trees (its leading
+heading in the title slot, the body below), over the app's own block numbering and leave-outs.
+`rehypeBlocks`, `rehypeSearch` and `leadingHeading` stand for the app's own.
+
+```tsx
+import { useMemo } from 'react';
+import type { Element } from 'hast';
+import { Markdown } from 'vultus-antd';
+import { useTextChanges } from 'vultus-core/changes';
+
+/** What the reader does not read as text: a footnote's link back, KaTeX's output. */
+const skip = (element: Element) =>
+  String(element.properties.className ?? '').includes('katex')
+  || (element.tagName === 'a' && element.properties.dataFootnoteBackref !== undefined);
+
+function TaskText({ task, markdown, lang, pane }: TaskTextProps) {
+  const changes = useTextChanges(markdown, {
+    // Another version of the same text, in the same language, lights up; anything else shows plainly.
+    key: `${task.textOf ?? task.id}/${lang}`,
+    near: pane ? { container: pane, blocks: 3 } : undefined, // the blocks in view, 3 more each way
+    blockAttribute: 'data-block', // rehypeBlocks numbers them already
+    skip,
+  });
+  const heading = changes.part('heading');
+  const body = changes.part('body');
+  const { title, rest } = leadingHeading(markdown);
+  // Memoised on the plugin: a new list every render would make Markdown parse every render.
+  const headingPlugins = useMemo(() => [heading.rehypePlugin], [heading.rehypePlugin]);
+  const bodyPlugins = useMemo(() => [rehypeBlocks, body.rehypePlugin, rehypeSearch], [body.rehypePlugin]);
+  return (
+    <>
+      <h2><Markdown inline rehypePlugins={headingPlugins} components={heading.components}>{title}</Markdown></h2>
+      <Markdown rehypePlugins={bodyPlugins} components={body.components}>{rest}</Markdown>
+    </>
+  );
+}
+```
+
+An app with components of its own merges the hook's over them, memoised:
+`useMemo(() => ({ ...mine, ...body.components }), [body.components])`.
+
+### Known gaps
+
+Known and not fixed yet, all in what is marked and where, not in how a mark looks:
+
+- A word removed altogether right beside a changed word is drawn inside that word's mark (whose
+  span runs from white space to white space), not as a removal of its own.
+- Punctuation replaced by other punctuation is not drawn as a replacement: the old and the new
+  show side by side.
+- A removed run that starts with a word and touches punctuation, where the new text keeps a space
+  at that place, shows after that space.
+- With `near` as the blocks on screen, which go by the innermost blocks, the first lines of an
+  outer block in a deeply nested outline can fall outside the range, and are not marked.
 
 ## Distribution
 

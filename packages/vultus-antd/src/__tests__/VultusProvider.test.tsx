@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { ConfigProvider } from 'antd';
-import { useMessageSink, useVultusComponents, type SpinnerProps } from 'vultus-core';
+import { useMessageSink, useVultusComponents, type ChangeMarkProps, type SpinnerProps } from 'vultus-core';
 import { VultusProvider } from '../VultusProvider.js';
 import { defaultVultusTexts, useVultusTexts } from '../texts.js';
 
@@ -18,6 +18,16 @@ function ComponentsProbe() {
   const { Spinner } = useVultusComponents();
   return <div data-testid="probe">{Spinner ? Spinner.name : 'none'}</div>;
 }
+
+function MarkA(_props: ChangeMarkProps) { return null; }
+function MarkB(_props: ChangeMarkProps) { return null; }
+
+/** Both slots, as `Spinner|ChangeMark` ('none' for an empty one). */
+function SlotsProbe() {
+  const { Spinner, ChangeMark } = useVultusComponents();
+  return <div data-testid="slots">{Spinner ? Spinner.name : 'none'}|{ChangeMark ? ChangeMark.name : 'none'}</div>;
+}
+const slots = () => screen.getByTestId('slots').textContent;
 
 describe('VultusProvider', () => {
   it('default sink shows the error through antd message under the app ConfigProvider', async () => {
@@ -137,6 +147,110 @@ describe('VultusProvider', () => {
       </VultusProvider>,
     );
     expect(renderCount).toBe(2);
+  });
+});
+
+describe('VultusProvider ChangeMark slot', () => {
+  it('a nested provider that sets only ChangeMark overrides it and keeps the outer Spinner', () => {
+    render(
+      <VultusProvider components={{ Spinner: SpinnerA, ChangeMark: MarkA }}>
+        <VultusProvider components={{ ChangeMark: MarkB }}>
+          <SlotsProbe />
+        </VultusProvider>
+      </VultusProvider>,
+    );
+    expect(slots()).toBe('SpinnerA|MarkB');
+  });
+
+  it('an explicit ChangeMark: undefined clears the inherited one, on a re-render too', () => {
+    const { rerender } = render(
+      <VultusProvider components={{ Spinner: SpinnerA, ChangeMark: MarkA }}>
+        <VultusProvider components={{ ChangeMark: undefined }}>
+          <SlotsProbe />
+        </VultusProvider>
+      </VultusProvider>,
+    );
+    expect(slots()).toBe('SpinnerA|none');
+
+    // The inner provider first leaves ChangeMark to the outer one, then clears it: only whether
+    // `components` sets the key changes (its value is undefined both times).
+    rerender(
+      <VultusProvider components={{ Spinner: SpinnerA, ChangeMark: MarkA }}>
+        <VultusProvider components={{ Spinner: SpinnerB }}>
+          <SlotsProbe />
+        </VultusProvider>
+      </VultusProvider>,
+    );
+    expect(slots()).toBe('SpinnerB|MarkA');
+    rerender(
+      <VultusProvider components={{ Spinner: SpinnerA, ChangeMark: MarkA }}>
+        <VultusProvider components={{ Spinner: SpinnerB, ChangeMark: undefined }}>
+          <SlotsProbe />
+        </VultusProvider>
+      </VultusProvider>,
+    );
+    expect(slots()).toBe('SpinnerB|none');
+  });
+
+  it('a fresh inline components object with the same ChangeMark keeps the merged value', () => {
+    let renderCount = 0;
+    const CountingProbe = memo(function CountingProbe() {
+      renderCount += 1;
+      useVultusComponents();
+      return null;
+    });
+    const { rerender } = render(
+      <VultusProvider components={{ ChangeMark: MarkA }}>
+        <CountingProbe />
+      </VultusProvider>,
+    );
+    expect(renderCount).toBe(1);
+
+    // A new object literal, the same ChangeMark: the merged context value stays the same object.
+    rerender(
+      <VultusProvider components={{ ChangeMark: MarkA }}>
+        <CountingProbe />
+      </VultusProvider>,
+    );
+    expect(renderCount).toBe(1);
+  });
+
+  it('changing only ChangeMark, its own or the outer one, changes the merged value', () => {
+    let renderCount = 0;
+    const CountingProbe = memo(function CountingProbe() {
+      renderCount += 1;
+      const { ChangeMark } = useVultusComponents();
+      return <div data-testid="counted">{ChangeMark ? ChangeMark.name : 'none'}</div>;
+    });
+    const counted = () => screen.getByTestId('counted').textContent;
+
+    // Its own: the provider's ChangeMark changes, its Spinner stays.
+    const { rerender, unmount } = render(
+      <VultusProvider components={{ Spinner: SpinnerA, ChangeMark: MarkA }}>
+        <CountingProbe />
+      </VultusProvider>,
+    );
+    expect([renderCount, counted()]).toEqual([1, 'MarkA']);
+    rerender(
+      <VultusProvider components={{ Spinner: SpinnerA, ChangeMark: MarkB }}>
+        <CountingProbe />
+      </VultusProvider>,
+    );
+    expect([renderCount, counted()]).toEqual([2, 'MarkB']);
+    unmount();
+
+    // The outer one: a nested provider that sets only Spinner follows the outer ChangeMark.
+    const nested = (mark: typeof MarkA) => (
+      <VultusProvider components={{ ChangeMark: mark }}>
+        <VultusProvider components={{ Spinner: SpinnerA }}>
+          <SlotsProbe />
+        </VultusProvider>
+      </VultusProvider>
+    );
+    const second = render(nested(MarkA));
+    expect(slots()).toBe('SpinnerA|MarkA');
+    second.rerender(nested(MarkB));
+    expect(slots()).toBe('SpinnerA|MarkB');
   });
 });
 
