@@ -109,10 +109,11 @@ into `process:123/vultus:action:send`. Scopes nest (outer/inner).
 ```
 
 The mark is a component drawing one change mark (`ChangeMarkProps` from `vultus-core`: `variant`,
-`timeline?`, `speed?`, `data-change`, `children`), with its timings as a static
-`durations(element, speed)` (`ChangeMarkComponent`). Without one, vultus-core draws static marks
-in inline styles and ends a switch at its default timings. vultus has no stylesheet for the marks:
-the look comes from whoever lends the mark, such as a style library's provider.
+`timeline?`, `speed?`, `data-change`, `children?`), with its timings as an optional static
+`durations(element, speed)` (`ChangeMarkComponent`; without it, vultus's default timings). Without
+a lent mark, vultus-core draws static marks in inline styles and ends a switch at its default
+timings. vultus has no stylesheet for the marks: the look comes from whoever lends the mark, such
+as a style library's provider.
 
 It merges exactly as `Spinner` does: a nested `VultusProvider` can set `ChangeMark` alone and keep
 an outer `Spinner`, `components={{ ChangeMark: undefined }}` clears an inherited one (back to the
@@ -248,10 +249,10 @@ InputNumber's suffix, next to the lent Spinner (or antd's own) while a commit is
 
 `NumericSlider` and `RangeSlider` request once per move, when it ends (release, an arrow key's
 keyup), not at each step of a drag, as `OneOfSlider` does; the shown value follows the drag while
-it is in progress. Per the owner's slider rule (no jump back to the old value while a request is
-in flight), the moved-to value — both ends `[from, to]` for `RangeSlider` — stays shown while its
-confirmation is open or its commit is pending; once neither is true the field's own value shows
-again: the new one on success, the old one after a Cancel or a failure. `NumericSlider` needs both
+it is in progress. A slider never jumps back to the old value while a request is in flight: the
+moved-to value — both ends `[from, to]` for `RangeSlider` — stays shown while its confirmation is
+open or its commit is pending; once neither is true the field's own value shows again: the new
+one on success, the old one after a Cancel or a failure. `NumericSlider` needs both
 `min` and `max` on the field (there is no way to size a track otherwise); without them it throws,
 naming the field. Each handle keeps antd's own tooltip (hover, focus, drag), formatting its value
 with `field.format`; the rest of the slider (the track) carries the field's own tooltip instead,

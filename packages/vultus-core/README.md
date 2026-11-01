@@ -635,9 +635,9 @@ it). The group then keeps the value and re-renders, so every option is computed 
 UI to vultus/optio in place of their native indicators — today `Spinner` (`SpinnerProps`:
 `spinnerKey`, `size?`, `label?`; `VultusComponents.Spinner?: SpinnerComponent`) and
 `ChangeMark`, the marks of text changes (`VultusComponents.ChangeMark?: ChangeMarkComponent`;
-see Text changes, below). vultus-antd's
-`VultusProvider` merges a `components` prop into the outer context value; without one, the
-outer value (or this default) applies, as `linkComponent` does today.
+see Text changes, below). vultus-antd's `VultusProvider` merges a `components` prop into the
+outer context value; without one, the outer value (or this default) applies, as `linkComponent`
+does today.
 
 Every call site that may render a lent `Spinner` asks for its key through `useSpinnerKey(localKey)`
 rather than hardcoding it, so an app can scope a whole subtree's keys to one instance:
@@ -700,8 +700,8 @@ lent mark, it draws static ones in inline styles (the fallback, below).
   same key rules, `animate` and `speed`, rendered as it is, with no wrapper.
 - **`changesIn(from, to)`**, the diff of two plain texts (`Change[]`: `word` and `letters` spans of
   `to`, and `removed` ones of no width at their place, carrying the old letters as `text`), and
-  **`readText(tree, options?)`**, the
-  reading of a hast tree that both sides use, are exported for an app's own use.
+  **`readText(tree, options?)`**, the reading of a hast tree that both sides use, are exported for
+  an app's own use.
 - **`changeDurations(element?, speed?, mark?)`** gives `{ plain, removals }`, in ms, when a
   switch's marks may go: `mark.durations(element, speed)`, else vultus's defaults (below). The hook
   times each switch with it, with the lent mark, at `near`'s container (else none) and the
@@ -737,10 +737,16 @@ timeline, in ms from the commit that shows the new text, at `speed`, read at `el
 container, else `undefined`). A lent mark without `durations` gets vultus's defaults.
 
 ```tsx
+import { version } from 'react';
+import type { ChangeMarkComponent, ChangeMarkProps } from 'vultus-core';
+
+// `inert` as this React takes it: a boolean from 19 on; 18 needs '', which 19 reads as false.
+const INERT = (Number.parseInt(version, 10) >= 19 ? { inert: true } : { inert: '' }) as { inert?: boolean };
+
 const FadeMark: ChangeMarkComponent = Object.assign(
   ({ variant, 'data-change': change, children }: ChangeMarkProps) => {
-    const removed = variant === 'change-removed' || undefined;
-    return <mark className={`fade-${variant}`} data-change={change} aria-hidden={removed} inert={removed}>{children}</mark>;
+    const removed = variant === 'change-removed' ? { 'aria-hidden': true, ...INERT } : {};
+    return <mark className={`fade-${variant}`} data-change={change} {...removed}>{children}</mark>;
   },
   { durations: () => ({ plain: 1500, removals: 2500 }) }, // when fade.css's animations end
 );
@@ -762,7 +768,7 @@ timeline and 2.3 s after it on removals, at every speed, so a switch still ends.
 
 A task page shaped like Praeceptor's: one Markdown content drawn as two trees (its leading
 heading in the title slot, the body below), over the app's own block numbering and leave-outs.
-`rehypeBlocks`, `rehypeSearch` and `leadingHeading` stand for the app's own.
+`TaskTextProps`, `rehypeBlocks`, `rehypeSearch` and `leadingHeading` stand for the app's own.
 
 ```tsx
 import { useMemo } from 'react';
@@ -777,7 +783,8 @@ const skip = (element: Element) =>
 
 function TaskText({ task, markdown, lang, pane }: TaskTextProps) {
   const changes = useTextChanges(markdown, {
-    // Another version of the same text, in the same language, lights up; anything else shows plainly.
+    // textOf: the text this task is a version of. Another version of the same text, in the same
+    // language, lights up; anything else shows plainly.
     key: `${task.textOf ?? task.id}/${lang}`,
     near: pane ? { container: pane, blocks: 3 } : undefined, // the blocks in view, 3 more each way
     blockAttribute: 'data-block', // rehypeBlocks numbers them already

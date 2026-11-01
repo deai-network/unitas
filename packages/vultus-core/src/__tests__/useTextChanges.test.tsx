@@ -13,8 +13,9 @@ import { FakeIntersectionObserver, installFakeIntersectionObserver } from './hel
 
 // A switch's lifecycle through the hook: the key deciding what animates, the parts sharing one
 // switch, the identities an app's Markdown memoises on, the near set frozen per switch, the timer
-// from the lent mark's timings, else vultus's defaults. Praeceptor's task panel change cases,
-// through the hook. The marks are drawn by a lent test mark, which shows the props it received.
+// from the lent mark's timings, else vultus's defaults. The cases are a task panel's: a heading and
+// a body drawn as two trees in a scrolling pane. The marks are drawn by a lent test mark, which
+// shows the props it received.
 
 const REMARK = [remarkGfm];
 /** The pane the trees are in: `near`'s container. */

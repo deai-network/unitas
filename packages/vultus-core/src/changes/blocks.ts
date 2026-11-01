@@ -10,15 +10,15 @@ export const BLOCK_ELEMENTS: ReadonlySet<string> = new Set([
 ]);
 
 /** Elements holding blocks, not text: the white space among their children (remark-rehype's line
- *  ends) is never marked (a mark there would draw an empty line). Praeceptor's list, as is. */
+ *  ends) is never marked (a mark there would draw an empty line). */
 export const HOLDS_BLOCKS: ReadonlySet<string> = new Set([
   'blockquote', 'ul', 'ol', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'section', 'div',
 ]);
 
 /**
  * The blocks the changes plugin numbers by default (`data-vultus-block`, pre-order from 1), which a
- * near set names: Praeceptor's `BLOCK_TAGS`, what the reader's eye rests on. A quote and the
- * paragraph in it, a list item and a nested item, are each one.
+ * near set names: what the reader's eye rests on. A quote and the paragraph in it, a list item and
+ * a nested item, are each one.
  */
 export const NUMBERED_BLOCKS: ReadonlySet<string> = new Set([
   'p', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'td', 'th',

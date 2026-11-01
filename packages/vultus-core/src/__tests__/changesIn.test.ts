@@ -201,7 +201,7 @@ describe('changesIn', () => {
     const changed = words.map((w, i) => (i % 200 === 100 ? `${w}x` : w));
     const started = Date.now();
     const found = lit(words.join(' '), changed.join(' '));
-    // Praeceptor's limit was one second; CI hosts are slower.
+    // The aim is one second; the bound allows two, as CI hosts are slower.
     expect(Date.now() - started).toBeLessThan(2000);
     expect(found.words).toEqual(changed.filter((_, i) => i % 200 === 100));
     expect(found.words).toHaveLength(100);

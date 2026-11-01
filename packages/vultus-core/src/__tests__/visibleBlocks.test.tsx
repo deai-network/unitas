@@ -5,8 +5,8 @@ import { innermostRange, useVisibleBlocks, type BlockRange, type VisibleBlocks }
 import { FakeIntersectionObserver, installFakeIntersectionObserver } from './helpers/intersection.js';
 
 // The visible blocks a switch's near set is taken from (`useTextChanges`' `near`): the numbered
-// blocks an IntersectionObserver reports crossing the container, the innermost of them.
-// Praeceptor's visibleBlocks tests, as the sets its boxes put in the band.
+// blocks an IntersectionObserver reports crossing the container, the innermost of them. Each case
+// gives the set of blocks crossing the band, as the observer reports them.
 
 const PARAGRAPHS = '<p data-block="1">1</p><p data-block="2">2</p><p data-block="3">3</p>';
 /** A list item (1) holding its paragraph (2) and a nested item (3) with its paragraph (4); a paragraph (5) after. */

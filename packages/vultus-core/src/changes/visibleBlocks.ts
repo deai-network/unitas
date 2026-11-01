@@ -20,10 +20,10 @@ function numberOf(element: Element, attribute: string): number | undefined {
  * The range of the innermost of `elements` (numbered blocks crossing the band, in any order): each
  * one containing another of them is dropped, so a quote or an outer list item spanning the band
  * pulls nothing back (a quote of 200 paragraphs, 150 to 153 in the band, gives 150 to 153, not 1
- * to 153); the first and last of the rest's numbers. A block holding blocks only
- * outside the band counts: a tight list item whose first line is in it, its nested items below.
- * None numbered (by `attribute`), none. Praeceptor's `visibleBlocks`, on a set of elements instead
- * of laid-out boxes.
+ * to 153); the first and last of the rest's numbers. A block holding blocks only outside the band
+ * counts: a tight list item whose first line is in it, its nested items below. None numbered (by
+ * `attribute`), none. It works on a set of elements (those the observer reports crossing the band),
+ * not on laid-out boxes.
  */
 export function innermostRange(elements: Iterable<Element>, attribute: string): BlockRange | undefined {
   const blocks = Array.from(elements).filter((element) => numberOf(element, attribute) !== undefined);

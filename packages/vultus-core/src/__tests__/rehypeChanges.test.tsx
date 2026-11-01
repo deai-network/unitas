@@ -13,7 +13,7 @@ import { el, text as textNode } from './helpers/hast.js';
 // What changed from another version of the text, as the changes plugin marks it in rendered
 // Markdown (`<ins data-change>`) and the `ins` entry draws it (`changeComponents`, through the lent
 // mark, else vultus's fallback, each a `<mark>`): the old version read as the plugin reads it
-// (`readingOf`), the new one from its rendered tree. Praeceptor's rehypeChanges tests, moved.
+// (`readingOf`), the new one from its rendered tree.
 
 type Plugin = () => (tree: Root) => void;
 
