@@ -78,4 +78,5 @@ export { MessageSinkContext, useMessageSink, type MessageSink } from './MessageS
 export {
   VultusComponentsContext, useVultusComponents, SpinnerScope, useSpinnerKey,
   type VultusComponents, type SpinnerProps, type SpinnerComponent,
+  type ChangeMarkVariant, type ChangeMarkProps, type ChangeMarkComponent,
 } from './Components.js';
