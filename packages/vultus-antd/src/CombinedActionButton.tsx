@@ -137,8 +137,8 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
         // on child click now that it is controlled).
         onClick={() => menu.fire(active)}
         aria-label={iconOnly ? active.label : undefined}
-        // The active action's disclosure state, as ActionButton's. The opener keeps antd
-        // Dropdown's own aria; the open list's rows carry none.
+        // The active action's disclosure state, as ActionButton's. The opener is left as
+        // antd's Dropdown renders it; the open list's rows carry none.
         aria-expanded={active.ariaExpanded}
         data-action-id={active.id}
       >

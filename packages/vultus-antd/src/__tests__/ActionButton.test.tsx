@@ -370,9 +370,12 @@ describe('ActionButton — ariaExpanded', () => {
   it('array form, a show/hide pair (iconOnly): the visible action\'s state, following the visibility', () => {
     const { container, rerender } = render(wrap(<ActionButton action={gear(false)} iconOnly />));
     expect(container.querySelector('.ant-dropdown-trigger')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Show settings' })).toHaveAttribute('aria-expanded', 'false');
+    const closed = screen.getByRole('button', { name: 'Show settings' });
+    expect(closed).toHaveAttribute('aria-expanded', 'false');
     rerender(wrap(<ActionButton action={gear(true)} iconOnly />));
-    expect(screen.getByRole('button', { name: 'Hide settings' })).toHaveAttribute('aria-expanded', 'true');
+    // The same element, so the focus stays on it and a screen reader hears the new state.
+    expect(screen.getByRole('button', { name: 'Hide settings' })).toBe(closed);
+    expect(closed).toHaveAttribute('aria-expanded', 'true');
   });
 });
 
