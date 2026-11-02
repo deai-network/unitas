@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { DeleteOutlined, DoubleRightOutlined, PlayCircleOutlined, RightOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DoubleRightOutlined, PlayCircleOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons';
+import { Card, Switch } from 'antd';
 import { ActionButton, CombinedActionButton, denyWithReason, useAction } from 'vultus-antd';
 import { Example, Showcase, delay } from '../Showcase.js';
 
@@ -60,6 +62,36 @@ export const CombinedIconOnly: StoryObj<CombinedIconOnlyArgs> = {
     return (
       <Showcase title="iconOnly on a combined button" note="The main half shows only the icon of the action it would run now; hover it for that action's label. 'firstDisabled' disables the first action: the main half moves on to the next enabled one, and its icon (› to ») and label switch with it. The switch also works after a click, because keepOriginalDefault returns the main half to the first enabled action after each fire (without it, a click is a pick that holds the main half). The ⋯ list keeps every action's label and icon, a disabled one greyed with its reason on hover.">
         <Example label="CombinedActionButton iconOnly keepOriginalDefault"><CombinedActionButton actions={[next, nextAll]} iconOnly keepOriginalDefault /></Example>
+      </Showcase>
+    );
+  },
+};
+
+export const ShowHidePair: StoryObj = {
+  name: 'Show/hide pair (ariaExpanded)',
+  render: function Render() {
+    const [shown, setShown] = useState(false);
+    const show = useAction({
+      id: 'show-settings', label: 'Show settings', icon: <SettingOutlined />,
+      invisible: shown, ariaExpanded: false, fire: () => setShown(true),
+    });
+    const hide = useAction({
+      id: 'hide-settings', label: 'Hide settings', icon: <SettingOutlined />,
+      invisible: !shown, ariaExpanded: true, fire: () => setShown(false),
+    });
+    return (
+      <Showcase title="A settings gear" note="Two actions, one visible at a time: show (ariaExpanded false) and hide (ariaExpanded true). The gear renders the visible one, so it carries aria-expanded, and a screen reader says whether the panel is open.">
+        <Example label="ActionButton action={[show, hide]} iconOnly">
+          <ActionButton action={[show, hide]} iconOnly />
+          {shown && (
+            <Card size="small" style={{ marginTop: 8, width: 220 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <label><Switch size="small" /> Show the notes</label>
+                <label><Switch size="small" /> Show the answers</label>
+              </div>
+            </Card>
+          )}
+        </Example>
       </Showcase>
     );
   },

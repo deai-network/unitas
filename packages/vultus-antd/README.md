@@ -598,6 +598,10 @@ and its tooltip, with the reason below it while the action is disabled. The
 icon follows the active action, so it is what tells the actions apart: give
 each action its own. The opener and the open list's rows keep their labels.
 
+An action's `ariaExpanded` (vultus-core) becomes `aria-expanded` on `ActionButton`'s button and on
+`CombinedActionButton`'s main half, from the action it shows (with an array, the visible one of a
+show/hide pair); the opener keeps antd Dropdown's own, and the open list's rows carry none.
+
 ## ActionContextMenu
 
 `<ActionContextMenu actions={[showLog, drop]}>{child}</ActionContextMenu>` puts a right-click

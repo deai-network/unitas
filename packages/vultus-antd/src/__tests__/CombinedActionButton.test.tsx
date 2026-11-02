@@ -841,6 +841,40 @@ describe('CombinedActionButton — composition', () => {
   });
 });
 
+describe('CombinedActionButton — ariaExpanded', () => {
+  afterEach(() => { Modal.destroyAll(); });
+
+  it('the main half carries the active action\'s state, following the pick; the open list\'s rows carry none', async () => {
+    const a = makeStatus({ id: 'a', label: 'Filters', ariaExpanded: true });
+    const b = makeStatus({ id: 'b', label: 'Columns', ariaExpanded: false });
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} />));
+    expect(mainBtn(container)).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(chevronBtn(container));
+    const menu = await screen.findByRole('menu');
+    for (const row of within(menu).getAllByRole('menuitem')) expect(row).not.toHaveAttribute('aria-expanded');
+    expect(menu.querySelector('[aria-expanded]')).toBeNull();
+
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Columns' }));
+    await waitFor(() => expect(mainBtn(container)).toHaveAttribute('aria-expanded', 'false'));
+  });
+
+  it('iconOnly: the main half carries it too', () => {
+    const a = makeStatus({ id: 'a', label: 'Filters', icon: <span data-testid="icon-a" />, ariaExpanded: true });
+    const b = makeStatus({ id: 'b', label: 'Columns', icon: <span data-testid="icon-b" />, ariaExpanded: false });
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} iconOnly />));
+    expect(mainBtn(container)).toHaveAttribute('aria-label', 'Filters');
+    expect(mainBtn(container)).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('absent: the main half has no aria-expanded', () => {
+    const a = makeStatus({ id: 'a', label: 'A' });
+    const b = makeStatus({ id: 'b', label: 'B' });
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} />));
+    expect(mainBtn(container)).not.toHaveAttribute('aria-expanded');
+  });
+});
+
 describe('CombinedActionButton — iconOnly', () => {
   afterEach(() => { Modal.destroyAll(); });
 

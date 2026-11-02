@@ -67,6 +67,8 @@ export interface ActionOptions<TArgs = void, TResult = void, RouteId extends str
   variant?: Thunk<'default' | 'primary' | 'danger'>;
   enabled?: Thunk<Decision>;
   invisible?: Thunk<boolean>;
+  /** The expanded state of what the action's control shows or hides, rendered as `aria-expanded`; absent: not a disclosure control, so no attribute. */
+  ariaExpanded?: Thunk<boolean>;
   confirmation?: Thunk<ConfirmationSpec | undefined>;
   errorRoute?: RouteId;
   fire: (args: TArgs, ctx: ExecutionContext) => Promise<TResult> | TResult;
@@ -99,6 +101,8 @@ export interface ActionStatus<TArgs = void> {
   disabled: boolean;
   reason?: string;
   invisible: boolean;
+  /** The options' `ariaExpanded`, resolved. Optional so hand-built statuses stay valid; absent: no `aria-expanded`. */
+  ariaExpanded?: boolean;
   confirmation?: ConfirmationSpec;
   /**
    * Messages of the last run: reported through the ExecutionContext, or the thrown error.

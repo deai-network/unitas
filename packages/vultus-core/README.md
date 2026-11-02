@@ -58,6 +58,14 @@ offline", a failed fetch its TypeError's); with neither, "Action failed" (a rout
 (`errorRoute`): the registry's entry for the body's `reason`, else the message, else
 `t('common.error')`). A field's commit is an action, so the same holds for the field's messages.
 
+## Actions that show or hide something
+
+An action whose control shows or hides something says whether that is open with `ariaExpanded`
+(a boolean, or a function giving one): its status carries it, for the renderer's `aria-expanded`,
+and without it there is no attribute. A settings gear that toggles a panel is two actions, one
+visible at a time: show (`invisible: shown`, `ariaExpanded: false`) and hide (`invisible: !shown`,
+`ariaExpanded: true`).
+
 ## Fields
 
 `useBoolField(options)` is the first field hook: the value half of vultus, next to

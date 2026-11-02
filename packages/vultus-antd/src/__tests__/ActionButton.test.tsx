@@ -333,6 +333,49 @@ describe('ActionButton — the tooltip wrapper', () => {
   });
 });
 
+describe('ActionButton — ariaExpanded', () => {
+  it('ariaExpanded true or false: the button says aria-expanded "true" or "false"', () => {
+    render(wrap(<>
+      <ActionButton action={makeStatus({ id: 'open', label: 'Hide settings', ariaExpanded: true })} />
+      <ActionButton action={makeStatus({ id: 'closed', label: 'Show settings', ariaExpanded: false })} />
+    </>));
+    expect(screen.getByRole('button', { name: 'Hide settings' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Show settings' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('iconOnly: the same, on the icon button', () => {
+    render(wrap(<>
+      <ActionButton action={makeStatus({ id: 'open', label: 'Hide settings', icon: <span>x</span>, ariaExpanded: true })} iconOnly />
+      <ActionButton action={makeStatus({ id: 'closed', label: 'Show settings', icon: <span>x</span>, ariaExpanded: false })} iconOnly />
+    </>));
+    expect(screen.getByRole('button', { name: 'Hide settings' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Show settings' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('absent: no aria-expanded, with or without iconOnly', () => {
+    render(wrap(<>
+      <ActionButton action={makeStatus({ id: 'plain', label: 'Run' })} />
+      <ActionButton action={makeStatus({ id: 'icon', label: 'Delete', icon: <span>x</span> })} iconOnly />
+    </>));
+    expect(screen.getByRole('button', { name: 'Run' })).not.toHaveAttribute('aria-expanded');
+    expect(screen.getByRole('button', { name: 'Delete' })).not.toHaveAttribute('aria-expanded');
+  });
+
+  // A settings gear that shows and hides a panel: one action visible at a time.
+  const gear = (shown: boolean) => [
+    makeStatus({ id: 'show', label: 'Show settings', icon: <span>x</span>, invisible: shown, ariaExpanded: false }),
+    makeStatus({ id: 'hide', label: 'Hide settings', icon: <span>x</span>, invisible: !shown, ariaExpanded: true }),
+  ];
+
+  it('array form, a show/hide pair (iconOnly): the visible action\'s state, following the visibility', () => {
+    const { container, rerender } = render(wrap(<ActionButton action={gear(false)} iconOnly />));
+    expect(container.querySelector('.ant-dropdown-trigger')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show settings' })).toHaveAttribute('aria-expanded', 'false');
+    rerender(wrap(<ActionButton action={gear(true)} iconOnly />));
+    expect(screen.getByRole('button', { name: 'Hide settings' })).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
 describe('ActionButton — size', () => {
   // antd 6's size scale includes 'medium'; a ConfigProvider componentSize
   // can be passed straight through.

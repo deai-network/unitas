@@ -30,6 +30,7 @@ export interface ResolvedFields {
   disabled: boolean;
   reason: string | undefined;
   invisible: boolean;
+  ariaExpanded: boolean | undefined;
   confirmation: ConfirmationSpec | undefined;
 }
 
@@ -43,6 +44,8 @@ export function resolveActionFields(opts: ActionOptions<any, any, any>): Resolve
     disabled: !getVerdict(enabledD, true),
     reason: getReason(enabledD),
     invisible: resolve(opts.invisible, false),
+    // No default: absent stays absent (no aria-expanded), unlike `invisible`'s false.
+    ariaExpanded: resolve<boolean | undefined>(opts.ariaExpanded, undefined),
     confirmation: resolve<ConfirmationSpec | undefined>(opts.confirmation, undefined),
   };
 }
@@ -136,6 +139,7 @@ export function assembleStatus<TArgs>(
     disabled: fields.disabled,
     reason: fields.reason,
     invisible: fields.invisible,
+    ariaExpanded: fields.ariaExpanded,
     confirmation: fields.confirmation,
     messages,
     errors: messages.filter((m) => m.severity === 'error').map((m) => m.text),

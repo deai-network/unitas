@@ -105,6 +105,38 @@ describe('useAction', () => {
     expect(result.current.invisible).toBe(true);
   });
 
+  it('ariaExpanded absent: undefined (not false), so no aria-expanded attribute', () => {
+    const { result } = renderHook(() =>
+      useAction({ id: 'i', label: 'X', fire: async () => {} }),
+    );
+    expect(result.current.ariaExpanded).toBeUndefined();
+  });
+
+  it('ariaExpanded value is carried through, false included', () => {
+    const { result } = renderHook(() =>
+      useAction({ id: 'j', label: 'X', ariaExpanded: false, fire: async () => {} }),
+    );
+    expect(result.current.ariaExpanded).toBe(false);
+  });
+
+  it('ariaExpanded thunk is resolved', () => {
+    const { result } = renderHook(() =>
+      useAction({ id: 'k', label: 'X', ariaExpanded: () => true, fire: async () => {} }),
+    );
+    expect(result.current.ariaExpanded).toBe(true);
+  });
+
+  it('ariaExpanded follows a re-render that only flips the thunk\'s closure value (the status memo depends on it)', () => {
+    // The same options object on every render: only what the thunk reads changes.
+    let shown = false;
+    const opts = { id: 'l', label: 'Settings', ariaExpanded: () => shown, fire: async () => {} };
+    const { result, rerender } = renderHook(() => useAction(opts));
+    expect(result.current.ariaExpanded).toBe(false);
+    shown = true;
+    rerender();
+    expect(result.current.ariaExpanded).toBe(true);
+  });
+
   it('passes typed args from firePromise(args) to opts.fire(args)', async () => {
     const fire = vi.fn(async (args: { name: string }) => args);
     const { result } = renderHook(() =>

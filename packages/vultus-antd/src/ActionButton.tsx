@@ -111,6 +111,8 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
       classNames={lockedClassNames}
       onClick={() => confirm(action.confirmation, () => action.fire())}
       aria-label={iconOnly ? action.label : undefined}
+      // A disclosure action's state (the action's ariaExpanded); absent, React leaves the attribute out.
+      aria-expanded={action.ariaExpanded}
       data-action-id={action.id}
     >
       {iconOnly ? undefined : action.label}

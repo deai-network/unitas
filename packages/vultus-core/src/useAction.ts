@@ -53,6 +53,7 @@ export function useAction<TArgs = void, TResult = void, RouteId extends string =
       fields.disabled,
       fields.reason,
       fields.invisible,
+      fields.ariaExpanded,
       fields.confirmation,
       messages,
       firePromise,

@@ -18,6 +18,30 @@ describe('useActionList', () => {
     expect(result.current[1].reason).toBe('no');
   });
 
+  it('ariaExpanded: absent gives undefined (not false), a value is carried, a thunk is resolved', () => {
+    const { result } = renderHook(() =>
+      useActionList([
+        { id: 'plain', label: 'Plain', fire: async () => {} },
+        { id: 'value', label: 'Value', ariaExpanded: false, fire: async () => {} },
+        { id: 'thunk', label: 'Thunk', ariaExpanded: () => true, fire: async () => {} },
+      ]),
+    );
+    expect(result.current[0].ariaExpanded).toBeUndefined();
+    expect(result.current[1].ariaExpanded).toBe(false);
+    expect(result.current[2].ariaExpanded).toBe(true);
+  });
+
+  it('ariaExpanded follows a re-render that flips the thunk\'s closure value', () => {
+    const { result, rerender } = renderHook(
+      ({ shown }: { shown: boolean }) =>
+        useActionList([{ id: 'settings', label: 'Settings', ariaExpanded: () => shown, fire: async () => {} }]),
+      { initialProps: { shown: false } },
+    );
+    expect(result.current[0].ariaExpanded).toBe(false);
+    rerender({ shown: true });
+    expect(result.current[0].ariaExpanded).toBe(true);
+  });
+
   it('empty spec list yields no actions', () => {
     const { result } = renderHook(() => useActionList([]));
     expect(result.current).toEqual([]);
