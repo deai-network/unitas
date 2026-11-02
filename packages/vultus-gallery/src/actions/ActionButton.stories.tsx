@@ -58,8 +58,8 @@ export const CombinedIconOnly: StoryObj<CombinedIconOnlyArgs> = {
     });
     const nextAll = useAction({ id: 'next-all', label: 'Next, ignoring the filters', icon: <DoubleRightOutlined />, fire: () => delay(400) });
     return (
-      <Showcase title="iconOnly on a combined button" note="The main half shows only the icon of the action it would run now; hover it for that action's label. 'firstDisabled' disables the first action: the main half moves on to the next enabled one, and its icon (› to ») and label switch with it. The ⋯ list keeps every action's label and icon, a disabled one greyed with its reason on hover.">
-        <Example label="CombinedActionButton iconOnly"><CombinedActionButton actions={[next, nextAll]} iconOnly /></Example>
+      <Showcase title="iconOnly on a combined button" note="The main half shows only the icon of the action it would run now; hover it for that action's label. 'firstDisabled' disables the first action: the main half moves on to the next enabled one, and its icon (› to ») and label switch with it. The switch also works after a click, because keepOriginalDefault returns the main half to the first enabled action after each fire (without it, a click is a pick that holds the main half). The ⋯ list keeps every action's label and icon, a disabled one greyed with its reason on hover.">
+        <Example label="CombinedActionButton iconOnly keepOriginalDefault"><CombinedActionButton actions={[next, nextAll]} iconOnly keepOriginalDefault /></Example>
       </Showcase>
     );
   },

@@ -874,7 +874,8 @@ describe('CombinedActionButton — iconOnly', () => {
   it('hovering the main half shows the label as its tooltip', async () => {
     const { container } = render(wrap(<CombinedActionButton actions={[next(), nextAll()]} iconOnly />));
     fireEvent.mouseEnter(mainBtn(container).parentElement!);
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Next');
+    // Exact: 'Next' is also the start of the other action's label.
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Next');
   });
 
   it('a disabled active action: the tooltip gives the label, then the reason', async () => {
@@ -884,7 +885,8 @@ describe('CombinedActionButton — iconOnly', () => {
     expect(mainBtn(container)).toBeDisabled();
     fireEvent.mouseEnter(mainBtn(container).parentElement!);
     const tip = await screen.findByRole('tooltip');
-    expect(tip.textContent).toMatch(/^Next.*No more tasks in the filtered list/);
+    // Exact, the label and then the reason: 'Next' is also the start of the other action's label.
+    expect(tip.textContent).toBe('NextNo more tasks in the filtered list');
   });
 
   it('the icon follows the active action: when the first is disabled, the auto pick moves on, its icon and name with it', () => {
@@ -901,15 +903,34 @@ describe('CombinedActionButton — iconOnly', () => {
     expect(within(mainBtn(container)).queryByTestId('icon-a')).toBeNull();
   });
 
-  it('while a popconfirm\'s bubble is open, the main half\'s tooltip is held back (it would cover it)', async () => {
+  it('while a popconfirm\'s bubble is open, the main half\'s tooltip is held back (it would cover it); cancelled, it is back', async () => {
     const a = { ...next(), confirmation: { kind: 'popconfirm' as const, question: 'Sure?' } };
     const { container } = render(wrap(<CombinedActionButton actions={[a, nextAll()]} iconOnly />));
     const main = mainBtn(container);
     fireEvent.mouseEnter(main.parentElement!);
     await waitFor(() => expect(openTooltips()).toHaveLength(1));
     fireEvent.click(main);
-    expect(await screen.findByText('Sure?')).toBeInTheDocument();
+    const question = await screen.findByText('Sure?');
     expect(openTooltips()).toHaveLength(0);
+
+    // The pointer goes to the bubble's Cancel, then back onto the main half.
+    fireEvent.mouseLeave(main.parentElement!);
+    fireEvent.click(within(question.closest('.ant-popover') as HTMLElement).getByRole('button', { name: /cancel/i }));
+    fireEvent.mouseEnter(main.parentElement!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    expect(a.fire).not.toHaveBeenCalled();
+  });
+
+  it('while the typing confirmation is open, the main half\'s tooltip is held back (it would cover it)', async () => {
+    const a = { ...next(), confirmation: { kind: 'typing' as const, title: 'Skip the filters?', entityName: 'skip', description: 'Type the phrase to confirm.' } };
+    const { container } = render(wrap(<CombinedActionButton actions={[a, nextAll()]} iconOnly />));
+    const main = mainBtn(container);
+    fireEvent.mouseEnter(main.parentElement!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    fireEvent.click(main);
+    expect(await screen.findByText('Skip the filters?')).toBeInTheDocument();
+    expect(openTooltips()).toHaveLength(0);
+    expect(a.fire).not.toHaveBeenCalled();
   });
 
   it('while a cascade modal is open, the main half\'s tooltip is held back (it would cover it)', async () => {
