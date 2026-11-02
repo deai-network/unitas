@@ -367,12 +367,23 @@ clamped into the bounds; `[min, max]`; the empty string for text; for a
 tree, the value normalized under its `selection`. It is the default as the
 field shows it: made fit for the definition as it is now, as a stored value
 is (`sanitizeStored`, silently), so a many-of `initialValue` naming a choice
-not offered now leaves it out, and a number outside the bounds is clamped.
-Writing back the value a field showed at first therefore leaves no key in
-the store. (The per-kind helpers it
-is built on — `boolInitialValue`, `oneOfInitialValue`, `rangeInitialValue`
-and the like — are exported too.) A hook computes its kind's default once,
-when the field mounts, not on every render.
+not offered now leaves it out, and a number is clamped into the bounds (and
+rounded when `integer`; a range's ends put in order). A value equal to the
+current default is therefore stored as no key. The default follows the
+choices as they are now, so a value equal to it written while they are
+narrower (another edition, or choices still loading) is stored as no key
+too, and widens when they do. Fitting resolves the options a value is fitted
+by (choices, nodes, `min`, `max`, `integer`), so a field-context function
+among them needs the context; display options (`format`, `unit`, `step`) are
+not resolved.
+
+A kind's hook run alone (no store, no group) starts at the initial value as
+given, from its per-kind helper — `boolInitialValue`, `oneOfInitialValue`,
+`manyOfInitialValue`, `rangeInitialValue` and the like, exported too, which
+give the default before it is made fit. A many-of or many-of tree hook holds
+a value not among its choices or nodes, as they may still be loading; only a
+store or a field group compares with the fitted default. A hook computes its
+kind's default once, when the field mounts, not on every render.
 
 The `widget` hint (`WidgetHint = string | { name: string; [option]: unknown
 }`) names which widget renders the field — `'segmented'`, or `{ name:
@@ -572,12 +583,13 @@ fallback, and the other fields see that fallback. Nothing is rewritten: the kept
 again once it is valid again (the layout back). A hidden field keeps its value, and the others
 still see it.
 
-**Defaults follow the options.** A field's default is its `initialValue`, else its kind's
-implicit initial value from its options as they are now (the first enabled choice of its current
-`choices`, a tree's first choosable node, `min`, ...), so it moves with the fields those options
-read. A field never set, or set to its current default, keeps nothing and shows its current
-default as it moves. `isDefault(id)` is useStoredFields' rule: nothing kept, or the kept value or
-the value shown equals the current default.
+**Defaults follow the options.** A field's default is its `initialValue` (which cannot read
+`values`), else its kind's implicit initial value (the first enabled choice of its current
+`choices`, a tree's first choosable node, `min`, ...), made fit for its options as they are now
+(`initialValueOf`), so it moves with the fields those options read. A field never set, or set to
+its current default, keeps nothing and shows its current default as it moves. `isDefault(id)` is
+useStoredFields' rule: nothing kept, or the kept value or the value shown equals the current
+default.
 
 **Errors.** These fail loudly, naming the field and the option where there is one:
 

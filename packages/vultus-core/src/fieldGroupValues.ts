@@ -13,15 +13,16 @@ export interface GroupValues {
    */
   ctx: object;
   /**
-   * A field's shown value: its kept value, else its current default, made fit for its options
-   * as they are now (sanitizeStored); one that no longer fits shows the field's fallback. The
-   * kept value itself is never touched, so it shows again once it fits again.
+   * A field's shown value: its kept value made fit for its options as they are now
+   * (sanitizeStored), else its current default (defaultOf, already fit); a kept value that no
+   * longer fits shows the field's fallback. The kept value itself is never touched, so it shows
+   * again once it fits again.
    */
   valueOf(id: string): unknown;
   /**
    * A field's default: its `initialValue` (which cannot read `values`), else its kind's
-   * implicit initial value from its options as they are now (the first enabled choice, `min`,
-   * ...), so it moves with the fields those options read.
+   * implicit initial value (the first enabled choice, `min`, ...), made fit for its options as
+   * they are now (initialValueOf), so it moves with the fields those options read.
    */
   defaultOf(id: string): unknown;
   /** The shown values by id, each computed when first read; `ctx.values` is the same object. */
@@ -48,14 +49,12 @@ const WHERE = 'Field group';
 const INITIAL_VALUE_READS_VALUES = "initialValue cannot read other fields' values";
 const NOT_IN_A_GROUP = 'a mixed-boolean field shows an aggregate of other data, not a value of its own, so it cannot be in a field group';
 
-function silently(_message: string): void {}
-
 /**
  * A definition as its values are computed from it. Its `initialValue` function receives
  * `initialCtx`, whose `values` throws: a default cannot depend on other fields' values. A
- * number's or range's display options (`step`, `unit`, `format`) are left out, because resolving
- * its bounds (resolveNumeric) resolves them too, and an option that never affects the value
- * (`unit: (ctx) => ctx.values.copies === 1 ? ...`) must not count as a dependency, nor form a
+ * number's or range's display options (`step`, `unit`, `format`) are never resolved here:
+ * fitting a value resolves only its bounds (boundsOf). So one that reads `values`
+ * (`unit: (ctx) => ctx.values.copies === 1 ? ...`) never counts as a dependency, nor forms a
  * cycle.
  */
 function forComputingValues(definition: FieldDefinition, initialCtx: object): FieldDefinition {
@@ -63,11 +62,6 @@ function forComputingValues(definition: FieldDefinition, initialCtx: object): Fi
   const { initialValue } = definition;
   if (typeof initialValue === 'function') {
     Object.assign(computing, { initialValue: () => (initialValue as (ctx: object) => unknown)(initialCtx) });
-  }
-  if (computing.kind === 'numeric' || computing.kind === 'range') {
-    delete computing.step;
-    delete computing.unit;
-    delete computing.format;
   }
   return computing;
 }
@@ -78,9 +72,9 @@ function forComputingValues(definition: FieldDefinition, initialCtx: object): Fi
  * Every option function of the definitions receives `ctx`: the app's field context and
  * `values`, the fields' shown values by id. A field's value is computed when an option (or the
  * caller) first reads it, and kept for the rest of this snapshot; a new render makes a new one.
- * The shown value is the kept value (else the current default) checked against the field's
- * options as they are now, as a store's value is (sanitizeStored); one that no longer fits
- * shows the fallback, which the other fields see too.
+ * The shown value is the kept value (else the current default) made fit for the field's options
+ * as they are now, as a store's value is (sanitizeStored; the default through initialValueOf);
+ * a kept value that no longer fits shows the fallback, which the other fields see too.
  *
  * Throws here for two definitions with the same id and for a mixed-boolean definition (naming
  * the field), and for an app context that already has `values`. Throws when read, naming the
@@ -157,9 +151,7 @@ export function createGroupValues({ definitions, appCtx, kept, warn }: GroupValu
     if (!shown.has(id)) {
       shown.set(id, computing(id, () => {
         const value = kept(id);
-        return value === undefined
-          ? sanitizeStored(definition, ownDefault(id), ctx, silently)
-          : sanitizeStored(definition, value, ctx, (message) => warn(id, message));
+        return value === undefined ? ownDefault(id) : sanitizeStored(definition, value, ctx, (message) => warn(id, message));
       }));
     }
     return shown.get(id);

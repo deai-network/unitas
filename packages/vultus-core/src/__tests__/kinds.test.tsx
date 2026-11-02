@@ -75,7 +75,10 @@ describe('FieldDefinition', () => {
     expect(result.current.widget).toBe('segmented');
   });
 
-  it('every kind\'s definition runs in its hook, which starts at initialValueOf', () => {
+  // A hook run alone starts at the initial value as given; each of these fits its definition, so
+  // that is initialValueOf too. A many-of initial value naming a non-choice would differ: the hook
+  // holds it, initialValueOf leaves it out.
+  it('every kind\'s definition runs in its hook, which starts at its initial value (here one that fits, so initialValueOf)', () => {
     for (const definition of DEFINITIONS) {
       const { result } = renderHook(() => useDefinition(definition));
       expect(result.current.type).toBe(definition.kind);
@@ -201,6 +204,14 @@ describe('initialValueOf', () => {
   it('a context function with no provider throws, naming the field and the option', () => {
     expect(() => initialValueOf({ kind: 'text', id: 'q', initialValue: (ctx: { q: string }) => ctx.q }, NO_FIELD_CONTEXT))
       .toThrow(/Field 'q': option 'initialValue' is a function of the field context, but no FieldContextProvider is above it/);
+  });
+
+  it('fitting the default resolves the options it is fitted by: choices of the context need a provider, even beside an initialValue', () => {
+    const definition: FieldDefinition = {
+      kind: 'manyOf', id: 'tags', choices: (ctx: { tags: string[] }) => ctx.tags.map((value) => ({ value })), initialValue: ['a'],
+    };
+    expect(() => initialValueOf(definition, NO_FIELD_CONTEXT))
+      .toThrow(/Field 'tags': option 'choices' is a function of the field context, but no FieldContextProvider is above it/);
   });
 });
 

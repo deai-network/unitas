@@ -103,18 +103,24 @@ function nodesOf(definition: { id: string; nodes: ValueOrFn<TreeNode[]> }, ctx: 
  * into the bounds; `[min, max]`; the empty string), made fit for the definition as it is now, as
  * the field shows it (sanitizeStored, silently: the definer's, not stored input). So a value equal
  * to what the field shows by default is equal to the default too: a many-of default naming a
- * choice not offered now leaves it out, a number outside the bounds is clamped, a many-of tree's
- * comes normalized under its selection. A one-of tree's is `''` when `optional`, else the first
- * node it can choose in pre-order, else `''` (none can be chosen). It is what a store falls back
- * to, what a reset restores, and what "is it set?" compares against; the kind's hook starts at
- * the same value. A mixed-boolean field is not stored, so its default is taken as given.
+ * choice not offered now leaves it out, a number is clamped into the bounds (and rounded when
+ * `integer`; a range's ends put in order), a many-of tree's comes normalized under its selection.
+ * A one-of tree's is `''` when `optional`, else the first node it can choose in pre-order, else
+ * `''` (none can be chosen). Fitting resolves the options a value is fitted by (choices, nodes,
+ * `min`, `max`, `integer`), so a field-context function among them needs the context; display
+ * options (`format`, `unit`, `step`) are not resolved. It is what a store or a field group falls
+ * back to, what a reset restores, and what "is it set?" compares against. A kind's hook run alone
+ * (no store, no group) starts at the initial value as given instead, from its own helper
+ * (manyOfInitialValue and the like): a many-of or many-of tree hook holds a value not among its
+ * choices or nodes, as they may still be loading. Only a store or a group compares with the
+ * fitted default. A mixed-boolean field is not stored, so its default is taken as given.
  */
 export function initialValueOf(definition: FieldDefinition, ctx: FieldCtx): unknown {
   const initial = initialAsGiven(definition, ctx);
   return definition.kind === 'mixed-boolean' ? initial : sanitizeStored(definition, initial, ctx, () => {});
 }
 
-/** A definition's default before it is made fit for the definition as it is now (initialValueOf). */
+/** A definition's default as given, before it is made fit for the definition as it is now (initialValueOf). */
 function initialAsGiven(definition: FieldDefinition, ctx: FieldCtx): unknown {
   const { id } = definition;
   switch (definition.kind) {
@@ -151,7 +157,8 @@ export function valueTypeOf(kind: FieldKind): ValueType<any> {
 /**
  * A number's or range's bounds, the only options a value is fitted by: its display options
  * (`step`, `unit`, `format`) are left out, so a `format` of the field context needs no provider
- * here, and a default (initialValueOf) is fitted without one.
+ * here, a default (initialValueOf) is fitted without one, and in a field group a display option
+ * reading `values` is no dependency (createGroupValues).
  */
 function boundsOf(id: string, definition: NumericBounds, ctx: FieldCtx): ResolvedNumeric {
   return resolveNumeric(id, { min: definition.min, max: definition.max, integer: definition.integer }, ctx);
