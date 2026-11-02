@@ -4,8 +4,7 @@ import { useSpinnerKey, useVultusComponents, type ActionStatus } from 'vultus-co
 import { CombinedActionButton } from './CombinedActionButton.js';
 import { isActionLocked, useLockedButtonClassNames } from './pendingLock.js';
 import { useConfirm } from './useConfirm.js';
-import { ReasonMarkdown } from './ReasonMarkdown.js';
-import { withReason, withTooltip } from './WithReason.js';
+import { labelAndReason, withReason, withTooltip } from './WithReason.js';
 
 interface Props {
   action: ActionStatus | ActionStatus[];
@@ -119,10 +118,7 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
   );
   if (iconOnly) {
     // The label is the tooltip; a disabled action's reason follows it.
-    const title = action.reason
-      ? <>{action.label}<div style={{ marginTop: 6 }}><ReasonMarkdown>{action.reason}</ReasonMarkdown></div></>
-      : action.label;
-    return wrap(withTooltip(title, action.disabled, button, { open: asking ? false : undefined, block }));
+    return wrap(withTooltip(labelAndReason(action.label, action.reason), action.disabled, button, { open: asking ? false : undefined, block }));
   }
   // A block button's wrapper, when there is one (a reason, or iconOnly's label), is a block too, so the button still fills the row.
   return wrap(withReason(action.reason, action.disabled, button, { block }));

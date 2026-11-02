@@ -38,12 +38,12 @@ export interface ActionMenu {
   // The cascade modal's holder and the typing confirmation's modal: rendered
   // once, beside the anchor.
   dialogs: ReactNode;
-  // True while a pick's popconfirm bubble or typing confirmation is open, and
-  // no longer once it closes (the asked action itself is kept after that, so
-  // the closing bubble keeps its text). A cascade modal does not count: it is
-  // opened through `modal.confirm`, whose open state the hook does not hold.
-  // The caller holds back its control's own tooltip meanwhile, which would
-  // cover the bubble (as ActionButton does with useConfirm's `asking`).
+  // True while a pick's confirmation is open, of every kind: the popconfirm
+  // bubble, the cascade modal or the typing confirmation; no longer once it
+  // closes (the asked action itself is kept after that, so the closing bubble
+  // keeps its text). The caller holds back its control's own tooltip
+  // meanwhile, which would cover the confirmation (as ActionButton does with
+  // useConfirm's `asking`).
   asking: boolean;
 }
 
@@ -61,6 +61,9 @@ export function useActionMenu(actions: ActionStatus[], options: ActionMenuOption
   const [askedId, setAskedId] = useState<string | null>(null);
   const [typingOpen, setTypingOpen] = useState(false);
   const [popconfirmOpen, setPopconfirmOpen] = useState(false);
+  // The cascade modal is open (modal.confirm keeps its own state): from the
+  // pick until its close motion ends (afterClose), as useConfirm's.
+  const [modalOpen, setModalOpen] = useState(false);
   const { token } = theme.useToken();
   const { getPrefixCls } = useContext(ConfigProvider.ConfigContext);
   // Hook-based confirm (not static Modal.confirm): it renders through
@@ -93,6 +96,7 @@ export function useActionMenu(actions: ActionStatus[], options: ActionMenuOption
     }
     if (action.confirmation.kind === 'cascade-modal') {
       const conf = action.confirmation;
+      setModalOpen(true);
       modal.confirm({
         title: conf.title,
         content: conf.content,
@@ -100,6 +104,7 @@ export function useActionMenu(actions: ActionStatus[], options: ActionMenuOption
         okButtonProps: { danger: action.variant === 'danger' },
         onOk: () => { action.fire(); settle(); },
         onCancel: settle,
+        afterClose: () => setModalOpen(false),
       });
       return;
     }
@@ -229,7 +234,7 @@ export function useActionMenu(actions: ActionStatus[], options: ActionMenuOption
     </>
   );
 
-  return { visible, items, fire, anchor, dialogs, asking: popconfirmOpen || typingOpen };
+  return { visible, items, fire, anchor, dialogs, asking: popconfirmOpen || modalOpen || typingOpen };
 }
 
 // A pending row's icon: the app's lent Spinner, keyed to the action as its

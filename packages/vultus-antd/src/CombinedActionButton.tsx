@@ -3,9 +3,8 @@ import { Button, Dropdown, Space, type ButtonProps } from 'antd';
 import { useSpinnerKey, useVultusComponents, type ActionStatus } from 'vultus-core';
 import { ActionButton, alignToJustifyContent } from './ActionButton.js';
 import { isActionLocked, useLockedButtonClassNames } from './pendingLock.js';
-import { ReasonMarkdown } from './ReasonMarkdown.js';
 import { useActionMenu } from './useActionMenu.js';
-import { withReason, withTooltip } from './WithReason.js';
+import { labelAndReason, withReason, withTooltip } from './WithReason.js';
 
 interface Props {
   actions: ActionStatus[];
@@ -148,17 +147,10 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
     // the button (withTooltip), since a disabled button's pointer-events:none
     // swallows the hover. iconOnly: the label is the tooltip and a disabled
     // action's reason follows it, held back while the menu is asking (a
-    // popconfirm bubble or the typing confirmation is open), which it would
-    // cover; otherwise the reason alone, if any.
+    // confirmation of any kind is open), which it would cover; otherwise the
+    // reason alone, if any.
     const withTip = iconOnly
-      ? withTooltip(
-          active.reason
-            ? <>{active.label}<div style={{ marginTop: 6 }}><ReasonMarkdown>{active.reason}</ReasonMarkdown></div></>
-            : active.label,
-          active.disabled,
-          rawButton,
-          { open: menu.asking ? false : undefined },
-        )
+      ? withTooltip(labelAndReason(active.label, active.reason), active.disabled, rawButton, { open: menu.asking ? false : undefined })
       : withReason(active.reason, active.disabled, rawButton);
 
     // The popconfirm's bubble (opened by menu.fire, from the main button OR a

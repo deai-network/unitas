@@ -912,6 +912,20 @@ describe('CombinedActionButton — iconOnly', () => {
     expect(openTooltips()).toHaveLength(0);
   });
 
+  it('while a cascade modal is open, the main half\'s tooltip is held back (it would cover it)', async () => {
+    const a = { ...next(), confirmation: { kind: 'cascade-modal' as const, title: 'Skip ahead?', content: 'The filters are ignored.' } };
+    const { container } = render(wrap(<CombinedActionButton actions={[a, nextAll()]} iconOnly />));
+    const main = mainBtn(container);
+    fireEvent.mouseEnter(main.parentElement!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    fireEvent.click(main);
+    await waitFor(() => {
+      expect(document.body.querySelector('.ant-modal-title')?.textContent).toBe('Skip ahead?');
+    });
+    expect(openTooltips()).toHaveLength(0);
+    expect(a.fire).not.toHaveBeenCalled();
+  });
+
   it('one visible action: an icon-only ActionButton', async () => {
     const hidden = makeStatus({ id: 'h', label: 'Hidden', invisible: true });
     const { container } = render(wrap(<CombinedActionButton actions={[next(), hidden]} iconOnly />));

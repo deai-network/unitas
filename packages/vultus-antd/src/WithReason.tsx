@@ -102,3 +102,13 @@ export function withReason(
 ): ReactElement {
   return withTooltip(reason ? <ReasonMarkdown>{reason}</ReasonMarkdown> : undefined, disabled, control, options);
 }
+
+/**
+ * An icon-only control's tooltip title (for withTooltip): its label, and below
+ * it a disabled control's reason (markdown), if there is one.
+ */
+export function labelAndReason(label: string, reason: string | undefined): ReactNode {
+  return reason
+    ? <>{label}<div style={{ marginTop: 6 }}><ReasonMarkdown>{reason}</ReasonMarkdown></div></>
+    : label;
+}
