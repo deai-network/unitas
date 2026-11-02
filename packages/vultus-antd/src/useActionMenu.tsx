@@ -38,6 +38,13 @@ export interface ActionMenu {
   // The cascade modal's holder and the typing confirmation's modal: rendered
   // once, beside the anchor.
   dialogs: ReactNode;
+  // True while a pick's popconfirm bubble or typing confirmation is open, and
+  // no longer once it closes (the asked action itself is kept after that, so
+  // the closing bubble keeps its text). A cascade modal does not count: it is
+  // opened through `modal.confirm`, whose open state the hook does not hold.
+  // The caller holds back its control's own tooltip meanwhile, which would
+  // cover the bubble (as ActionButton does with useConfirm's `asking`).
+  asking: boolean;
 }
 
 /**
@@ -222,7 +229,7 @@ export function useActionMenu(actions: ActionStatus[], options: ActionMenuOption
     </>
   );
 
-  return { visible, items, fire, anchor, dialogs };
+  return { visible, items, fire, anchor, dialogs, asking: popconfirmOpen || typingOpen };
 }
 
 // A pending row's icon: the app's lent Spinner, keyed to the action as its

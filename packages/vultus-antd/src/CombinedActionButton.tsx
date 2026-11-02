@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Button, Dropdown, Space, Tooltip, type ButtonProps } from 'antd';
+import { Button, Dropdown, Space, type ButtonProps } from 'antd';
 import { useSpinnerKey, useVultusComponents, type ActionStatus } from 'vultus-core';
 import { ActionButton, alignToJustifyContent } from './ActionButton.js';
 import { isActionLocked, useLockedButtonClassNames } from './pendingLock.js';
 import { ReasonMarkdown } from './ReasonMarkdown.js';
 import { useActionMenu } from './useActionMenu.js';
+import { withReason, withTooltip } from './WithReason.js';
 
 interface Props {
   actions: ActionStatus[];
@@ -34,12 +35,19 @@ interface Props {
   // and move together as one unit: before the label for `iconPlacement`
   // `'start'`/unset, after it for `'end'`.
   align?: 'start' | 'center' | 'end';
+  // Show only the active action's icon on the main half: a square button
+  // whose label becomes its accessible name and its tooltip (with the reason
+  // below it when disabled), as ActionButton's `iconOnly`. The icon follows
+  // the active action, so it is what tells the actions apart: give each its
+  // own. The opener and the open list's rows keep their labels and icons. In
+  // the single-button case forwarded to that button.
+  iconOnly?: boolean;
   // Extra class on the buttons (the main half and the opener), e.g. a styling
   // layer's look; in the single-button case on that button.
   className?: string;
 }
 
-export function CombinedActionButton({ actions, size, keepOriginalDefault = false, iconPlacement, align, className }: Props) {
+export function CombinedActionButton({ actions, size, keepOriginalDefault = false, iconPlacement, align, iconOnly, className }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectionSource, setSelectionSource] = useState<'auto' | 'manual'>('auto');
   const { Spinner } = useVultusComponents();
@@ -96,7 +104,7 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
 
   if (visible.length === 0) return null;
   if (visible.length === 1) {
-    return <ActionButton action={visible[0]} size={size} iconPlacement={iconPlacement} align={align} className={className} />;
+    return <ActionButton action={visible[0]} size={size} iconPlacement={iconPlacement} align={align} iconOnly={iconOnly} className={className} />;
   }
 
   const justifyContent = alignToJustifyContent(align);
@@ -129,32 +137,38 @@ export function CombinedActionButton({ actions, size, keepOriginalDefault = fals
         // opens the controlled bubble (the Popconfirm no longer auto-opens
         // on child click now that it is controlled).
         onClick={() => menu.fire(active)}
+        aria-label={iconOnly ? active.label : undefined}
         data-action-id={active.id}
       >
-        {active.label}
+        {iconOnly ? undefined : active.label}
       </Button>
     );
 
-    // Mirror single-action: disabled buttons have pointer-events:none which
-    // swallows tooltip hover; wrap in Tooltip><span> to restore it.
-    const withTooltip = active.reason
-      ? (
-          <Tooltip title={<ReasonMarkdown>{active.reason}</ReasonMarkdown>}>
-            <span style={{ display: 'inline-block', cursor: active.disabled ? 'not-allowed' : undefined }}>
-              {rawButton}
-            </span>
-          </Tooltip>
+    // Mirror single-action (ActionButton): the tooltip sits on a span around
+    // the button (withTooltip), since a disabled button's pointer-events:none
+    // swallows the hover. iconOnly: the label is the tooltip and a disabled
+    // action's reason follows it, held back while the menu is asking (a
+    // popconfirm bubble or the typing confirmation is open), which it would
+    // cover; otherwise the reason alone, if any.
+    const withTip = iconOnly
+      ? withTooltip(
+          active.reason
+            ? <>{active.label}<div style={{ marginTop: 6 }}><ReasonMarkdown>{active.reason}</ReasonMarkdown></div></>
+            : active.label,
+          active.disabled,
+          rawButton,
+          { open: menu.asking ? false : undefined },
         )
-      : rawButton;
+      : withReason(active.reason, active.disabled, rawButton);
 
     // The popconfirm's bubble (opened by menu.fire, from the main button OR a
     // menu row) points at the main half: the chevron click cannot trigger it.
     // A popconfirm action asked is the active one (picking it made it so).
     if (active.confirmation?.kind === 'popconfirm') {
-      return menu.anchor(withTooltip, { disabled: active.disabled });
+      return menu.anchor(withTip, { disabled: active.disabled });
     }
 
-    return withTooltip;
+    return withTip;
   };
 
   // The split button, composed the way antd recommends in place of the

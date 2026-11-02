@@ -72,6 +72,17 @@ describe('ActionButton', () => {
     for (const btn of screen.getAllByRole('button')) expect(btn).toHaveClass('look-y');
   });
 
+  it('array form: iconOnly reaches the combined button\'s main half', () => {
+    render(wrap(<ActionButton action={[
+      makeStatus({ id: 'a', label: 'Analyze', icon: <span data-testid="icon-a" /> }),
+      makeStatus({ id: 'b', label: 'Sync', icon: <span data-testid="icon-b" /> }),
+    ]} iconOnly />));
+    const main = screen.getByRole('button', { name: 'Analyze' });
+    expect(main).not.toHaveTextContent('Analyze');
+    expect(main).toHaveClass('ant-btn-icon-only');
+    expect(within(main).getByTestId('icon-a')).toBeInTheDocument();
+  });
+
   it('className reaches the button', () => {
     render(wrap(<ActionButton action={makeStatus({ label: 'Run' })} className="look-x" />));
     expect(screen.getByRole('button', { name: 'Run' })).toHaveClass('look-x');

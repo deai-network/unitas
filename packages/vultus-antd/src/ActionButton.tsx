@@ -30,7 +30,8 @@ interface Props {
   buttonVariant?: ButtonProps['variant'];
   // Show the icon only: a square button whose label becomes its accessible
   // name and its tooltip (with the reason below it when disabled), and stays
-  // the confirmation's OK text. Single action only.
+  // the confirmation's OK text. Array form: forwarded to
+  // CombinedActionButton's main half (see there).
   iconOnly?: boolean;
   // Extra class on the button, e.g. a styling layer's look or flags. Array
   // form: forwarded to CombinedActionButton's buttons.
@@ -69,6 +70,7 @@ export function ActionButton({ action, size, block, keepOriginalDefault, iconPla
         keepOriginalDefault={keepOriginalDefault}
         iconPlacement={iconPlacement}
         align={align}
+        iconOnly={iconOnly}
         className={className}
       />
     );

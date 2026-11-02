@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { DeleteOutlined, PlayCircleOutlined } from '@ant-design/icons';
-import { ActionButton, denyWithReason, useAction } from 'vultus-antd';
+import { DeleteOutlined, DoubleRightOutlined, PlayCircleOutlined, RightOutlined } from '@ant-design/icons';
+import { ActionButton, CombinedActionButton, denyWithReason, useAction } from 'vultus-antd';
 import { Example, Showcase, delay } from '../Showcase.js';
 
 /** ActionButton renders an action descriptor (useAction). */
@@ -40,6 +40,26 @@ export const TextButtons: StoryObj = {
             <ActionButton action={remove} buttonVariant="text" block align="start" />
           </div>
         </Example>
+      </Showcase>
+    );
+  },
+};
+
+interface CombinedIconOnlyArgs { firstDisabled: boolean }
+
+export const CombinedIconOnly: StoryObj<CombinedIconOnlyArgs> = {
+  name: 'Combined, iconOnly',
+  args: { firstDisabled: false },
+  render: function Render({ firstDisabled }) {
+    const next = useAction({
+      id: 'next', label: 'Next in the filtered list', icon: <RightOutlined />,
+      enabled: firstDisabled ? denyWithReason('No more tasks in the **filtered** list.') : true,
+      fire: () => delay(400),
+    });
+    const nextAll = useAction({ id: 'next-all', label: 'Next, ignoring the filters', icon: <DoubleRightOutlined />, fire: () => delay(400) });
+    return (
+      <Showcase title="iconOnly on a combined button" note="The main half shows only the icon of the action it would run now; hover it for that action's label. 'firstDisabled' disables the first action: the main half moves on to the next enabled one, and its icon (› to ») and label switch with it. The ⋯ list keeps every action's label and icon, a disabled one greyed with its reason on hover.">
+        <Example label="CombinedActionButton iconOnly"><CombinedActionButton actions={[next, nextAll]} iconOnly /></Example>
       </Showcase>
     );
   },

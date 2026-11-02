@@ -592,6 +592,12 @@ By default a menu pick becomes the main action and stays there. Pass
 array) to return the main half to the first enabled action once the picked
 action fires or its confirmation is dismissed.
 
+Pass `iconOnly` (the same two ways) to show only the active action's icon on
+the main half, a square button: its label becomes the half's accessible name
+and its tooltip, with the reason below it while the action is disabled. The
+icon follows the active action, so it is what tells the actions apart: give
+each action its own. The opener and the open list's rows keep their labels.
+
 ## ActionContextMenu
 
 `<ActionContextMenu actions={[showLog, drop]}>{child}</ActionContextMenu>` puts a right-click

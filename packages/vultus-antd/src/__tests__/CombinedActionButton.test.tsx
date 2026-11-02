@@ -5,6 +5,7 @@ import { useAction } from 'vultus-core';
 import { ActionButton } from '../ActionButton.js';
 import { CombinedActionButton } from '../CombinedActionButton.js';
 import { makeStatus } from './helpers/makeStatus.js';
+import { openTooltips } from './helpers/tooltips.js';
 
 function wrap(node: React.ReactNode) {
   return <AntApp>{node}</AntApp>;
@@ -837,5 +838,88 @@ describe('CombinedActionButton — composition', () => {
     await waitFor(() => {
       expect(document.body.querySelector('.vx-modal-confirm-title')?.textContent).toBe('Reset entity?');
     });
+  });
+});
+
+describe('CombinedActionButton — iconOnly', () => {
+  afterEach(() => { Modal.destroyAll(); });
+
+  // Two actions with distinct icons, as a task row's "next" button: step
+  // through the filtered list, or (in the menu) step ignoring the filters.
+  const next = () => makeStatus({ id: 'a', label: 'Next', icon: <span data-testid="icon-a" /> });
+  const nextAll = () => makeStatus({ id: 'b', label: 'Next, ignoring filters', icon: <span data-testid="icon-b" /> });
+
+  it('the main half shows only the active action\'s icon, its label the accessible name; the opener and the rows are unchanged', async () => {
+    const { container } = render(wrap(<CombinedActionButton actions={[next(), nextAll()]} iconOnly />));
+    const main = mainBtn(container);
+    expect(main).toHaveAttribute('aria-label', 'Next');
+    expect(main).not.toHaveTextContent('Next');
+    expect(main).toHaveClass('ant-btn-icon-only');
+    expect(within(main).getByTestId('icon-a')).toBeInTheDocument();
+
+    const opener = chevronBtn(container);
+    expect(within(opener).getByRole('img', { name: 'ellipsis' })).toBeInTheDocument();
+    expect(opener).not.toHaveAttribute('aria-label');
+
+    fireEvent.click(opener);
+    const menu = await screen.findByRole('menu');
+    const aItem = within(menu).getByRole('menuitem', { name: 'Next' });
+    const bItem = within(menu).getByRole('menuitem', { name: 'Next, ignoring filters' });
+    expect(aItem).toHaveTextContent('Next');
+    expect(bItem).toHaveTextContent('Next, ignoring filters');
+    expect(within(aItem).getByTestId('icon-a')).toBeInTheDocument();
+    expect(within(bItem).getByTestId('icon-b')).toBeInTheDocument();
+  });
+
+  it('hovering the main half shows the label as its tooltip', async () => {
+    const { container } = render(wrap(<CombinedActionButton actions={[next(), nextAll()]} iconOnly />));
+    fireEvent.mouseEnter(mainBtn(container).parentElement!);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Next');
+  });
+
+  it('a disabled active action: the tooltip gives the label, then the reason', async () => {
+    const a = { ...next(), disabled: true, reason: 'No more tasks in the filtered list' };
+    const b = { ...nextAll(), disabled: true, reason: 'No more tasks' };
+    const { container } = render(wrap(<CombinedActionButton actions={[a, b]} iconOnly />));
+    expect(mainBtn(container)).toBeDisabled();
+    fireEvent.mouseEnter(mainBtn(container).parentElement!);
+    const tip = await screen.findByRole('tooltip');
+    expect(tip.textContent).toMatch(/^Next.*No more tasks in the filtered list/);
+  });
+
+  it('the icon follows the active action: when the first is disabled, the auto pick moves on, its icon and name with it', () => {
+    const a = next();
+    const b = nextAll();
+    const { container, rerender } = render(wrap(<CombinedActionButton actions={[a, b]} iconOnly />));
+    expect(mainBtn(container)).toHaveAttribute('aria-label', 'Next');
+    expect(within(mainBtn(container)).queryByTestId('icon-a')).not.toBeNull();
+    expect(within(mainBtn(container)).queryByTestId('icon-b')).toBeNull();
+
+    rerender(wrap(<CombinedActionButton actions={[{ ...a, disabled: true }, b]} iconOnly />));
+    expect(mainBtn(container)).toHaveAttribute('aria-label', 'Next, ignoring filters');
+    expect(within(mainBtn(container)).queryByTestId('icon-b')).not.toBeNull();
+    expect(within(mainBtn(container)).queryByTestId('icon-a')).toBeNull();
+  });
+
+  it('while a popconfirm\'s bubble is open, the main half\'s tooltip is held back (it would cover it)', async () => {
+    const a = { ...next(), confirmation: { kind: 'popconfirm' as const, question: 'Sure?' } };
+    const { container } = render(wrap(<CombinedActionButton actions={[a, nextAll()]} iconOnly />));
+    const main = mainBtn(container);
+    fireEvent.mouseEnter(main.parentElement!);
+    await waitFor(() => expect(openTooltips()).toHaveLength(1));
+    fireEvent.click(main);
+    expect(await screen.findByText('Sure?')).toBeInTheDocument();
+    expect(openTooltips()).toHaveLength(0);
+  });
+
+  it('one visible action: an icon-only ActionButton', async () => {
+    const hidden = makeStatus({ id: 'h', label: 'Hidden', invisible: true });
+    const { container } = render(wrap(<CombinedActionButton actions={[next(), hidden]} iconOnly />));
+    expect(container.querySelector('.ant-dropdown-trigger')).toBeNull();
+    const btn = screen.getByRole('button', { name: 'Next' });
+    expect(btn).not.toHaveTextContent('Next');
+    expect(btn).toHaveClass('ant-btn-icon-only');
+    fireEvent.mouseEnter(btn.parentElement!);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Next');
   });
 });
