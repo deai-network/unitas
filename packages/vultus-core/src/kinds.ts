@@ -1,7 +1,7 @@
 import { resolveChoice, type OneOfChoice, type OneOfChoiceControls } from './choices.js';
 import type { FieldBaseOptions, FieldKind } from './field.js';
 import type { FieldCtx } from './FieldContext.js';
-import { clamp, fit, resolveNumeric } from './numeric.js';
+import { clamp, fit, resolveNumeric, type NumericBounds, type ResolvedNumeric } from './numeric.js';
 import { resolveIn } from './resolve.js';
 import { choosableValues, normalizeTreeValue, type TreeNode } from './tree.js';
 import type { Fits, ValueOrFn } from './types.js';
@@ -100,13 +100,22 @@ function nodesOf(definition: { id: string; nodes: ValueOrFn<TreeNode[]> }, ctx: 
 /**
  * A definition's default: `initialValue` resolved with the field context, else its kind's
  * implicit initial value (false; the first enabled choice; the empty list; `min`, or 0, clamped
- * into the bounds; `[min, max]`; the empty string). A many-of tree's comes normalized under its
- * selection, as the hook shows it, so a value equal to what the field shows by default is equal
- * to the default too; a one-of tree's is `''` when `optional`, else the first node it can choose
- * in pre-order, else `''` (none can be chosen). It is what a store falls back to, what a reset
- * restores, and what "is it set?" compares against; the kind's hook starts at the same value.
+ * into the bounds; `[min, max]`; the empty string), made fit for the definition as it is now, as
+ * the field shows it (sanitizeStored, silently: the definer's, not stored input). So a value equal
+ * to what the field shows by default is equal to the default too: a many-of default naming a
+ * choice not offered now leaves it out, a number outside the bounds is clamped, a many-of tree's
+ * comes normalized under its selection. A one-of tree's is `''` when `optional`, else the first
+ * node it can choose in pre-order, else `''` (none can be chosen). It is what a store falls back
+ * to, what a reset restores, and what "is it set?" compares against; the kind's hook starts at
+ * the same value. A mixed-boolean field is not stored, so its default is taken as given.
  */
 export function initialValueOf(definition: FieldDefinition, ctx: FieldCtx): unknown {
+  const initial = initialAsGiven(definition, ctx);
+  return definition.kind === 'mixed-boolean' ? initial : sanitizeStored(definition, initial, ctx, () => {});
+}
+
+/** A definition's default before it is made fit for the definition as it is now (initialValueOf). */
+function initialAsGiven(definition: FieldDefinition, ctx: FieldCtx): unknown {
   const { id } = definition;
   switch (definition.kind) {
     case 'boolean': return boolInitialValue(definition, ctx, id);
@@ -137,6 +146,15 @@ export function valueTypeOf(kind: FieldKind): ValueType<any> {
     case 'mixed-boolean': throw new Error(NOT_STORABLE);
     default: throw new Error(`unknown field kind '${String(kind as unknown)}'`);
   }
+}
+
+/**
+ * A number's or range's bounds, the only options a value is fitted by: its display options
+ * (`step`, `unit`, `format`) are left out, so a `format` of the field context needs no provider
+ * here, and a default (initialValueOf) is fitted without one.
+ */
+function boundsOf(id: string, definition: NumericBounds, ctx: FieldCtx): ResolvedNumeric {
+  return resolveNumeric(id, { min: definition.min, max: definition.max, integer: definition.integer }, ctx);
 }
 
 function warnDropped(id: string, among: 'choices' | 'nodes', dropped: string[], warn: (message: string) => void): void {
@@ -212,7 +230,7 @@ export function sanitizeStored(
     }
     case 'numeric': {
       const stored = value as number;
-      const { min, max, integer } = resolveNumeric(id, definition, ctx);
+      const { min, max, integer } = boundsOf(id, definition, ctx);
       const clamped = clamp(stored, min, max);
       const fitted = fit(stored, min, max, integer);
       if (fitted !== stored) {
@@ -223,7 +241,7 @@ export function sanitizeStored(
     }
     case 'range': {
       const stored = value as NumberRange;
-      const { min, max, integer } = resolveNumeric(id, definition, ctx);
+      const { min, max, integer } = boundsOf(id, definition, ctx);
       const clampedChanged = clamp(stored[0], min, max) !== stored[0] || clamp(stored[1], min, max) !== stored[1];
       const from = fit(stored[0], min, max, integer);
       const to = fit(stored[1], min, max, integer);

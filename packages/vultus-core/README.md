@@ -364,7 +364,12 @@ place, and the entry point for it: what a definition with no `initialValue`
 starts at, what a reset restores, and what "is it changed?" compares
 against — `false`; the first enabled choice; the empty list; `min` (or `0`)
 clamped into the bounds; `[min, max]`; the empty string for text; for a
-tree, the value normalized under its `selection`. (The per-kind helpers it
+tree, the value normalized under its `selection`. It is the default as the
+field shows it: made fit for the definition as it is now, as a stored value
+is (`sanitizeStored`, silently), so a many-of `initialValue` naming a choice
+not offered now leaves it out, and a number outside the bounds is clamped.
+Writing back the value a field showed at first therefore leaves no key in
+the store. (The per-kind helpers it
 is built on — `boolInitialValue`, `oneOfInitialValue`, `rangeInitialValue`
 and the like — are exported too.) A hook computes its kind's default once,
 when the field mounts, not on every render.
